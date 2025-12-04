@@ -1,0 +1,89 @@
+{
+    "name": "rarus/echo-php-sdk",
+    "description": "PHP SDK for Rarus Echo Transcription Service",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "rarus",
+        "echo",
+        "transcription",
+        "speech-to-text",
+        "sdk",
+        "psr-18",
+        "symfony"
+    ],
+    "authors": [
+        {
+            "name": "Rarus Team"
+        }
+    ],
+    "require": {
+        "php": "^8.1 || ^8.2 || ^8.3",
+        "ext-json": "*",
+        "ext-curl": "*",
+        "ext-mbstring": "*",
+        "ext-fileinfo": "*",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.0 || ^2.0",
+        "psr/log": "^3.0",
+        "php-http/discovery": "^1.19",
+        "php-http/httplug": "^2.4",
+        "php-http/message": "^1.16",
+        "php-http/message-factory": "^1.1",
+        "ramsey/uuid": "^4.7",
+        "symfony/filesystem": "^6.4 || ^7.0",
+        "symfony/http-client": "^6.4 || ^7.0",
+        "symfony/mime": "^6.4 || ^7.0",
+        "symfony/property-access": "^6.4 || ^7.0",
+        "symfony/property-info": "^6.4 || ^7.0",
+        "symfony/serializer": "^6.4 || ^7.0",
+        "symfony/validator": "^6.4 || ^7.0"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "friendsofphp/php-cs-fixer": "^3.48",
+        "monolog/monolog": "^3.5",
+        "php-http/mock-client": "^1.6",
+        "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-phpunit": "^1.3",
+        "phpstan/phpstan-symfony": "^1.3",
+        "phpunit/phpunit": "^10.5 || ^11.0",
+        "rector/rector": "^1.0",
+        "symfony/var-dumper": "^6.4 || ^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rarus\\Echo\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rarus\\Echo\\Tests\\": "tests/",
+            "Rarus\\Echo\\Tools\\": "tools/"
+        }
+    },
+    "scripts": {
+        "test:unit": "phpunit --testsuite=unit",
+        "test:integration": "phpunit --testsuite=integration",
+        "test:all": "phpunit",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "cs-fix": "php-cs-fixer fix",
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "rector": "rector process",
+        "rector-dry": "rector process --dry-run",
+        "ci": [
+            "@cs-check",
+            "@phpstan",
+            "@test:all"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
