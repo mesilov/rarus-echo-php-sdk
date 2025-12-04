@@ -7,7 +7,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 
 ## Статус проекта
 
-🚧 **В разработке** - SDK находится в активной разработке согласно [плану реализации](PLAN.md)
+✅ **Готов к использованию** - SDK полностью функционален и готов к использованию в проектах. См. [план реализации](PLAN.md) для деталей архитектуры
 
 ## Возможности
 
@@ -34,6 +34,8 @@ composer require rarus/echo-php-sdk
 
 ## Быстрый старт
 
+### Базовое использование
+
 ```php
 <?php
 
@@ -51,34 +53,81 @@ $credentials = Credentials::create(
     userId: '00000000-0000-0000-0000-000000000000'
 );
 
+// Или из переменных окружения
+// $app = EchoApplication::fromEnvironment();
+
 // Инициализация приложения
 $app = new EchoApplication($credentials);
 
-// Отправка файла на транскрибацию
-$options = new TranscriptionOptions(
-    taskType: TaskType::TRANSCRIPTION,
-    language: Language::RU
-);
+// Настройка опций транскрибации
+$options = TranscriptionOptions::create()
+    ->withTaskType(TaskType::DIARIZATION)  // С разбиением по говорящим
+    ->withLanguage(Language::RU)            // Русский язык
+    ->withCensor(true)                      // С цензурой
+    ->build();
 
+// Отправка файлов на транскрибацию
 $result = $app->getTranscriptionService()->submitTranscription(
-    files: ['/path/to/audio.mp3'],
+    files: ['/path/to/audio.mp3', '/path/to/audio2.wav'],
     options: $options
 );
 
-$fileId = $result->getResults()[0]->getFileId();
+$fileId = $result->getFirstFileId();
+echo "Файл отправлен: {$fileId}\n";
 
-// Получение результата
-$transcript = $app->getTranscriptionService()->getTranscript($fileId);
-echo $transcript->getResult();
+// Проверка статуса
+$status = $app->getStatusService()->getFileStatus($fileId);
+echo "Статус: {$status->getStatus()->value}\n";
+
+// Ожидание завершения и получение результата
+while (!$status->isCompleted()) {
+    sleep(5);
+    $transcript = $app->getTranscriptionService()->getTranscript($fileId);
+
+    if ($transcript->isSuccessful()) {
+        echo "Результат:\n{$transcript->getResult()}\n";
+        break;
+    }
+}
 ```
+
+### С обработкой ошибок
+
+```php
+use Rarus\Echo\Exception\FileException;
+use Rarus\Echo\Exception\ValidationException;
+use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\ApiException;
+
+try {
+    $result = $app->getTranscriptionService()->submitTranscription($files, $options);
+} catch (FileException $e) {
+    // Ошибка файла (не найден, не читается, неверный формат)
+    echo "Ошибка файла: {$e->getMessage()}\n";
+} catch (ValidationException $e) {
+    // Ошибка валидации (422)
+    echo "Ошибка валидации: {$e->getMessage()}\n";
+    echo "Детали:\n{$e->getValidationErrorsAsString()}\n";
+} catch (AuthenticationException $e) {
+    // Ошибка аутентификации (401)
+    echo "Ошибка аутентификации: {$e->getMessage()}\n";
+} catch (ApiException $e) {
+    // Общая ошибка API
+    echo "Ошибка API: {$e->getMessage()}\n";
+}
+```
+
+Полные примеры использования:
+- [examples/basic-usage.php](examples/basic-usage.php) - базовый функционал
+- [examples/advanced-usage.php](examples/advanced-usage.php) - пакетная обработка, мониторинг, статистика
 
 ## Документация
 
 - 📋 [План реализации](PLAN.md) - детальный план разработки SDK
-- 📚 [API Reference](docs/api-reference.md) - описание всех методов (в разработке)
-- 🚀 [Quick Start](docs/quick-start.md) - руководство по началу работы (в разработке)
-- 🏗️ [Архитектура](docs/architecture.md) - архитектура SDK (в разработке)
-- 💡 [Примеры](docs/examples/) - примеры использования (в разработке)
+- 💡 [Базовый пример](examples/basic-usage.php) - основные возможности SDK
+- 🚀 [Расширенный пример](examples/advanced-usage.php) - пакетная обработка, мониторинг, статистика
+- 🏗️ Архитектура - см. раздел "Архитектура" ниже
+- 📚 [OpenAPI спецификация](https://production-ai-ui-api.ai.rarus-cloud.ru/openapi.json) - официальная API документация
 
 ## Разработка
 
@@ -204,7 +253,7 @@ Infrastructure Layer (HttpClient, Serializer, Filesystem)
 
 ## Вклад в проект
 
-Мы приветствуем вклад в развитие проекта! Пожалуйста, ознакомьтесь с [CONTRIBUTING.md](CONTRIBUTING.md) (в разработке).
+Мы приветствуем вклад в развитие проекта! Пожалуйста, ознакомьтесь с [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Процесс разработки
 
@@ -230,4 +279,4 @@ MIT License. См. [LICENSE](LICENSE) для деталей.
 
 ---
 
-**Примечание:** Этот SDK находится в активной разработке. API может изменяться до релиза версии 1.0.0.
+Разработано с использованием стандартов PSR и компонентов Symfony для максимальной совместимости и качества кода.
