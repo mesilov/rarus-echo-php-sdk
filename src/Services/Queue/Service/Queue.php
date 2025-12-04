@@ -10,6 +10,7 @@ use Rarus\Echo\Core\ApiClient;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
+use Rarus\Echo\Application\Contracts\QueueServiceInterface;
 use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 
@@ -17,7 +18,7 @@ use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
  * Queue service
  * Handles queue information operations
  */
-final class Queue extends AbstractService
+final class Queue extends AbstractService implements QueueServiceInterface
 {
     private readonly LoggerInterface $logger;
 
