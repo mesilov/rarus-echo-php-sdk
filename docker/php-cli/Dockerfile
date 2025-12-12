@@ -8,7 +8,7 @@ FROM mlocati/php-extension-installer:2.4 AS php-extension-installer
 FROM composer:2.8 AS composer
 
 # Stage 3: Development PHP environment
-FROM php:8.3-cli-bookworm AS dev-php
+FROM php:8.4-cli-bookworm AS dev-php
 
 # Build arguments for user permissions
 ARG UID=1000

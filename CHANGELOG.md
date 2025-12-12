@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- PHP 8.4 support
 - Initial SDK implementation with complete functionality
 - Support for asynchronous audio/video transcription
 - 14 language support (including auto-detection)
@@ -47,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Infrastructure Layer: HTTP client, Serializer, Filesystem operations
 
 ### Dependencies
-- PHP ^8.1 || ^8.2 || ^8.3
+- PHP ^8.1 || ^8.2 || ^8.3 || ^8.4
 - symfony/http-client ^6.4 || ^7.0
 - symfony/serializer ^6.4 || ^7.0
 - symfony/filesystem ^6.4 || ^7.0
