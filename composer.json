@@ -23,6 +23,7 @@
         "ext-curl": "*",
         "ext-mbstring": "*",
         "ext-fileinfo": "*",
+        "nesbot/carbon": "^2.72 || ^3.0",
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
         "psr/http-message": "^1.0 || ^2.0",

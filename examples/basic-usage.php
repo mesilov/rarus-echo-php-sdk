@@ -163,11 +163,13 @@ if ($queueInfo->isEmpty()) {
 // 6. Get transcriptions by period
 // ============================================================================
 
-use Rarus\Echo\Services\Transcription\Request\PeriodRequest;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 echo "\nGetting today's transcriptions...\n";
-$periodRequest = PeriodRequest::today();
-$transcripts = $transcriptionService->getTranscriptsByPeriod($periodRequest);
+$today = Carbon::today();
+$period = CarbonPeriod::create($today, $today);
+$transcripts = $transcriptionService->getTranscriptsByPeriod($period);
 
 echo "Found {$transcripts->getCount()} transcriptions\n";
 echo "Page {$transcripts->getPage()} of {$transcripts->getTotalPages()}\n";

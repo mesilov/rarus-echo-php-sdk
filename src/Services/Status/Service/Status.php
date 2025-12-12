@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Services\Status\Service;
 
+use Carbon\CarbonPeriod;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Core\ApiClient;
@@ -15,7 +16,6 @@ use Rarus\Echo\Application\Contracts\StatusServiceInterface;
 use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
-use Rarus\Echo\Services\Transcription\Request\PeriodRequest;
 
 /**
  * Status service
@@ -60,22 +60,45 @@ final class Status extends AbstractService implements StatusServiceInterface
     /**
      * Get statuses for user's files by period
      *
+     * @param CarbonPeriod $period     Date period (start and end dates)
+     * @param string       $timeStart  Start time (default: '00:00:00')
+     * @param string       $timeEnd    End time (default: '23:59:59')
+     * @param int          $page       Page number (default: 1)
+     * @param int          $perPage    Items per page (default: 10)
+     *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getUserStatuses(PeriodRequest $request): StatusBatchResult
-    {
+    public function getUserStatuses(
+        CarbonPeriod $period,
+        string $timeStart = '00:00:00',
+        string $timeEnd = '23:59:59',
+        int $page = 1,
+        int $perPage = 10
+    ): StatusBatchResult {
+        $start = $period->getStartDate();
+        $end = $period->getEndDate();
+
         $this->logger->debug('Getting user statuses', [
-            'period_start' => $request->getPeriodStart(),
-            'period_end' => $request->getPeriodEnd(),
-            'page' => $request->getPage(),
+            'period_start' => $start->format('Y-m-d'),
+            'period_end' => $end->format('Y-m-d'),
+            'page' => $page,
         ]);
+
+        $queryParams = [
+            'period_start' => $start->format('Y-m-d'),
+            'period_end' => $end->format('Y-m-d'),
+            'time_start' => $timeStart,
+            'time_end' => $timeEnd,
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
 
         $response = $this->apiClient->get(
             '/v1/async/transcription/userid',
-            $request->toQueryParams()
+            $queryParams
         );
 
         $data = $response->getJson();

@@ -32,6 +32,10 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 - `symfony/filesystem` - Работа с файловой системой
 - `symfony/validator` - Валидация данных
 
+### Работа с датами
+- `nesbot/carbon` - Мощная библиотека для работы с датами и временем
+- Использование `CarbonPeriod` для работы с периодами дат
+
 ### HTTP Discovery
 - `php-http/discovery` - Автоматическое обнаружение HTTP клиентов
 - `php-http/httplug` - HTTP клиент абстракция
@@ -168,7 +172,7 @@ $queue = $app->getQueueService();
 **Методы:**
 - `submitTranscription(array $files, TranscriptionOptions $options): TranscriptPostResult`
 - `getTranscript(string $fileId): TranscriptItemResult`
-- `getTranscriptsByPeriod(PeriodRequest $request): TranscriptBatchResult`
+- `getTranscriptsByPeriod(CarbonPeriod $period, string $timeStart, string $timeEnd, int $page, int $perPage): TranscriptBatchResult`
 - `getTranscriptsList(array $fileIds, int $page, int $perPage): TranscriptBatchResult`
 - `submitFromDrive(DriveRequest $request): WebDAVResult`
 
@@ -176,7 +180,7 @@ $queue = $app->getQueueService();
 
 **Методы:**
 - `getFileStatus(string $fileId): StatusItemResult`
-- `getUserStatuses(PeriodRequest $request): StatusBatchResult`
+- `getUserStatuses(CarbonPeriod $period, string $timeStart, string $timeEnd, int $page, int $perPage): StatusBatchResult`
 - `getStatusList(array $fileIds, int $page, int $perPage): StatusBatchResult`
 
 #### QueueService
@@ -466,8 +470,8 @@ make docs-generate     # Генерация документации
   - [ ] `TranscriptionStatus` (waiting, processing, success, failure)
 - [ ] Request модели
   - [ ] `TranscriptionOptions` (task_type, language, censor, etc.)
-  - [ ] `PeriodRequest` (period_start, period_end, pagination)
   - [ ] `DriveRequest` (target_path, is_immediate)
+  - [ ] Использование `Carbon\CarbonPeriod` для работы с периодами дат
 - [ ] Result модели
   - [ ] `TranscriptPostResult` (file_id)
   - [ ] `TranscriptItemResult` (file_id, task_type, status, result)
@@ -742,7 +746,8 @@ while (true) {
 ```php
 <?php
 
-use Rarus\Echo\Services\Status\Request\PeriodRequest;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 $status = $app->getStatusService();
 
@@ -753,14 +758,12 @@ echo "File size: {$fileStatus->getFileSize()} MB\n";
 echo "Duration: {$fileStatus->getFileDuration()} min\n";
 
 // Статусы всех файлов пользователя за период
-$periodRequest = new PeriodRequest(
-    periodStart: '2025-01-01',
-    periodEnd: '2025-12-31',
-    page: 1,
-    perPage: 50
+$period = CarbonPeriod::create(
+    Carbon::parse('2025-01-01'),
+    Carbon::parse('2025-12-31')
 );
 
-$userStatuses = $status->getUserStatuses($periodRequest);
+$userStatuses = $status->getUserStatuses($period, page: 1, perPage: 50);
 foreach ($userStatuses->getResults() as $item) {
     echo "File: {$item->getFileId()}, Status: {$item->getStatus()->value}\n";
 }

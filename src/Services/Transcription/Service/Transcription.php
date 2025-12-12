@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Services\Transcription\Service;
 
+use Carbon\CarbonPeriod;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Core\ApiClient;
@@ -16,7 +17,6 @@ use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Transcription\Request\DriveRequest;
-use Rarus\Echo\Services\Transcription\Request\PeriodRequest;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptItemResult;
@@ -115,22 +115,45 @@ final class Transcription extends AbstractService implements TranscriptionServic
     /**
      * Get transcriptions by period
      *
+     * @param CarbonPeriod $period     Date period (start and end dates)
+     * @param string       $timeStart  Start time (default: '00:00:00')
+     * @param string       $timeEnd    End time (default: '23:59:59')
+     * @param int          $page       Page number (default: 1)
+     * @param int          $perPage    Items per page (default: 10)
+     *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getTranscriptsByPeriod(PeriodRequest $request): TranscriptBatchResult
-    {
+    public function getTranscriptsByPeriod(
+        CarbonPeriod $period,
+        string $timeStart = '00:00:00',
+        string $timeEnd = '23:59:59',
+        int $page = 1,
+        int $perPage = 10
+    ): TranscriptBatchResult {
+        $start = $period->getStartDate();
+        $end = $period->getEndDate();
+
         $this->logger->debug('Getting transcriptions by period', [
-            'period_start' => $request->getPeriodStart(),
-            'period_end' => $request->getPeriodEnd(),
-            'page' => $request->getPage(),
+            'period_start' => $start->format('Y-m-d'),
+            'period_end' => $end->format('Y-m-d'),
+            'page' => $page,
         ]);
+
+        $queryParams = [
+            'period_start' => $start->format('Y-m-d'),
+            'period_end' => $end->format('Y-m-d'),
+            'time_start' => $timeStart,
+            'time_end' => $timeEnd,
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
 
         $response = $this->apiClient->get(
             '/v1/async/transcription/period',
-            $request->toQueryParams()
+            $queryParams
         );
 
         $data = $response->getJson();

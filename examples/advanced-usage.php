@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Rarus\Echo\Application\EchoApplication;
@@ -16,7 +18,6 @@ use Rarus\Echo\Core\Credentials\CredentialsBuilder;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Exception\EchoException;
-use Rarus\Echo\Services\Transcription\Request\PeriodRequest;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 
 // ============================================================================
@@ -187,13 +188,13 @@ echo str_repeat('=', 80) . "\n";
 echo "Monthly Statistics\n";
 echo str_repeat('=', 80) . "\n\n";
 
-$startDate = new DateTime('first day of this month');
-$endDate = new DateTime('last day of this month');
+$startDate = Carbon::parse('first day of this month');
+$endDate = Carbon::parse('last day of this month');
 
-$periodRequest = PeriodRequest::dateRange($startDate, $endDate, page: 1, perPage: 100);
+$period = CarbonPeriod::create($startDate, $endDate);
 
 try {
-    $transcripts = $transcriptionService->getTranscriptsByPeriod($periodRequest);
+    $transcripts = $transcriptionService->getTranscriptsByPeriod($period, page: 1, perPage: 100);
 
     echo "Total transcriptions this month: {$transcripts->getCount()}\n";
     echo "Pages: {$transcripts->getTotalPages()}\n\n";
