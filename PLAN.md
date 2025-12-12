@@ -131,14 +131,14 @@ rarus-echo-php-sdk/
 
 ### 1. Application Layer
 
-#### EchoApplication
-Главная точка входа в SDK. Предоставляет доступ ко всем сервисам.
+#### ServiceFactory
+Фабрика сервисов SDK. Предоставляет доступ ко всем сервисам.
 
 ```php
 $factory = new ServiceFactory($credentials);
-$transcription = $app->getTranscriptionService();
-$status = $app->getStatusService();
-$queue = $app->getQueueService();
+$transcription = $factory->getTranscriptionService();
+$status = $factory->getStatusService();
+$queue = $factory->getQueueService();
 ```
 
 #### Contracts (Интерфейсы)
