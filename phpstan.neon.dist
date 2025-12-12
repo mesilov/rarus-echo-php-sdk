@@ -1,0 +1,28 @@
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests/Unit
+        - tests/Integration
+
+    bootstrapFiles:
+        - tests/bootstrap.php
+
+    parallel:
+        maximumNumberOfProcesses: 8
+        jobSize: 20
+
+    editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'
+
+    treatPhpDocTypesAsCertain: false
+
+    ignoreErrors:
+        # Add specific errors to ignore here if needed
+
+    excludePaths:
+        - tests/Fixtures/*
+        - tests/Temp/*
