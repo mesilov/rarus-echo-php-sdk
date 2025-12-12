@@ -17,12 +17,10 @@ use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Services\AbstractService;
-use Rarus\Echo\Services\Transcription\Request\DriveRequest;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptItemResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
-use Rarus\Echo\Services\Transcription\Result\WebDAVResult;
 
 /**
  * Transcription service
@@ -197,37 +195,5 @@ final class Transcription extends AbstractService implements TranscriptionServic
         $data = $response->getJson();
 
         return TranscriptBatchResult::fromArray($data);
-    }
-
-    /**
-     * Submit files from Rarus Drive for transcription
-     *
-     * @throws NetworkException
-     * @throws AuthenticationException
-     * @throws ApiException
-     */
-    public function submitFromDrive(DriveRequest $request): WebDAVResult
-    {
-        $this->logger->info('Submitting from Rarus Drive', [
-            'target_path' => $request->getTargetPath(),
-            'is_immediate' => $request->isImmediate(),
-        ]);
-
-        $response = $this->apiClient->post(
-            '/v2/webdav',
-            $request->toArray(),
-            $request->toHeaders()
-        );
-
-        $data = $response->getJson();
-        $result = WebDAVResult::fromArray($data);
-
-        $this->logger->info('Drive submission completed', [
-            'total' => $result->getCount(),
-            'successful' => $result->getSuccessCount(),
-            'failed' => $result->getFailureCount(),
-        ]);
-
-        return $result;
     }
 }

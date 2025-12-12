@@ -191,7 +191,6 @@ Immutable value object для управления пагинацией:
 - `getTranscript(string $fileId): TranscriptItemResult`
 - `getTranscriptsByPeriod(DateTimeInterface $startDate, DateTimeInterface $endDate, Pagination $pagination): TranscriptBatchResult`
 - `getTranscriptsList(array $fileIds, Pagination $pagination): TranscriptBatchResult`
-- `submitFromDrive(DriveRequest $request): WebDAVResult`
 
 #### StatusService
 
@@ -487,7 +486,6 @@ make docs-generate     # Генерация документации
   - [ ] `TranscriptionStatus` (waiting, processing, success, failure)
 - [ ] Request модели
   - [ ] `TranscriptionOptions` (task_type, language, censor, etc.)
-  - [ ] `DriveRequest` (target_path, is_immediate)
   - [ ] Использование стандартного `DateTimeInterface` для работы с датами и временем
 - [ ] Result модели
   - [ ] `TranscriptPostResult` (file_id)
@@ -496,7 +494,6 @@ make docs-generate     # Генерация документации
   - [ ] `StatusItemResult` (file_id, status, file_size, file_duration)
   - [ ] `StatusBatchResult` (results[], pagination)
   - [ ] `QueueInfoResult` (files_count, files_size, files_duration)
-  - [ ] `WebDAVResult` (result[])
 - [ ] Serializer setup
   - [ ] `SerializerInterface`
   - [ ] `SymfonySerializer` - реализация через Symfony Serializer
@@ -539,7 +536,6 @@ make docs-generate     # Генерация документации
   - [ ] `getTranscript()` - получение результата
   - [ ] `getTranscriptsByPeriod()` - за период
   - [ ] `getTranscriptsList()` - список по ID
-  - [ ] `submitFromDrive()` - загрузка из Drive
 - [ ] `StatusService`
   - [ ] `getFileStatus()` - статус файла
   - [ ] `getUserStatuses()` - статусы пользователя
@@ -826,29 +822,6 @@ try {
     // Ошибка API (400, 500)
 } catch (\Exception $e) {
     echo "Unexpected error: {$e->getMessage()}\n";
-}
-```
-
-### Работа с Rarus Drive
-
-```php
-<?php
-
-use Rarus\Echo\Services\Transcription\Request\DriveRequest;
-
-$driveRequest = new DriveRequest(
-    targetPath: 'Общие/Аудио/meeting.mp3',
-    isImmediate: true  // высокий приоритет
-);
-
-$result = $transcription->submitFromDrive($driveRequest);
-
-foreach ($result->getResult() as $item) {
-    if ($item->getStatus() === 'success') {
-        echo "File sent: {$item->getFilePath()}, ID: {$item->getFileId()}\n";
-    } else {
-        echo "Error: {$item->getFilePath()} - {$item->getError()}\n";
-    }
 }
 ```
 

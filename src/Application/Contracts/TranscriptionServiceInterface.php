@@ -6,12 +6,10 @@ namespace Rarus\Echo\Application\Contracts;
 
 use DateTimeInterface;
 use Rarus\Echo\Core\Pagination;
-use Rarus\Echo\Services\Transcription\Request\DriveRequest;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptItemResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
-use Rarus\Echo\Services\Transcription\Result\WebDAVResult;
 
 /**
  * Contract for Transcription service
@@ -57,9 +55,4 @@ interface TranscriptionServiceInterface
         array $fileIds,
         Pagination $pagination
     ): TranscriptBatchResult;
-
-    /**
-     * Submit files from Rarus Drive for transcription
-     */
-    public function submitFromDrive(DriveRequest $request): WebDAVResult;
 }

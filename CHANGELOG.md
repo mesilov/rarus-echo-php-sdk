@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP 8.4 support
 - Initial SDK implementation with complete functionality
 
+### Removed
+- **BREAKING**: Removed `submitFromDrive()` method from `TranscriptionServiceInterface`
+  - Removed `DriveRequest` class
+  - Removed `WebDAVResult` and `WebDAVResultItem` classes
+  - Rarus Drive integration is no longer supported
+
 ### Changed
 - **BREAKING**: Minimum PHP version increased from 8.1 to 8.2
 - **BREAKING**: Replaced `CarbonPeriod` with `DateTimeInterface` in period-based methods
@@ -34,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive exception hierarchy
 - File validation (max 500MB, 17 audio/video formats)
 - Service layer with 3 main services:
-  - TranscriptionService: file upload, transcript retrieval, Drive integration
+  - TranscriptionService: file upload, transcript retrieval
   - StatusService: status checking for transcription tasks
   - QueueService: queue monitoring and statistics
 - Builder pattern for complex objects (Credentials, TranscriptionOptions)

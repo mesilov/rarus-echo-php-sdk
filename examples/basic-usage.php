@@ -204,31 +204,4 @@ if (count($fileIds) > 1) {
     }
 }
 
-// ============================================================================
-// 8. Upload from Rarus Drive (optional)
-// ============================================================================
-
-use Rarus\Echo\Services\Transcription\Request\DriveRequest;
-
-// Uncomment to use Drive integration
-/*
-echo "\nUploading from Rarus Drive...\n";
-$driveRequest = DriveRequest::forPath('Общие/Аудио/meeting.mp3', highPriority: true);
-$driveResult = $transcriptionService->submitFromDrive($driveRequest);
-
-echo "Upload results:\n";
-foreach ($driveResult->getResult() as $item) {
-    if ($item->isSuccess()) {
-        echo "  ✓ {$item->getFilePath()}: {$item->getFileId()}\n";
-    } elseif ($item->isFailure()) {
-        echo "  ✗ {$item->getFilePath()}: {$item->getError()}\n";
-    } else {
-        echo "  ⚠ {$item->getFilePath()}: {$item->getError()}\n";
-    }
-}
-
-echo "Successful: {$driveResult->getSuccessCount()}\n";
-echo "Failed: {$driveResult->getFailureCount()}\n";
-*/
-
 echo "\nDone!\n";
