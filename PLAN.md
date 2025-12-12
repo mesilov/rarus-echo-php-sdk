@@ -33,8 +33,9 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 - `symfony/validator` - Валидация данных
 
 ### Работа с датами
-- `nesbot/carbon` - Мощная библиотека для работы с датами и временем
-- Использование `CarbonPeriod` для работы с периодами дат
+- `nesbot/carbon` - Мощная библиотека для работы с датами и временем (опциональная)
+- Использование стандартного `DateTimeInterface` в API сервисов
+- Carbon остается в зависимостях для удобства пользователей
 
 ### HTTP Discovery
 - `php-http/discovery` - Автоматическое обнаружение HTTP клиентов
@@ -172,7 +173,7 @@ $queue = $app->getQueueService();
 **Методы:**
 - `submitTranscription(array $files, TranscriptionOptions $options): TranscriptPostResult`
 - `getTranscript(string $fileId): TranscriptItemResult`
-- `getTranscriptsByPeriod(CarbonPeriod $period, string $timeStart, string $timeEnd, int $page, int $perPage): TranscriptBatchResult`
+- `getTranscriptsByPeriod(DateTimeInterface $startDate, DateTimeInterface $endDate, int $page, int $perPage): TranscriptBatchResult`
 - `getTranscriptsList(array $fileIds, int $page, int $perPage): TranscriptBatchResult`
 - `submitFromDrive(DriveRequest $request): WebDAVResult`
 
@@ -180,7 +181,7 @@ $queue = $app->getQueueService();
 
 **Методы:**
 - `getFileStatus(string $fileId): StatusItemResult`
-- `getUserStatuses(CarbonPeriod $period, string $timeStart, string $timeEnd, int $page, int $perPage): StatusBatchResult`
+- `getUserStatuses(DateTimeInterface $startDate, DateTimeInterface $endDate, int $page, int $perPage): StatusBatchResult`
 - `getStatusList(array $fileIds, int $page, int $perPage): StatusBatchResult`
 
 #### QueueService
@@ -471,7 +472,7 @@ make docs-generate     # Генерация документации
 - [ ] Request модели
   - [ ] `TranscriptionOptions` (task_type, language, censor, etc.)
   - [ ] `DriveRequest` (target_path, is_immediate)
-  - [ ] Использование `Carbon\CarbonPeriod` для работы с периодами дат
+  - [ ] Использование стандартного `DateTimeInterface` для работы с датами и временем
 - [ ] Result модели
   - [ ] `TranscriptPostResult` (file_id)
   - [ ] `TranscriptItemResult` (file_id, task_type, status, result)
@@ -747,7 +748,6 @@ while (true) {
 <?php
 
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 
 $status = $app->getStatusService();
 
@@ -758,12 +758,10 @@ echo "File size: {$fileStatus->getFileSize()} MB\n";
 echo "Duration: {$fileStatus->getFileDuration()} min\n";
 
 // Статусы всех файлов пользователя за период
-$period = CarbonPeriod::create(
-    Carbon::parse('2025-01-01'),
-    Carbon::parse('2025-12-31')
-);
+$startDate = Carbon::parse('2025-01-01')->startOfDay();
+$endDate = Carbon::parse('2025-12-31')->endOfDay();
 
-$userStatuses = $status->getUserStatuses($period, page: 1, perPage: 50);
+$userStatuses = $status->getUserStatuses($startDate, $endDate, page: 1, perPage: 50);
 foreach ($userStatuses->getResults() as $item) {
     echo "File: {$item->getFileId()}, Status: {$item->getStatus()->value}\n";
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Services\Transcription\Service;
 
-use Carbon\CarbonPeriod;
+use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Core\ApiClient;
@@ -115,11 +115,10 @@ final class Transcription extends AbstractService implements TranscriptionServic
     /**
      * Get transcriptions by period
      *
-     * @param CarbonPeriod $period     Date period (start and end dates)
-     * @param string       $timeStart  Start time (default: '00:00:00')
-     * @param string       $timeEnd    End time (default: '23:59:59')
-     * @param int          $page       Page number (default: 1)
-     * @param int          $perPage    Items per page (default: 10)
+     * @param DateTimeInterface $startDate  Start date and time
+     * @param DateTimeInterface $endDate    End date and time
+     * @param int               $page       Page number (default: 1)
+     * @param int               $perPage    Items per page (default: 10)
      *
      * @throws NetworkException
      * @throws AuthenticationException
@@ -127,26 +126,22 @@ final class Transcription extends AbstractService implements TranscriptionServic
      * @throws ApiException
      */
     public function getTranscriptsByPeriod(
-        CarbonPeriod $period,
-        string $timeStart = '00:00:00',
-        string $timeEnd = '23:59:59',
+        DateTimeInterface $startDate,
+        DateTimeInterface $endDate,
         int $page = 1,
         int $perPage = 10
     ): TranscriptBatchResult {
-        $start = $period->getStartDate();
-        $end = $period->getEndDate();
-
         $this->logger->debug('Getting transcriptions by period', [
-            'period_start' => $start->format('Y-m-d'),
-            'period_end' => $end->format('Y-m-d'),
+            'period_start' => $startDate->format('Y-m-d'),
+            'period_end' => $endDate->format('Y-m-d'),
             'page' => $page,
         ]);
 
         $queryParams = [
-            'period_start' => $start->format('Y-m-d'),
-            'period_end' => $end->format('Y-m-d'),
-            'time_start' => $timeStart,
-            'time_end' => $timeEnd,
+            'period_start' => $startDate->format('Y-m-d'),
+            'period_end' => $endDate->format('Y-m-d'),
+            'time_start' => $startDate->format('H:i:s'),
+            'time_end' => $endDate->format('H:i:s'),
             'page' => $page,
             'per_page' => $perPage,
         ];

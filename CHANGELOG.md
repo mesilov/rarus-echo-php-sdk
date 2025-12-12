@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING**: Minimum PHP version increased from 8.1 to 8.2
+- **BREAKING**: Replaced `CarbonPeriod` with `DateTimeInterface` in period-based methods
+  - `TranscriptionServiceInterface::getTranscriptsByPeriod()` now accepts `DateTimeInterface $startDate, DateTimeInterface $endDate` instead of `CarbonPeriod $period, string $timeStart, string $timeEnd`
+  - `StatusServiceInterface::getUserStatuses()` now accepts `DateTimeInterface $startDate, DateTimeInterface $endDate` instead of `CarbonPeriod $period, string $timeStart, string $timeEnd`
+  - Simplified API: 4 parameters instead of 5
+  - PSR-compliant: works with any `DateTimeInterface` implementation (DateTime, DateTimeImmutable, Carbon, etc.)
 - Support for asynchronous audio/video transcription
 - 14 language support (including auto-detection)
 - 4 transcription types: basic, timestamps, diarization, raw

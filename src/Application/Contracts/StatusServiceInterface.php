@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Application\Contracts;
 
-use Carbon\CarbonPeriod;
+use DateTimeInterface;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
 
@@ -21,16 +21,14 @@ interface StatusServiceInterface
     /**
      * Get statuses for user's files by period
      *
-     * @param CarbonPeriod $period     Date period (start and end dates)
-     * @param string       $timeStart  Start time (default: '00:00:00')
-     * @param string       $timeEnd    End time (default: '23:59:59')
-     * @param int          $page       Page number (default: 1)
-     * @param int          $perPage    Items per page (default: 10)
+     * @param DateTimeInterface $startDate  Start date and time
+     * @param DateTimeInterface $endDate    End date and time
+     * @param int               $page       Page number (default: 1)
+     * @param int               $perPage    Items per page (default: 10)
      */
     public function getUserStatuses(
-        CarbonPeriod $period,
-        string $timeStart = '00:00:00',
-        string $timeEnd = '23:59:59',
+        DateTimeInterface $startDate,
+        DateTimeInterface $endDate,
         int $page = 1,
         int $perPage = 10
     ): StatusBatchResult;

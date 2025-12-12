@@ -164,12 +164,11 @@ if ($queueInfo->isEmpty()) {
 // ============================================================================
 
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 
 echo "\nGetting today's transcriptions...\n";
-$today = Carbon::today();
-$period = CarbonPeriod::create($today, $today);
-$transcripts = $transcriptionService->getTranscriptsByPeriod($period);
+$startOfDay = Carbon::today()->startOfDay();
+$endOfDay = Carbon::today()->endOfDay();
+$transcripts = $transcriptionService->getTranscriptsByPeriod($startOfDay, $endOfDay);
 
 echo "Found {$transcripts->getCount()} transcriptions\n";
 echo "Page {$transcripts->getPage()} of {$transcripts->getTotalPages()}\n";
