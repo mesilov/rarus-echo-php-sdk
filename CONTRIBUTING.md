@@ -22,7 +22,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 ### Prerequisites
 
 Before contributing, ensure you have:
-- PHP 8.1 or higher installed
+- PHP 8.2 or higher installed
 - Docker and Docker Compose
 - Make utility
 - Git
@@ -146,7 +146,7 @@ This project follows these PSR standards:
 
 ### PHP Standards
 
-- **PHP Version**: Write code compatible with PHP 8.1+
+- **PHP Version**: Write code compatible with PHP 8.2+
 - **Strict Types**: Always use `declare(strict_types=1);`
 - **Type Declarations**: Use type hints for all parameters and return types
 - **Readonly Properties**: Use `readonly` for immutable properties

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - PHP 8.4 support
 - Initial SDK implementation with complete functionality
+
+### Changed
+- **BREAKING**: Minimum PHP version increased from 8.1 to 8.2
 - Support for asynchronous audio/video transcription
 - 14 language support (including auto-detection)
 - 4 transcription types: basic, timestamps, diarization, raw
@@ -23,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - StatusService: status checking for transcription tasks
   - QueueService: queue monitoring and statistics
 - Builder pattern for complex objects (Credentials, TranscriptionOptions)
-- Immutable data structures using PHP 8.1+ readonly properties
+- Immutable data structures using PHP 8.2+ readonly properties
 - PSR-3 logger support throughout
 - Retry logic with configurable attempts
 - Docker development environment
@@ -48,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Infrastructure Layer: HTTP client, Serializer, Filesystem operations
 
 ### Dependencies
-- PHP ^8.1 || ^8.2 || ^8.3 || ^8.4
+- PHP ^8.2 || ^8.3 || ^8.4
 - symfony/http-client ^6.4 || ^7.0
 - symfony/serializer ^6.4 || ^7.0
 - symfony/filesystem ^6.4 || ^7.0
@@ -81,9 +84,9 @@ This is the initial release of the RARUS Echo PHP SDK. The SDK provides a modern
 - Production-ready code quality
 
 **PHP Version Support:**
-- PHP 8.1 (minimum)
-- PHP 8.2 (recommended)
-- PHP 8.3 (latest)
+- PHP 8.2 (minimum)
+- PHP 8.3 (supported)
+- PHP 8.4 (latest)
 
 **PSR Compliance:**
 - PSR-3: Logger Interface

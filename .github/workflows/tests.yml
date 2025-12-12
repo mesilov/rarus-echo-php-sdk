@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2', '8.3']
+        php-version: ['8.2', '8.3', '8.4']
 
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +47,8 @@ jobs:
 
       - name: Run PHPStan
         run: composer phpstan
-        if: matrix.php-version == '8.3'
+        if: matrix.php-version == '8.4'
 
       - name: Check code style
         run: composer cs-check
-        if: matrix.php-version == '8.3'
+        if: matrix.php-version == '8.4'

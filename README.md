@@ -1,6 +1,6 @@
 # RARUS Echo PHP SDK
 
-[![PHP Version](https://img.shields.io/badge/php-%5E8.1-blue.svg)](https://www.php.net/)
+[![PHP Version](https://img.shields.io/badge/php-%5E8.2-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 PHP SDK для сервиса транскрибации RARUS Echo с использованием стандартов PSR и компонентов Symfony.
@@ -22,7 +22,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 
 ## Требования
 
-- PHP 8.1, 8.2, 8.3 или 8.4
+- PHP 8.2, 8.3 или 8.4
 - Composer 2.x
 - Расширения: json, curl, mbstring, fileinfo
 
