@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP 8.4 support
 - Initial SDK implementation with complete functionality
 
+### Changed
+- **BREAKING**: Renamed `EchoApplication` class to `ServiceFactory`
+  - File renamed from `src/Application/EchoApplication.php` to `src/Application/ServiceFactory.php`
+  - Test file renamed from `tests/Unit/Application/EchoApplicationTest.php` to `tests/Unit/Application/ServiceFactoryTest.php`
+  - Update all imports: `use Rarus\Echo\Application\ServiceFactory;`
+  - Update instantiation: `$factory = new ServiceFactory($credentials);`
+  - Factory methods: `ServiceFactory::fromEnvironment()`
+  - The class now better reflects its purpose as a service factory pattern
+
 ### Removed
 - **BREAKING**: Removed `submitFromDrive()` method from `TranscriptionServiceInterface`
   - Removed `DriveRequest` class

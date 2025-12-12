@@ -12,7 +12,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Carbon\Carbon;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use Rarus\Echo\Application\EchoApplication;
+use Rarus\Echo\Application\ServiceFactory;
 use Rarus\Echo\Core\Credentials\CredentialsBuilder;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
@@ -34,8 +34,8 @@ $credentials = (new CredentialsBuilder())
 $logger = new Logger('rarus-echo');
 $logger->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
 
-// 3. Create application with custom settings
-$app = new EchoApplication(
+// 3. Create service factory with custom settings
+$factory = new ServiceFactory(
     credentials: $credentials,
     logger: $logger,
     maxRetries: 5,        // Increase retry attempts
@@ -59,7 +59,7 @@ $options = TranscriptionOptions::create()
     ->withLowPriority()  // Use low priority for batch processing
     ->build();
 
-$transcriptionService = $app->getTranscriptionService();
+$transcriptionService = $factory->getTranscriptionService();
 $submittedFiles = [];
 
 echo "Processing batch of " . count($files) . " files...\n\n";
@@ -91,7 +91,7 @@ if (empty($submittedFiles)) {
 
 echo "Monitoring transcription progress...\n\n";
 
-$statusService = $app->getStatusService();
+$statusService = $factory->getStatusService();
 $maxWaitTime = 300; // 5 minutes
 $checkInterval = 10; // 10 seconds
 $startTime = time();
@@ -236,7 +236,7 @@ echo "\n" . str_repeat('=', 80) . "\n";
 echo "Current Queue Status\n";
 echo str_repeat('=', 80) . "\n\n";
 
-$queueService = $app->getQueueService();
+$queueService = $factory->getQueueService();
 
 try {
     $queueInfo = $queueService->getQueueInfo();

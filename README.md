@@ -41,7 +41,7 @@ composer require rarus/echo-php-sdk
 
 declare(strict_types=1);
 
-use Rarus\Echo\Application\EchoApplication;
+use Rarus\Echo\Application\ServiceFactory;
 use Rarus\Echo\Core\Credentials\Credentials;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Enum\TaskType;
@@ -54,10 +54,10 @@ $credentials = Credentials::create(
 );
 
 // Или из переменных окружения
-// $app = EchoApplication::fromEnvironment();
+// $factory = ServiceFactory::fromEnvironment();
 
 // Инициализация приложения
-$app = new EchoApplication($credentials);
+$factory = new ServiceFactory($credentials);
 
 // Настройка опций транскрибации
 $options = TranscriptionOptions::create()
@@ -67,7 +67,7 @@ $options = TranscriptionOptions::create()
     ->build();
 
 // Отправка файлов на транскрибацию
-$result = $app->getTranscriptionService()->submitTranscription(
+$result = $factory->getTranscriptionService()->submitTranscription(
     files: ['/path/to/audio.mp3', '/path/to/audio2.wav'],
     options: $options
 );
@@ -76,13 +76,13 @@ $fileId = $result->getFirstFileId();
 echo "Файл отправлен: {$fileId}\n";
 
 // Проверка статуса
-$status = $app->getStatusService()->getFileStatus($fileId);
+$status = $factory->getStatusService()->getFileStatus($fileId);
 echo "Статус: {$status->getStatus()->value}\n";
 
 // Ожидание завершения и получение результата
 while (!$status->isCompleted()) {
     sleep(5);
-    $transcript = $app->getTranscriptionService()->getTranscript($fileId);
+    $transcript = $factory->getTranscriptionService()->getTranscript($fileId);
 
     if ($transcript->isSuccessful()) {
         echo "Результат:\n{$transcript->getResult()}\n";
@@ -100,7 +100,7 @@ use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\ApiException;
 
 try {
-    $result = $app->getTranscriptionService()->submitTranscription($files, $options);
+    $result = $factory->getTranscriptionService()->submitTranscription($files, $options);
 } catch (FileException $e) {
     // Ошибка файла (не найден, не читается, неверный формат)
     echo "Ошибка файла: {$e->getMessage()}\n";
@@ -188,7 +188,7 @@ make help
 SDK использует многослойную архитектуру:
 
 ```
-Application Layer (EchoApplication)
+Application Layer (ServiceFactory)
     ↓
 Services Layer (Transcription, Status, Queue)
     ↓

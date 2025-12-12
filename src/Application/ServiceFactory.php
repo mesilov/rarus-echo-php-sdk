@@ -21,20 +21,20 @@ use Rarus\Echo\Services\Status\Service\Status;
 use Rarus\Echo\Services\Transcription\Service\Transcription;
 
 /**
- * Main entry point for Rarus Echo PHP SDK
+ * Service factory for Rarus Echo PHP SDK
  * Provides convenient access to all SDK services
  *
  * @example
  * ```php
  * $credentials = Credentials::create('api-key', 'user-id');
- * $app = new EchoApplication($credentials);
+ * $factory = new ServiceFactory($credentials);
  *
  * // Use services
- * $transcription = $app->getTranscriptionService();
+ * $transcription = $factory->getTranscriptionService();
  * $result = $transcription->submitTranscription(['/path/to/file.mp3'], $options);
  * ```
  */
-final class EchoApplication
+final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
     private ?TranscriptionServiceInterface $transcriptionService = null;
@@ -42,7 +42,7 @@ final class EchoApplication
     private ?QueueServiceInterface $queueService = null;
 
     /**
-     * Create new EchoApplication instance
+     * Create new ServiceFactory instance
      *
      * @param Credentials                    $credentials     API credentials
      * @param ClientInterface|null           $psrClient       PSR-18 HTTP client (auto-discovered if null)
@@ -73,7 +73,7 @@ final class EchoApplication
     }
 
     /**
-     * Create EchoApplication from environment variables
+     * Create ServiceFactory from environment variables
      * Reads RARUS_ECHO_API_KEY and RARUS_ECHO_USER_ID from environment
      *
      * @throws \InvalidArgumentException if environment variables are not set
@@ -87,7 +87,7 @@ final class EchoApplication
 
     /**
      * Get Transcription service
-     * Handles file upload, transcription retrieval, and Drive integration
+     * Handles file upload and transcription retrieval
      */
     public function getTranscriptionService(): TranscriptionServiceInterface
     {

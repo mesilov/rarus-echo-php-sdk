@@ -8,13 +8,13 @@ use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Application\Contracts\QueueServiceInterface;
 use Rarus\Echo\Application\Contracts\StatusServiceInterface;
 use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
-use Rarus\Echo\Application\EchoApplication;
+use Rarus\Echo\Application\ServiceFactory;
 use Rarus\Echo\Core\Credentials\Credentials;
 
-final class EchoApplicationTest extends TestCase
+final class ServiceFactoryTest extends TestCase
 {
     private Credentials $credentials;
-    private EchoApplication $app;
+    private ServiceFactory $factory;
 
     protected function setUp(): void
     {
@@ -23,42 +23,42 @@ final class EchoApplicationTest extends TestCase
             '00000000-0000-0000-0000-000000000000'
         );
 
-        $this->app = new EchoApplication($this->credentials);
+        $this->factory = new ServiceFactory($this->credentials);
     }
 
     public function testGetTranscriptionService(): void
     {
-        $service = $this->app->getTranscriptionService();
+        $service = $this->factory->getTranscriptionService();
 
         $this->assertInstanceOf(TranscriptionServiceInterface::class, $service);
 
         // Should return same instance (singleton)
-        $this->assertSame($service, $this->app->getTranscriptionService());
+        $this->assertSame($service, $this->factory->getTranscriptionService());
     }
 
     public function testGetStatusService(): void
     {
-        $service = $this->app->getStatusService();
+        $service = $this->factory->getStatusService();
 
         $this->assertInstanceOf(StatusServiceInterface::class, $service);
 
         // Should return same instance (singleton)
-        $this->assertSame($service, $this->app->getStatusService());
+        $this->assertSame($service, $this->factory->getStatusService());
     }
 
     public function testGetQueueService(): void
     {
-        $service = $this->app->getQueueService();
+        $service = $this->factory->getQueueService();
 
         $this->assertInstanceOf(QueueServiceInterface::class, $service);
 
         // Should return same instance (singleton)
-        $this->assertSame($service, $this->app->getQueueService());
+        $this->assertSame($service, $this->factory->getQueueService());
     }
 
     public function testGetCredentials(): void
     {
-        $credentials = $this->app->getCredentials();
+        $credentials = $this->factory->getCredentials();
 
         $this->assertSame($this->credentials, $credentials);
         $this->assertSame('test-api-key', $credentials->getApiKey());
@@ -67,7 +67,7 @@ final class EchoApplicationTest extends TestCase
 
     public function testGetApiClient(): void
     {
-        $apiClient = $this->app->getApiClient();
+        $apiClient = $this->factory->getApiClient();
 
         $this->assertNotNull($apiClient);
     }
@@ -77,9 +77,9 @@ final class EchoApplicationTest extends TestCase
         $_ENV['RARUS_ECHO_API_KEY'] = 'env-api-key';
         $_ENV['RARUS_ECHO_USER_ID'] = '11111111-1111-1111-1111-111111111111';
 
-        $app = EchoApplication::fromEnvironment();
+        $factory = ServiceFactory::fromEnvironment();
 
-        $credentials = $app->getCredentials();
+        $credentials = $factory->getCredentials();
         $this->assertSame('env-api-key', $credentials->getApiKey());
         $this->assertSame('11111111-1111-1111-1111-111111111111', $credentials->getUserId());
 
@@ -95,6 +95,6 @@ final class EchoApplicationTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('RARUS_ECHO_API_KEY environment variable is not set');
 
-        EchoApplication::fromEnvironment();
+        ServiceFactory::fromEnvironment();
     }
 }

@@ -336,7 +336,7 @@ When adding new features:
 1. **Define Interface**: Start with interface in `Application/Contracts/`
 2. **Implement Service**: Create service in `Services/`
 3. **Add Models**: Create request/result models in `Services/.../Request` and `Services/.../Result`
-4. **Update Application**: Add service getter in `EchoApplication`
+4. **Update Application**: Add service getter in `ServiceFactory`
 5. **Add Tests**: Create comprehensive unit tests
 6. **Document**: Update README and add examples
 

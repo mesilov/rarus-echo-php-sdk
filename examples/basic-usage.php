@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Rarus\Echo\Application\EchoApplication;
+use Rarus\Echo\Application\ServiceFactory;
 use Rarus\Echo\Core\Credentials\Credentials;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
@@ -29,11 +29,11 @@ $credentials = Credentials::create(
     apiKey: 'your-api-key-here',
     userId: '00000000-0000-0000-0000-000000000000'
 );
-$app = new EchoApplication($credentials);
+$factory = new ServiceFactory($credentials);
 
 // Option 2: Load from environment variables
 // Set RARUS_ECHO_API_KEY and RARUS_ECHO_USER_ID environment variables
-// $app = EchoApplication::fromEnvironment();
+// $factory = ServiceFactory::fromEnvironment();
 
 // ============================================================================
 // 2. Submit files for transcription
@@ -60,7 +60,7 @@ try {
     // $options = TranscriptionOptions::default();
 
     // Get transcription service
-    $transcriptionService = $app->getTranscriptionService();
+    $transcriptionService = $factory->getTranscriptionService();
 
     // Submit files
     $files = [
@@ -98,7 +98,7 @@ try {
 // 3. Check transcription status
 // ============================================================================
 
-$statusService = $app->getStatusService();
+$statusService = $factory->getStatusService();
 
 echo "\nChecking transcription status...\n";
 $status = $statusService->getFileStatus($fileId);
@@ -148,7 +148,7 @@ if ($attempt >= $maxAttempts) {
 // 5. Check queue information
 // ============================================================================
 
-$queueService = $app->getQueueService();
+$queueService = $factory->getQueueService();
 
 echo "\nQueue information:\n";
 $queueInfo = $queueService->getQueueInfo();

@@ -135,7 +135,7 @@ rarus-echo-php-sdk/
 Главная точка входа в SDK. Предоставляет доступ ко всем сервисам.
 
 ```php
-$app = new EchoApplication($credentials);
+$factory = new ServiceFactory($credentials);
 $transcription = $app->getTranscriptionService();
 $status = $app->getStatusService();
 $queue = $app->getQueueService();
@@ -555,7 +555,7 @@ make docs-generate     # Генерация документации
   - [ ] `TranscriptionServiceInterface`
   - [ ] `StatusServiceInterface`
   - [ ] `QueueServiceInterface`
-- [ ] `EchoApplication` - главная точка входа
+- [ ] `ServiceFactory` - фабрика сервисов
   - [ ] Инициализация сервисов
   - [ ] Dependency injection
   - [ ] Facade для удобного доступа
@@ -697,7 +697,7 @@ make docs-generate     # Генерация документации
 
 declare(strict_types=1);
 
-use Rarus\Echo\Application\EchoApplication;
+use Rarus\Echo\Application\ServiceFactory;
 use Rarus\Echo\Core\Credentials\Credentials;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Enum\TaskType;
@@ -710,7 +710,7 @@ $credentials = Credentials::create(
 );
 
 // Инициализация приложения
-$app = new EchoApplication($credentials);
+$factory = new ServiceFactory($credentials);
 
 // Получение сервиса транскрибации
 $transcription = $app->getTranscriptionService();
