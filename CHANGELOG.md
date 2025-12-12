@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `StatusServiceInterface::getUserStatuses()` now accepts `DateTimeInterface $startDate, DateTimeInterface $endDate` instead of `CarbonPeriod $period, string $timeStart, string $timeEnd`
   - Simplified API: 4 parameters instead of 5
   - PSR-compliant: works with any `DateTimeInterface` implementation (DateTime, DateTimeImmutable, Carbon, etc.)
+- **BREAKING**: `Pagination` parameter is now required in pagination-supporting methods
+  - `TranscriptionServiceInterface::getTranscriptsByPeriod()` now requires `Pagination $pagination` (was `?Pagination $pagination = null`)
+  - `TranscriptionServiceInterface::getTranscriptsList()` now requires `Pagination $pagination` (was `?Pagination $pagination = null`)
+  - `StatusServiceInterface::getUserStatuses()` now requires `Pagination $pagination` (was `?Pagination $pagination = null`)
+  - `StatusServiceInterface::getStatusList()` now requires `Pagination $pagination` (was `?Pagination $pagination = null`)
+  - Explicit pagination improves API clarity and removes implicit defaults
+  - Use `Pagination::default()` to get default pagination (page 1, 10 items per page)
 - Support for asynchronous audio/video transcription
 - 14 language support (including auto-detection)
 - 4 transcription types: basic, timestamps, diarization, raw

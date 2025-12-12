@@ -98,7 +98,7 @@ $startTime = time();
 
 while ((time() - $startTime) < $maxWaitTime) {
     $fileIds = array_values($submittedFiles);
-    $statuses = $statusService->getStatusList($fileIds);
+    $statuses = $statusService->getStatusList($fileIds, Pagination::firstPage(perPage: 100));
 
     $completed = 0;
     $processing = 0;
@@ -187,11 +187,16 @@ echo str_repeat('=', 80) . "\n";
 echo "Monthly Statistics\n";
 echo str_repeat('=', 80) . "\n\n";
 
+use Rarus\Echo\Core\Pagination;
+
 $startDate = Carbon::parse('first day of this month')->startOfDay();
 $endDate = Carbon::parse('last day of this month')->endOfDay();
 
+// Create pagination for larger page size
+$pagination = Pagination::firstPage(perPage: 100);
+
 try {
-    $transcripts = $transcriptionService->getTranscriptsByPeriod($startDate, $endDate, page: 1, perPage: 100);
+    $transcripts = $transcriptionService->getTranscriptsByPeriod($startDate, $endDate, $pagination);
 
     echo "Total transcriptions this month: {$transcripts->getCount()}\n";
     echo "Pages: {$transcripts->getTotalPages()}\n\n";

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rarus\Echo\Application\Contracts;
 
 use DateTimeInterface;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
 
@@ -23,24 +24,22 @@ interface StatusServiceInterface
      *
      * @param DateTimeInterface $startDate  Start date and time
      * @param DateTimeInterface $endDate    End date and time
-     * @param int               $page       Page number (default: 1)
-     * @param int               $perPage    Items per page (default: 10)
+     * @param Pagination        $pagination Pagination settings
      */
     public function getUserStatuses(
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): StatusBatchResult;
 
     /**
      * Get statuses by list of file IDs
      *
-     * @param array<string> $fileIds
+     * @param array<string> $fileIds    Array of file IDs
+     * @param Pagination    $pagination Pagination settings
      */
     public function getStatusList(
         array $fileIds,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): StatusBatchResult;
 }

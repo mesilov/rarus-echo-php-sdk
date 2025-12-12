@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
@@ -62,8 +63,7 @@ final class Status extends AbstractService implements StatusServiceInterface
      *
      * @param DateTimeInterface $startDate  Start date and time
      * @param DateTimeInterface $endDate    End date and time
-     * @param int               $page       Page number (default: 1)
-     * @param int               $perPage    Items per page (default: 10)
+     * @param Pagination        $pagination Pagination settings
      *
      * @throws NetworkException
      * @throws AuthenticationException
@@ -73,13 +73,13 @@ final class Status extends AbstractService implements StatusServiceInterface
     public function getUserStatuses(
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): StatusBatchResult {
         $this->logger->debug('Getting user statuses', [
             'period_start' => $startDate->format('Y-m-d'),
             'period_end' => $endDate->format('Y-m-d'),
-            'page' => $page,
+            'page' => $pagination->page,
+            'per_page' => $pagination->perPage,
         ]);
 
         $queryParams = [
@@ -87,8 +87,7 @@ final class Status extends AbstractService implements StatusServiceInterface
             'period_end' => $endDate->format('Y-m-d'),
             'time_start' => $startDate->format('H:i:s'),
             'time_end' => $endDate->format('H:i:s'),
-            'page' => $page,
-            'per_page' => $perPage,
+            ...$pagination->toQueryParams(),
         ];
 
         $response = $this->apiClient->get(
@@ -104,7 +103,8 @@ final class Status extends AbstractService implements StatusServiceInterface
     /**
      * Get statuses by list of file IDs
      *
-     * @param array<string> $fileIds Array of file IDs
+     * @param array<string> $fileIds    Array of file IDs
+     * @param Pagination    $pagination Pagination settings
      *
      * @throws NetworkException
      * @throws AuthenticationException
@@ -113,12 +113,12 @@ final class Status extends AbstractService implements StatusServiceInterface
      */
     public function getStatusList(
         array $fileIds,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): StatusBatchResult {
         $this->logger->debug('Getting status list', [
             'file_ids_count' => count($fileIds),
-            'page' => $page,
+            'page' => $pagination->page,
+            'per_page' => $pagination->perPage,
         ]);
 
         // Convert file IDs to required format
@@ -127,10 +127,16 @@ final class Status extends AbstractService implements StatusServiceInterface
             $fileIds
         );
 
+        $paginationParams = $pagination->toQueryParams();
+        $headers = [
+            'page' => (string) $paginationParams['page'],
+            'per_page' => (string) $paginationParams['per_page'],
+        ];
+
         $response = $this->apiClient->post(
             '/v2/async/transcription/fileid/list',
             $body,
-            ['page' => (string) $page, 'per_page' => (string) $perPage]
+            $headers
         );
 
         $data = $response->getJson();

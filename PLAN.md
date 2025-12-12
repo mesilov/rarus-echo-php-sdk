@@ -163,6 +163,22 @@ $queue = $app->getQueueService();
 - User ID (UUID пользователя)
 - Base URL (по умолчанию: production)
 
+#### Pagination
+Immutable value object для управления пагинацией:
+- `page` - номер страницы (1-based)
+- `perPage` - количество элементов на странице
+
+**Фабрики:**
+- `Pagination::default()` - страница 1, 10 элементов
+- `Pagination::firstPage(int $perPage)` - первая страница с заданным размером
+- `Pagination::create(int $page, int $perPage)` - произвольные значения
+
+**Хелперы:**
+- `getOffset()`, `getLimit()` - для БД/API запросов
+- `next()`, `previous()` - навигация по страницам
+- `withPage()`, `withPerPage()` - создание новых объектов
+- `toQueryParams()` - преобразование в массив параметров
+
 #### Response Handler
 Обработка ответов API, преобразование в Result объекты.
 
@@ -173,16 +189,16 @@ $queue = $app->getQueueService();
 **Методы:**
 - `submitTranscription(array $files, TranscriptionOptions $options): TranscriptPostResult`
 - `getTranscript(string $fileId): TranscriptItemResult`
-- `getTranscriptsByPeriod(DateTimeInterface $startDate, DateTimeInterface $endDate, int $page, int $perPage): TranscriptBatchResult`
-- `getTranscriptsList(array $fileIds, int $page, int $perPage): TranscriptBatchResult`
+- `getTranscriptsByPeriod(DateTimeInterface $startDate, DateTimeInterface $endDate, Pagination $pagination): TranscriptBatchResult`
+- `getTranscriptsList(array $fileIds, Pagination $pagination): TranscriptBatchResult`
 - `submitFromDrive(DriveRequest $request): WebDAVResult`
 
 #### StatusService
 
 **Методы:**
 - `getFileStatus(string $fileId): StatusItemResult`
-- `getUserStatuses(DateTimeInterface $startDate, DateTimeInterface $endDate, int $page, int $perPage): StatusBatchResult`
-- `getStatusList(array $fileIds, int $page, int $perPage): StatusBatchResult`
+- `getUserStatuses(DateTimeInterface $startDate, DateTimeInterface $endDate, Pagination $pagination): StatusBatchResult`
+- `getStatusList(array $fileIds, Pagination $pagination): StatusBatchResult`
 
 #### QueueService
 

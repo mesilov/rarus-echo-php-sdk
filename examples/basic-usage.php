@@ -164,11 +164,19 @@ if ($queueInfo->isEmpty()) {
 // ============================================================================
 
 use Carbon\Carbon;
+use Rarus\Echo\Core\Pagination;
 
 echo "\nGetting today's transcriptions...\n";
 $startOfDay = Carbon::today()->startOfDay();
 $endOfDay = Carbon::today()->endOfDay();
-$transcripts = $transcriptionService->getTranscriptsByPeriod($startOfDay, $endOfDay);
+
+// Use default pagination (page 1, 10 items per page)
+$pagination = Pagination::default();
+$transcripts = $transcriptionService->getTranscriptsByPeriod($startOfDay, $endOfDay, $pagination);
+
+// Or with custom pagination
+// $pagination = Pagination::create(page: 1, perPage: 50);
+// $transcripts = $transcriptionService->getTranscriptsByPeriod($startOfDay, $endOfDay, $pagination);
 
 echo "Found {$transcripts->getCount()} transcriptions\n";
 echo "Page {$transcripts->getPage()} of {$transcripts->getTotalPages()}\n";
@@ -189,7 +197,7 @@ foreach ($transcripts->getResults() as $item) {
 $fileIds = $result->getFileIds();
 if (count($fileIds) > 1) {
     echo "\nGetting multiple transcriptions...\n";
-    $batch = $transcriptionService->getTranscriptsList($fileIds);
+    $batch = $transcriptionService->getTranscriptsList($fileIds, Pagination::default());
 
     foreach ($batch->getResults() as $item) {
         echo "File {$item->getFileId()}: {$item->getStatus()->value}\n";

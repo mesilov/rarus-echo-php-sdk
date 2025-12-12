@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rarus\Echo\Application\Contracts;
 
 use DateTimeInterface;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Services\Transcription\Request\DriveRequest;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
@@ -38,25 +39,23 @@ interface TranscriptionServiceInterface
      *
      * @param DateTimeInterface $startDate  Start date and time
      * @param DateTimeInterface $endDate    End date and time
-     * @param int               $page       Page number (default: 1)
-     * @param int               $perPage    Items per page (default: 10)
+     * @param Pagination        $pagination Pagination settings
      */
     public function getTranscriptsByPeriod(
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): TranscriptBatchResult;
 
     /**
      * Get transcriptions by list of file IDs
      *
-     * @param array<string> $fileIds
+     * @param array<string> $fileIds    Array of file IDs
+     * @param Pagination    $pagination Pagination settings
      */
     public function getTranscriptsList(
         array $fileIds,
-        int $page = 1,
-        int $perPage = 10
+        Pagination $pagination
     ): TranscriptBatchResult;
 
     /**
