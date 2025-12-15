@@ -8,6 +8,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Rarus\Echo\Application\Contracts\QueueServiceInterface;
 use Rarus\Echo\Application\Contracts\StatusServiceInterface;
 use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
@@ -78,7 +79,7 @@ final class ServiceFactory
      *
      * @throws \InvalidArgumentException if environment variables are not set
      */
-    public static function fromEnvironment(?LoggerInterface $logger = null): self
+    public static function fromEnvironment(LoggerInterface $logger = new NullLogger()): self
     {
         $credentials = Credentials::fromEnvironment();
 

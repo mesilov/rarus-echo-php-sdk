@@ -10,14 +10,14 @@ use Rarus\Echo\Enum\TranscriptionStatus;
 /**
  * Single status result item
  */
-final class StatusItemResult
+final readonly class StatusItemResult
 {
     public function __construct(
-        private readonly string $fileId,
-        private readonly TranscriptionStatus $status,
-        private readonly float $fileSize,
-        private readonly float $fileDuration,
-        private readonly DateTimeImmutable $timestampArrival
+        private string $fileId,
+        private TranscriptionStatus $status,
+        private int $fileSize,
+        private int $fileDuration,
+        private DateTimeImmutable $timestampArrival
     ) {
     }
 
@@ -25,14 +25,15 @@ final class StatusItemResult
      * Create from API response
      *
      * @param array<string, mixed> $data
+     * @throws \DateMalformedStringException
      */
     public static function fromArray(array $data): self
     {
         return new self(
             fileId: $data['file_id'] ?? '',
             status: TranscriptionStatus::from($data['status'] ?? 'waiting'),
-            fileSize: (float) ($data['file_size'] ?? 0),
-            fileDuration: (float) ($data['file_duration'] ?? 0),
+            fileSize: (int) ($data['file_size'] ?? 0),
+            fileDuration: (int) ($data['file_duration'] ?? 0),
             timestampArrival: new DateTimeImmutable($data['timestamp_arrival'] ?? 'now')
         );
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Core;
 
+use Http\Discovery\Psr17FactoryDiscovery;
+use Http\Discovery\Psr18ClientDiscovery;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -40,15 +42,15 @@ final class ApiClient
     ) {
         // Auto-discover PSR-18 client if not provided
         if ($psrClient === null) {
-            $psrClient = \Http\Discovery\Psr18ClientDiscovery::find();
+            $psrClient = Psr18ClientDiscovery::find();
         }
 
         if ($requestFactory === null) {
-            $requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
+            $requestFactory = Psr17FactoryDiscovery::findRequestFactory();
         }
 
         if ($streamFactory === null) {
-            $streamFactory = \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
+            $streamFactory = Psr17FactoryDiscovery::findStreamFactory();
         }
 
         // Wrap client with retry middleware
@@ -82,6 +84,7 @@ final class ApiClient
         $this->logger->debug('Sending GET request', [
             'uri' => $uri,
             'query' => $query,
+            'options' => $options,
         ]);
 
         $psrResponse = $this->httpClient->get($uri, $options);

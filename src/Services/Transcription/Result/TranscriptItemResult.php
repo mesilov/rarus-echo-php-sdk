@@ -10,13 +10,13 @@ use Rarus\Echo\Enum\TranscriptionStatus;
 /**
  * Single transcription result item
  */
-final class TranscriptItemResult
+final readonly class TranscriptItemResult
 {
     public function __construct(
-        private readonly string $fileId,
-        private readonly TaskType $taskType,
-        private readonly TranscriptionStatus $status,
-        private readonly string $result
+        private string $fileId,
+        private TaskType $taskType,
+        private TranscriptionStatus $status,
+        private string $result
     ) {
     }
 
