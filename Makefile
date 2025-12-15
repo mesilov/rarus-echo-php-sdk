@@ -1,16 +1,44 @@
-# Rarus Echo PHP SDK - Makefile
-# MIT License
+# This file is part of the B24PhpSdk package.
+#
+#  For the full copyright and license information, please view the MIT-LICENSE.txt
+#  file that was distributed with this source code.
+#!/usr/bin/env make
 
-.PHONY: help
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Available targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+export COMPOSE_HTTP_TIMEOUT=120
+export DOCKER_CLIENT_TIMEOUT=120
 
-# ============================================================================
-# Docker Commands
-# ============================================================================
+.DEFAULT_GOAL := help
+
+%:
+	@: # silence
+
+# load default and personal env-variables
+ENV := $(PWD)/.env
+ENV_LOCAL := $(PWD)/.env.local
+include $(ENV)
+-include $(ENV_LOCAL)
+
+
+help:
+	@echo "-------------------------"
+	@echo "    Rarus Echo PHP SDK   "
+	@echo "-------------------------"
+	@echo ""
+	@echo "docker-init               - first installation"
+	@echo "docker-up                 - run docker"
+	@echo "docker-down               - stop docker"
+	@echo "docker-down-clear         - stop docker and remove orphaned containers"
+	@echo "docker-pull               - download images and ignore pull failures"
+	@echo "docker-restart            - restart containers"
+	@echo "docker-rebuild            - build containers without use local cache"
+	@echo ""
+	@echo "composer-install          - install dependencies from composer"
+	@echo "composer-update           - update dependencies from composer"
+	@echo "composer-dumpautoload     - regenerate composer autoload file"
+	@echo "composer                  - run composer and pass arguments"
+	@echo ""
+	@echo "show-env                  - show environment variables from .env files"
+	@echo ""
 
 .PHONY: docker-init
 docker-init: ## Initial Docker setup (build, start, install dependencies)
@@ -46,21 +74,29 @@ docker-rebuild: ## Rebuild Docker images
 # Composer Commands
 # ============================================================================
 
+# work with composer in docker container
 .PHONY: composer-install
-composer-install: ## Install composer dependencies
-	docker compose exec php-cli composer install
+composer-install:
+	@echo "install dependencies…"
+	docker-compose run --rm php-cli composer install
 
 .PHONY: composer-update
-composer-update: ## Update composer dependencies
-	docker compose exec php-cli composer update
+composer-update:
+	@echo "update dependencies…"
+	docker-compose run --rm php-cli composer update
 
 .PHONY: composer-dumpautoload
-composer-dumpautoload: ## Regenerate autoload files
-	docker compose exec php-cli composer dump-autoload
+composer-dumpautoload:
+	docker-compose run --rm php-cli composer dumpautoload
 
 .PHONY: composer
-composer: ## Execute custom composer command (use: make composer cmd="require vendor/package")
-	docker compose exec php-cli composer $(cmd)
+# call composer with any parameters
+# make composer install
+# make composer "install --no-dev"
+composer:
+	docker-compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
+
+
 
 # ============================================================================
 # Code Quality & Linting
@@ -97,28 +133,10 @@ lint-rector-fix: ## Apply Rector fixes
 test-unit: ## Run unit tests
 	docker compose exec php-cli vendor/bin/phpunit --testsuite=unit
 
+# integration tests
 .PHONY: test-integration
-test-integration: ## Run integration tests
-	docker compose exec php-cli vendor/bin/phpunit --testsuite=integration
-
-.PHONY: test-all
-test-all: test-unit test-integration ## Run all tests
-
-.PHONY: test-coverage
-test-coverage: ## Generate code coverage report
-	docker compose exec php-cli vendor/bin/phpunit --coverage-html coverage
-
-.PHONY: test-integration-transcription
-test-integration-transcription: ## Test transcription service
-	docker compose exec php-cli vendor/bin/phpunit --testsuite=integration --filter=TranscriptionTest
-
-.PHONY: test-integration-status
-test-integration-status: ## Test status service
-	docker compose exec php-cli vendor/bin/phpunit --testsuite=integration --filter=StatusTest
-
-.PHONY: test-integration-queue
-test-integration-queue: ## Test queue service
-	docker compose exec php-cli vendor/bin/phpunit --testsuite=integration --filter=QueueTest
+test-integration:
+	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration
 
 # ============================================================================
 # Development Tools
