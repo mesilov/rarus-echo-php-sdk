@@ -50,7 +50,6 @@ final class ServiceFactory
      * @param RequestFactoryInterface|null   $requestFactory  PSR-17 request factory (auto-discovered if null)
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
-     * @param int                            $maxRetries      Maximum number of retry attempts
      * @param int                            $timeout         Request timeout in seconds
      */
     public function __construct(
@@ -59,7 +58,6 @@ final class ServiceFactory
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly ?LoggerInterface $logger = null,
-        int $maxRetries = 3,
         int $timeout = 120
     ) {
         $this->apiClient = new ApiClient(
@@ -67,8 +65,7 @@ final class ServiceFactory
             $psrClient,
             $requestFactory,
             $streamFactory,
-            $this->logger,
-            $maxRetries,
+            $this->logger ?? new NullLogger(),
             $timeout
         );
     }

@@ -20,7 +20,6 @@ use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Infrastructure\HttpClient\HttpClientInterface;
 use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
-use Rarus\Echo\Infrastructure\HttpClient\RetryMiddleware;
 
 /**
  * Main API client for Rarus Echo service
@@ -37,7 +36,6 @@ final class ApiClient
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-        private readonly int $maxRetries = 3,
         private readonly int $timeout = 120
     ) {
         // Auto-discover PSR-18 client if not provided
@@ -53,10 +51,7 @@ final class ApiClient
             $streamFactory = Psr17FactoryDiscovery::findStreamFactory();
         }
 
-        // Wrap client with retry middleware
-        $retryClient = new RetryMiddleware($psrClient, $this->maxRetries, 1000, $this->logger);
-
-        $this->httpClient = new PsrHttpClient($retryClient, $requestFactory, $streamFactory);
+        $this->httpClient = new PsrHttpClient($psrClient, $requestFactory, $streamFactory);
         $this->responseHandler = new ResponseHandler();
     }
 

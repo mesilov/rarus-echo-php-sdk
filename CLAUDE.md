@@ -90,7 +90,7 @@ Core Layer (ApiClient, Credentials, Pagination)
     └── Response handling and error mapping
 
 Infrastructure Layer
-    └── HttpClient: PSR-18 client wrapper with retry middleware
+    └── HttpClient: PSR-18 client wrapper
     └── Serializer: Symfony-based JSON serialization
     └── Filesystem: File validation and upload handling
 ```
@@ -106,8 +106,6 @@ $transcription = $factory->getTranscriptionService();
 **Builder Pattern**: `TranscriptionOptions`, `Credentials` use builders for fluent configuration.
 
 **Result Objects**: All service methods return immutable result objects (e.g., `TranscriptBatchResult`, `StatusItemResult`) that encapsulate response data.
-
-**Middleware Stack**: `RetryMiddleware` wraps HTTP client for automatic retry with exponential backoff.
 
 **PSR Auto-Discovery**: Uses `php-http/discovery` to automatically find PSR-17/PSR-18 implementations if not explicitly provided.
 
@@ -140,13 +138,11 @@ HTTP status codes are automatically mapped to appropriate exception types in `Re
 
 3. **Pagination**: All list methods require a `Pagination` parameter (limit + offset). This is intentionally required (not optional).
 
-4. **Retry Logic**: Built into HTTP client with exponential backoff. Default 3 retries for network failures, not for 4xx errors.
+4. **Logging**: Uses PSR-3 logger throughout. NullLogger by default; pass real logger to ServiceFactory for debugging.
 
-5. **Logging**: Uses PSR-3 logger throughout. NullLogger by default; pass real logger to ServiceFactory for debugging.
+5. **Type Safety**: Strict types everywhere (`declare(strict_types=1)`). PHPStan level 8. Enums for fixed values (Language, TaskType, TranscriptionStatus).
 
-6. **Type Safety**: Strict types everywhere (`declare(strict_types=1)`). PHPStan level 8. Enums for fixed values (Language, TaskType, TranscriptionStatus).
-
-7. **Immutability**: Result objects and configuration objects (Credentials, TranscriptionOptions) are immutable after creation.
+6. **Immutability**: Result objects and configuration objects (Credentials, TranscriptionOptions) are immutable after creation.
 
 ## Testing Strategy
 

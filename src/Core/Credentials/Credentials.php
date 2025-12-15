@@ -10,14 +10,14 @@ use InvalidArgumentException;
  * Credentials for Rarus Echo API
  * Stores API key, user ID, and base URL
  */
-final class Credentials
+readonly final class Credentials
 {
-    private const DEFAULT_BASE_URL = 'https://production-ai-ui-api.ai.rarus-cloud.ru';
+    private const string DEFAULT_BASE_URL = 'https://production-ai-ui-api.ai.rarus-cloud.ru';
 
     private function __construct(
-        private readonly string $apiKey,
-        private readonly string $userId,
-        private readonly string $baseUrl
+        private string $apiKey,
+        private string $userId,
+        private string $baseUrl
     ) {
         if (empty($this->apiKey)) {
             throw new InvalidArgumentException('API key cannot be empty');
