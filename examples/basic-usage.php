@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Rarus\Echo\Application\ServiceFactory;
+use Rarus\Echo\Services\ServiceFactory;
 use Rarus\Echo\Core\Credentials\Credentials;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;

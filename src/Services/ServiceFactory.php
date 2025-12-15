@@ -2,16 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Application;
+namespace Rarus\Echo\Services;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Application\Contracts\QueueServiceInterface;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
-use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
 use Rarus\Echo\Core\ApiClient;
 use Rarus\Echo\Core\Credentials\Credentials;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
@@ -38,9 +35,9 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
-    private ?TranscriptionServiceInterface $transcriptionService = null;
-    private ?StatusServiceInterface $statusService = null;
-    private ?QueueServiceInterface $queueService = null;
+    private ?Transcription $transcriptionService = null;
+    private ?Status $statusService = null;
+    private ?Queue $queueService = null;
 
     /**
      * Create new ServiceFactory instance
@@ -87,7 +84,7 @@ final class ServiceFactory
      * Get Transcription service
      * Handles file upload and transcription retrieval
      */
-    public function getTranscriptionService(): TranscriptionServiceInterface
+    public function getTranscriptionService(): Transcription
     {
         if ($this->transcriptionService === null) {
             $fileHelper = new FileHelper();
@@ -108,7 +105,7 @@ final class ServiceFactory
      * Get Status service
      * Handles status checking for transcription tasks
      */
-    public function getStatusService(): StatusServiceInterface
+    public function getStatusService(): Status
     {
         if ($this->statusService === null) {
             $this->statusService = new Status(
@@ -124,7 +121,7 @@ final class ServiceFactory
      * Get Queue service
      * Provides queue statistics and monitoring
      */
-    public function getQueueService(): QueueServiceInterface
+    public function getQueueService(): Queue
     {
         if ($this->queueService === null) {
             $this->queueService = new Queue(

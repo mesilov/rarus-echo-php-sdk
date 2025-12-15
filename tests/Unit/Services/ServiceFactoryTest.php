@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Tests\Unit\Application;
+namespace Rarus\Echo\Tests\Unit\Services;
 
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Application\Contracts\QueueServiceInterface;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
-use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
-use Rarus\Echo\Application\ServiceFactory;
+use Rarus\Echo\Services\ServiceFactory;
+use Rarus\Echo\Services\Queue\Service\Queue;
+use Rarus\Echo\Services\Status\Service\Status;
+use Rarus\Echo\Services\Transcription\Service\Transcription;
 use Rarus\Echo\Core\Credentials\Credentials;
 
 final class ServiceFactoryTest extends TestCase
@@ -30,7 +30,7 @@ final class ServiceFactoryTest extends TestCase
     {
         $service = $this->factory->getTranscriptionService();
 
-        $this->assertInstanceOf(TranscriptionServiceInterface::class, $service);
+        $this->assertInstanceOf(Transcription::class, $service);
 
         // Should return same instance (singleton)
         $this->assertSame($service, $this->factory->getTranscriptionService());
@@ -40,7 +40,7 @@ final class ServiceFactoryTest extends TestCase
     {
         $service = $this->factory->getStatusService();
 
-        $this->assertInstanceOf(StatusServiceInterface::class, $service);
+        $this->assertInstanceOf(Status::class, $service);
 
         // Should return same instance (singleton)
         $this->assertSame($service, $this->factory->getStatusService());
@@ -50,7 +50,7 @@ final class ServiceFactoryTest extends TestCase
     {
         $service = $this->factory->getQueueService();
 
-        $this->assertInstanceOf(QueueServiceInterface::class, $service);
+        $this->assertInstanceOf(Queue::class, $service);
 
         // Should return same instance (singleton)
         $this->assertSame($service, $this->factory->getQueueService());

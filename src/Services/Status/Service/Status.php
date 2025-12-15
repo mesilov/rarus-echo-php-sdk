@@ -13,7 +13,6 @@ use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
 use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
@@ -22,7 +21,7 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  * Status service
  * Handles status checking operations
  */
-final class Status extends AbstractService implements StatusServiceInterface
+final class Status extends AbstractService
 {
     private readonly LoggerInterface $logger;
 

@@ -14,7 +14,6 @@ use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
@@ -26,7 +25,7 @@ use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
  * Transcription service
  * Handles all transcription-related operations
  */
-final class Transcription extends AbstractService implements TranscriptionServiceInterface
+final class Transcription extends AbstractService
 {
     private readonly LoggerInterface $logger;
 
