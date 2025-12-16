@@ -6,8 +6,10 @@ namespace Rarus\Echo\Core;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -19,8 +21,6 @@ use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
 use Symfony\Component\Uid\Uuid;
-use Rarus\Echo\Infrastructure\HttpClient\HttpClientInterface;
-use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
 
 /**
  * Main API client for Rarus Echo service
@@ -28,7 +28,9 @@ use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
  */
 final class ApiClient
 {
-    private readonly HttpClientInterface $httpClient;
+    private readonly ClientInterface $psrClient;
+    private readonly RequestFactoryInterface $requestFactory;
+    private readonly StreamFactoryInterface $streamFactory;
     private readonly ResponseHandler $responseHandler;
 
     public function __construct(
@@ -37,22 +39,11 @@ final class ApiClient
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-        private readonly int $timeout = 120
     ) {
         // Auto-discover PSR-18 client if not provided
-        if ($psrClient === null) {
-            $psrClient = Psr18ClientDiscovery::find();
-        }
-
-        if ($requestFactory === null) {
-            $requestFactory = Psr17FactoryDiscovery::findRequestFactory();
-        }
-
-        if ($streamFactory === null) {
-            $streamFactory = Psr17FactoryDiscovery::findStreamFactory();
-        }
-
-        $this->httpClient = new PsrHttpClient($psrClient, $requestFactory, $streamFactory);
+        $this->psrClient = $psrClient ?? Psr18ClientDiscovery::find();
+        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
         $this->responseHandler = new ResponseHandler();
     }
 
@@ -83,7 +74,16 @@ final class ApiClient
             'options' => $options,
         ]);
 
-        $psrResponse = $this->httpClient->get($uri, $options);
+        $request = $this->createRequest('GET', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -114,7 +114,16 @@ final class ApiClient
             'body_size' => strlen(json_encode($body) ?: ''),
         ]);
 
-        $psrResponse = $this->httpClient->post($uri, $options);
+        $request = $this->createRequest('POST', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -149,7 +158,16 @@ final class ApiClient
             'uri' => $uri,
         ]);
 
-        $psrResponse = $this->httpClient->post($uri, $options);
+        $request = $this->createRequest('POST', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -160,6 +178,52 @@ final class ApiClient
     public function getCredentials(): Credentials
     {
         return $this->credentials;
+    }
+
+    /**
+     * Create PSR-7 request from options
+     *
+     * @param array<string,mixed> $options
+     *
+     * @throws NetworkException
+     */
+    private function createRequest(string $method, string $uri, array $options): RequestInterface
+    {
+        $request = $this->requestFactory->createRequest($method, $uri);
+
+        // Add headers
+        if (isset($options['headers']) && is_array($options['headers'])) {
+            foreach ($options['headers'] as $name => $value) {
+                $request = $request->withHeader($name, $value);
+            }
+        }
+
+        // Add body
+        if (isset($options['body'])) {
+            if (is_string($options['body'])) {
+                $stream = $this->streamFactory->createStream($options['body']);
+                $request = $request->withBody($stream);
+            } elseif (is_array($options['body'])) {
+                $json = json_encode($options['body']);
+                if ($json === false) {
+                    throw new NetworkException('Failed to encode body as JSON');
+                }
+                $stream = $this->streamFactory->createStream($json);
+                $request = $request->withBody($stream)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+        }
+
+        // Add query parameters
+        if (isset($options['query']) && is_array($options['query'])) {
+            $queryString = http_build_query($options['query']);
+            $uri = $request->getUri();
+            $existingQuery = $uri->getQuery();
+            $newQuery = $existingQuery ? $existingQuery . '&' . $queryString : $queryString;
+            $request = $request->withUri($uri->withQuery($newQuery));
+        }
+
+        return $request;
     }
 
     /**
