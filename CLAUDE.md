@@ -70,6 +70,30 @@ RARUS_ECHO_TEST_AUDIO_PATH=tests/Fixtures/audio/sample.mp3
 
 **Note:** The `.env.local` file is automatically loaded by Docker Compose and is git-ignored.
 
+## Automatic Testing
+
+**IMPORTANT:** This project has Claude Code hooks configured in `.claude/settings.json`.
+
+After you (Claude) modify any files using Write or Edit tools, unit tests automatically run via `make test-unit`.
+
+**Expected behavior:**
+1. You modify code (Write/Edit tools)
+2. PostToolUse hook triggers automatically
+3. `make test-unit` runs in Docker
+4. Test output (last 30 lines) is shown
+5. If tests fail, analyze output and fix issues
+
+**Do not:**
+- Skip or disable hooks during normal development
+- Manually run tests after every change (hooks do this automatically)
+- Be surprised when tests run - this is expected behavior
+
+**Test failures:**
+- Read the test output carefully
+- Identify which test failed and why
+- Fix the issue in the code
+- Tests will run automatically again after your fix
+
 ## Architecture
 
 The SDK uses a layered architecture inspired by Bitrix24 PHP SDK:

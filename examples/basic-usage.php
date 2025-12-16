@@ -25,8 +25,8 @@ use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 // ============================================================================
 
 // Option 1: Create credentials manually
-$credentials = Credentials::create(
-    apiKey: 'your-api-key-here',
+$credentials = Credentials::fromString(
+    apiKey: 'your-api-key-as-uuid',
     userId: '00000000-0000-0000-0000-000000000000'
 );
 $factory = new ServiceFactory($credentials);

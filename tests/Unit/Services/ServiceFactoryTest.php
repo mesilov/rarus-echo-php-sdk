@@ -18,9 +18,9 @@ final class ServiceFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->credentials = Credentials::create(
-            'test-api-key',
-            '00000000-0000-0000-0000-000000000000'
+        $this->credentials = Credentials::fromString(
+            '11111111-1111-1111-1111-111111111111',
+            '22222222-2222-2222-2222-222222222222'
         );
 
         $this->factory = new ServiceFactory($this->credentials);
@@ -61,8 +61,8 @@ final class ServiceFactoryTest extends TestCase
         $credentials = $this->factory->getCredentials();
 
         $this->assertSame($this->credentials, $credentials);
-        $this->assertSame('test-api-key', $credentials->getApiKey());
-        $this->assertSame('00000000-0000-0000-0000-000000000000', $credentials->getUserId());
+        $this->assertSame('11111111-1111-1111-1111-111111111111', $credentials->getApiKey()->toRfc4122());
+        $this->assertSame('22222222-2222-2222-2222-222222222222', $credentials->getUserId()->toRfc4122());
     }
 
     public function testGetApiClient(): void
@@ -74,14 +74,14 @@ final class ServiceFactoryTest extends TestCase
 
     public function testFromEnvironment(): void
     {
-        $_ENV['RARUS_ECHO_API_KEY'] = 'env-api-key';
-        $_ENV['RARUS_ECHO_USER_ID'] = '11111111-1111-1111-1111-111111111111';
+        $_ENV['RARUS_ECHO_API_KEY'] = '33333333-3333-3333-3333-333333333333';
+        $_ENV['RARUS_ECHO_USER_ID'] = '44444444-4444-4444-4444-444444444444';
 
         $factory = ServiceFactory::fromEnvironment();
 
         $credentials = $factory->getCredentials();
-        $this->assertSame('env-api-key', $credentials->getApiKey());
-        $this->assertSame('11111111-1111-1111-1111-111111111111', $credentials->getUserId());
+        $this->assertSame('33333333-3333-3333-3333-333333333333', $credentials->getApiKey()->toRfc4122());
+        $this->assertSame('44444444-4444-4444-4444-444444444444', $credentials->getUserId()->toRfc4122());
 
         // Cleanup
         unset($_ENV['RARUS_ECHO_API_KEY'], $_ENV['RARUS_ECHO_USER_ID']);

@@ -1,6 +1,6 @@
-# This file is part of the B24PhpSdk package.
+# This file is part of the rarus-echo-php-sdk package.
 #
-#  For the full copyright and license information, please view the MIT-LICENSE.txt
+#  For the full copyright and license information, please view the LICENSE.txt
 #  file that was distributed with this source code.
 #!/usr/bin/env make
 
@@ -131,7 +131,7 @@ lint-rector-fix: ## Apply Rector fixes
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
-	docker compose exec php-cli vendor/bin/phpunit --testsuite=unit
+	docker compose run php-cli vendor/bin/phpunit --testsuite=unit
 
 # integration tests
 .PHONY: test-integration

@@ -18,6 +18,7 @@ use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
+use Symfony\Component\Uid\Uuid;
 use Rarus\Echo\Infrastructure\HttpClient\HttpClientInterface;
 use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
 
@@ -182,8 +183,8 @@ final class ApiClient
     private function buildHeaders(array $additionalHeaders = []): array
     {
         $headers = [
-            'Authorization' => $this->credentials->getApiKey(),
-            'user-id' => $this->credentials->getUserId(),
+            'Authorization' => $this->credentials->getApiKey()->toRfc4122(),
+            'user-id' => $this->credentials->getUserId()->toRfc4122(),
             'Accept' => 'application/json',
         ];
 

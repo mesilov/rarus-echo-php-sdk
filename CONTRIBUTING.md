@@ -64,6 +64,35 @@ Before contributing, ensure you have:
    make lint-all
    ```
 
+### Automated Testing with Claude Code
+
+Этот проект использует **хуки Claude Code** для автоматического запуска тестов после изменения файлов.
+
+**Конфигурация:**
+- `.claude/settings.json` - Настройки хуков уровня проекта (в репозитории)
+- `.claude/settings.local.json` - Локальные переопределения (не в репозитории, опционально)
+
+**Что запускается автоматически:**
+Когда Claude Code изменяет файлы (инструменты Write/Edit), автоматически запускается:
+- `make test-unit` - Полный набор юнит-тестов
+
+**Вывод тестов:**
+- Показываются последние 30 строк вывода тестов
+- Claude видит результаты и может исправить падающие тесты
+- Тесты запускаются внутри Docker контейнеров (через `make test-unit`)
+
+**Временное отключение хуков:**
+Создайте `.claude/settings.local.json`:
+```json
+{
+  "hooks": {
+    "PostToolUse": []
+  }
+}
+```
+
+**Примечание:** Это влияет только на сессии Claude Code. Для ручной разработки запускайте тесты командой `make test-unit` как обычно.
+
 ## Development Workflow
 
 ### 1. Create a Feature Branch
@@ -205,10 +234,13 @@ tests/
    ```php
    public function testCredentialsCreation(): void
    {
-       $credentials = Credentials::create('api-key', 'user-id');
+       $credentials = Credentials::fromString(
+           '11111111-1111-1111-1111-111111111111',
+           '22222222-2222-2222-2222-222222222222'
+       );
 
-       $this->assertSame('api-key', $credentials->getApiKey());
-       $this->assertSame('user-id', $credentials->getUserId());
+       $this->assertSame('11111111-1111-1111-1111-111111111111', $credentials->getApiKey()->toRfc4122());
+       $this->assertSame('22222222-2222-2222-2222-222222222222', $credentials->getUserId()->toRfc4122());
    }
    ```
 

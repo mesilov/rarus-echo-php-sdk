@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rarus\Echo\Core\Credentials;
 
 use InvalidArgumentException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Credentials for Rarus Echo API
@@ -15,18 +16,10 @@ readonly final class Credentials
     private const string DEFAULT_BASE_URL = 'https://production-ai-ui-api.ai.rarus-cloud.ru';
 
     private function __construct(
-        private string $apiKey,
-        private string $userId,
+        private Uuid $apiKey,
+        private Uuid $userId,
         private string $baseUrl
     ) {
-        if (empty($this->apiKey)) {
-            throw new InvalidArgumentException('API key cannot be empty');
-        }
-
-        if (empty($this->userId)) {
-            throw new InvalidArgumentException('User ID cannot be empty');
-        }
-
         if (empty($this->baseUrl)) {
             throw new InvalidArgumentException('Base URL cannot be empty');
         }
@@ -37,16 +30,36 @@ readonly final class Credentials
     }
 
     /**
-     * Create credentials with required parameters
+     * Create credentials from string parameters
      */
-    public static function create(
+    public static function fromString(
         string $apiKey,
         string $userId,
         ?string $baseUrl = null
     ): self {
+        try {
+            $apiKeyUuid = Uuid::fromString($apiKey);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(
+                sprintf('API key is not a valid UUID: %s', $apiKey),
+                0,
+                $e
+            );
+        }
+
+        try {
+            $userIdUuid = Uuid::fromString($userId);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(
+                sprintf('User ID is not a valid UUID: %s', $userId),
+                0,
+                $e
+            );
+        }
+
         return new self(
-            $apiKey,
-            $userId,
+            $apiKeyUuid,
+            $userIdUuid,
             $baseUrl ?? self::DEFAULT_BASE_URL
         );
     }
@@ -56,27 +69,47 @@ readonly final class Credentials
      */
     public static function fromEnvironment(): self
     {
-        $apiKey = $_ENV['RARUS_ECHO_API_KEY'] ?? $_SERVER['RARUS_ECHO_API_KEY'] ?? '';
-        $userId = $_ENV['RARUS_ECHO_USER_ID'] ?? $_SERVER['RARUS_ECHO_USER_ID'] ?? '';
+        $apiKeyString = $_ENV['RARUS_ECHO_API_KEY'] ?? $_SERVER['RARUS_ECHO_API_KEY'] ?? '';
+        $userIdString = $_ENV['RARUS_ECHO_USER_ID'] ?? $_SERVER['RARUS_ECHO_USER_ID'] ?? '';
         $baseUrl = $_ENV['RARUS_ECHO_BASE_URL'] ?? $_SERVER['RARUS_ECHO_BASE_URL'] ?? self::DEFAULT_BASE_URL;
 
-        if (empty($apiKey)) {
+        if (empty($apiKeyString)) {
             throw new InvalidArgumentException('RARUS_ECHO_API_KEY environment variable is not set');
         }
 
-        if (empty($userId)) {
+        if (empty($userIdString)) {
             throw new InvalidArgumentException('RARUS_ECHO_USER_ID environment variable is not set');
+        }
+
+        try {
+            $apiKey = Uuid::fromString($apiKeyString);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(
+                sprintf('RARUS_ECHO_API_KEY is not a valid UUID: %s', $apiKeyString),
+                0,
+                $e
+            );
+        }
+
+        try {
+            $userId = Uuid::fromString($userIdString);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(
+                sprintf('RARUS_ECHO_USER_ID is not a valid UUID: %s', $userIdString),
+                0,
+                $e
+            );
         }
 
         return new self($apiKey, $userId, $baseUrl);
     }
 
-    public function getApiKey(): string
+    public function getApiKey(): Uuid
     {
         return $this->apiKey;
     }
 
-    public function getUserId(): string
+    public function getUserId(): Uuid
     {
         return $this->userId;
     }
