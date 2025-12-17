@@ -95,6 +95,7 @@ final readonly class Pagination
 
     /**
      * Convert to query parameters array
+     * Use this when pagination is passed via URL query string
      *
      * @return array<string, int>
      */
@@ -103,6 +104,20 @@ final readonly class Pagination
         return [
             'page' => $this->page,
             'per_page' => $this->perPage,
+        ];
+    }
+
+    /**
+     * Convert to headers array
+     * Use this when pagination is passed via HTTP headers
+     *
+     * @return array<string, string>
+     */
+    public function toHeaders(): array
+    {
+        return [
+            'page' => (string) $this->page,
+            'per_page' => (string) $this->perPage,
         ];
     }
 }

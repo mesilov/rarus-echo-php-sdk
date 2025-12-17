@@ -24,14 +24,28 @@ final readonly class TranscriptItemResult
      * Create from API response
      *
      * @param array<string, mixed> $data
+     *
+     * @throws \InvalidArgumentException If required fields are missing
      */
     public static function fromArray(array $data): self
     {
+        if (!isset($data['file_id'])) {
+            throw new \InvalidArgumentException('Missing required field: file_id');
+        }
+
+        if (!isset($data['task_type'])) {
+            throw new \InvalidArgumentException('Missing required field: task_type');
+        }
+
+        if (!isset($data['status'])) {
+            throw new \InvalidArgumentException('Missing required field: status');
+        }
+
         return new self(
-            fileId: $data['file_id'] ?? '',
-            taskType: TaskType::from($data['task_type'] ?? 'transcription'),
-            status: TranscriptionStatus::from($data['status'] ?? 'waiting'),
-            result: $data['result'] ?? ''
+            fileId: $data['file_id'],
+            taskType: TaskType::from($data['task_type']),
+            status: TranscriptionStatus::from($data['status']),
+            result: $data['result'] ?? '' // result is optional (empty if not yet completed)
         );
     }
 

@@ -8,12 +8,12 @@ use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Core\DateTimeFormatter;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
 
@@ -21,15 +21,14 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  * Status service
  * Handles status checking operations
  */
-final class Status extends AbstractService
+final class Status
 {
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        ApiClient $apiClient,
+        protected readonly ApiClient $apiClient,
         ?LoggerInterface $logger = null
     ) {
-        parent::__construct($apiClient);
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -82,10 +81,7 @@ final class Status extends AbstractService
         ]);
 
         $queryParams = [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
-            'time_start' => $startDate->format('H:i:s'),
-            'time_end' => $endDate->format('H:i:s'),
+            ...DateTimeFormatter::toQueryParams($startDate, $endDate),
             ...$pagination->toQueryParams(),
         ];
 

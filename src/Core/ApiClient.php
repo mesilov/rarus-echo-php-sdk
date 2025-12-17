@@ -129,50 +129,6 @@ final class ApiClient
     }
 
     /**
-     * Send POST request with multipart/form-data
-     *
-     * @param string                $endpoint API endpoint
-     * @param array<string, mixed>  $data     Form data
-     * @param array<string, string> $headers  Additional headers
-     *
-     * @throws NetworkException
-     * @throws AuthenticationException
-     * @throws ValidationException
-     * @throws ApiException
-     */
-    public function postMultipart(string $endpoint, array $data, array $headers = []): Response
-    {
-        $uri = $this->buildUri($endpoint);
-
-        // Note: Actual multipart implementation will be handled in FileUploader
-        // This is a simplified version
-        $options = [
-            'body' => $data,
-            'headers' => array_merge(
-                $this->buildHeaders($headers),
-                ['Content-Type' => 'multipart/form-data']
-            ),
-        ];
-
-        $this->logger->debug('Sending POST multipart request', [
-            'uri' => $uri,
-        ]);
-
-        $request = $this->createRequest('POST', $uri, $options);
-
-        try {
-            $psrResponse = $this->psrClient->sendRequest($request);
-        } catch (ClientExceptionInterface $e) {
-            throw new NetworkException(
-                sprintf('HTTP request failed: %s', $e->getMessage()),
-                $e
-            );
-        }
-
-        return $this->responseHandler->handle($psrResponse);
-    }
-
-    /**
      * Get credentials
      */
     public function getCredentials(): Credentials

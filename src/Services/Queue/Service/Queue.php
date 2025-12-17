@@ -10,22 +10,20 @@ use Rarus\Echo\Core\ApiClient;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
-use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 
 /**
  * Queue service
  * Handles queue information operations
  */
-final class Queue extends AbstractService
+final class Queue
 {
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        ApiClient $apiClient,
+        protected readonly ApiClient $apiClient,
         ?LoggerInterface $logger = null
     ) {
-        parent::__construct($apiClient);
         $this->logger = $logger ?? new NullLogger();
     }
 

@@ -22,10 +22,29 @@ final class TranscriptPostResult
      * Create from API response
      *
      * @param array<string, mixed> $data
+     *
+     * @throws \InvalidArgumentException If required fields are missing or invalid
      */
     public static function fromArray(array $data): self
     {
-        return new self($data['results'] ?? []);
+        if (!isset($data['results'])) {
+            throw new \InvalidArgumentException('Missing required field: results');
+        }
+
+        if (!is_array($data['results'])) {
+            throw new \InvalidArgumentException('Field "results" must be an array');
+        }
+
+        // Validate structure of each result item
+        foreach ($data['results'] as $index => $result) {
+            if (!is_array($result) || !isset($result['file_id'])) {
+                throw new \InvalidArgumentException(
+                    sprintf('Invalid result structure at index %d: missing file_id', $index)
+                );
+            }
+        }
+
+        return new self($data['results']);
     }
 
     /**

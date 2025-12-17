@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
@@ -94,7 +95,8 @@ final class TranscriptionServiceTest extends TestCase
             ->method('post')
             ->willReturn($response);
 
-        $result = $this->service->getTranscriptsList($fileIds, 1, 10);
+        $pagination = new Pagination(page: 1, perPage: 10);
+        $result = $this->service->getTranscriptsList($fileIds, $pagination);
 
         $this->assertCount(2, $result->getResults());
         $this->assertSame(1, $result->getPage());

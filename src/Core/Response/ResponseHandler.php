@@ -7,6 +7,9 @@ namespace Rarus\Echo\Core\Response;
 use Psr\Http\Message\ResponseInterface;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
+use Rarus\Echo\Exception\BadRequestException;
+use Rarus\Echo\Exception\ServerErrorException;
 use Rarus\Echo\Exception\ValidationException;
 
 /**
@@ -18,7 +21,10 @@ final class ResponseHandler
      * Handle response and throw exceptions for errors
      *
      * @throws AuthenticationException
+     * @throws AuthorizationException
+     * @throws BadRequestException
      * @throws ValidationException
+     * @throws ServerErrorException
      * @throws ApiException
      */
     public function handle(ResponseInterface $psrResponse): Response
@@ -41,7 +47,10 @@ final class ResponseHandler
      * Handle error response and throw appropriate exception
      *
      * @throws AuthenticationException
+     * @throws AuthorizationException
+     * @throws BadRequestException
      * @throws ValidationException
+     * @throws ServerErrorException
      * @throws ApiException
      */
     private function handleErrorResponse(Response $response, int $statusCode): void
@@ -56,16 +65,14 @@ final class ResponseHandler
         $message = $this->extractErrorMessage($data, $response->getBody());
 
         match ($statusCode) {
-            403 => throw new AuthenticationException($message),
+            401 => throw new AuthenticationException($message),
+            403 => throw new AuthorizationException($message),
+            400 => throw new BadRequestException($message, $data),
             422 => throw new ValidationException(
                 $message,
                 $this->extractValidationErrors($data)
             ),
-            400, 500 => throw new ApiException(
-                $message,
-                $statusCode,
-                $data
-            ),
+            500 => throw new ServerErrorException($message, $data),
             default => throw new ApiException(
                 $message ?: "HTTP {$statusCode} error",
                 $statusCode,

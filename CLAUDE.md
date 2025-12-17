@@ -99,24 +99,23 @@ After you (Claude) modify any files using Write or Edit tools, unit tests automa
 The SDK uses a layered architecture inspired by Bitrix24 PHP SDK:
 
 ```
-Application Layer (ServiceFactory)
+ServiceFactory
     └── Entry point for all SDK operations
     └── Creates and manages service instances
 
 Services Layer (Transcription, Status, Queue)
     └── Business logic for specific API domains
-    └── Each service extends AbstractService
+    └── Final classes with direct ApiClient dependency
     └── Services return strongly-typed Result objects
 
 Core Layer (ApiClient, Credentials, Pagination)
-    └── ApiClient: Handles HTTP communication (GET, POST, multipart)
+    └── ApiClient: Handles HTTP communication (GET, POST)
     └── Credentials: Manages API authentication (key + user ID)
     └── Response handling and error mapping
 
 Infrastructure Layer
-    └── HttpClient: PSR-18 client wrapper
-    └── Serializer: Symfony-based JSON serialization
     └── Filesystem: File validation and upload handling
+    └── PSR-18/PSR-17 auto-discovery via php-http/discovery
 ```
 
 ### Key Design Patterns
@@ -139,17 +138,19 @@ Each service follows the same pattern:
 - **Service class** (e.g., `Transcription.php`) in `Services/{Domain}/Service/`
 - **Result objects** (e.g., `TranscriptBatchResult.php`) in `Services/{Domain}/Result/`
 - **Request objects** (e.g., `TranscriptionOptions.php`) in `Services/{Domain}/Request/`
-- **Interface** defined in `Application/Contracts/{Service}Interface.php`
 
-Services always extend `AbstractService` which provides access to `ApiClient` and `Logger`.
+Services are final classes that receive `ApiClient` and optional `LoggerInterface` via constructor injection.
 
 ## Exception Hierarchy
 
 All exceptions extend `EchoException`:
-- `ApiException` - General API errors (4xx/5xx)
-- `AuthenticationException` - 401 errors
-- `ValidationException` - 422 errors with structured validation details
-- `NetworkException` - Network/connection failures
+- `ApiException` - General API errors (base class for HTTP errors)
+- `AuthenticationException` - 401 Unauthorized (invalid credentials)
+- `AuthorizationException` - 403 Forbidden (insufficient permissions)
+- `BadRequestException` - 400 Bad Request (invalid request format)
+- `ValidationException` - 422 Unprocessable Entity (structured validation errors)
+- `ServerErrorException` - 500 Internal Server Error
+- `NetworkException` - Network/connection failures (PSR-18 client errors)
 - `FileException` - File operations (not found, unreadable, invalid format)
 
 HTTP status codes are automatically mapped to appropriate exception types in `ResponseHandler`.

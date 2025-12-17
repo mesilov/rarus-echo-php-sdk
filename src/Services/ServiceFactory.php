@@ -35,6 +35,9 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
+    private readonly FileHelper $fileHelper;
+    private readonly FileValidator $fileValidator;
+    private readonly FileUploader $fileUploader;
     private ?Transcription $transcriptionService = null;
     private ?Status $statusService = null;
     private ?Queue $queueService = null;
@@ -48,6 +51,9 @@ final class ServiceFactory
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
      * @param int                            $timeout         Request timeout in seconds
+     * @param FileHelper|null                $fileHelper      File helper (auto-created if null)
+     * @param FileValidator|null             $fileValidator   File validator (auto-created if null)
+     * @param FileUploader|null              $fileUploader    File uploader (auto-created if null)
      */
     public function __construct(
         private readonly Credentials $credentials,
@@ -55,7 +61,10 @@ final class ServiceFactory
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly ?LoggerInterface $logger = null,
-        int $timeout = 120
+        int $timeout = 120,
+        ?FileHelper $fileHelper = null,
+        ?FileValidator $fileValidator = null,
+        ?FileUploader $fileUploader = null
     ) {
         $this->apiClient = new ApiClient(
             $this->credentials,
@@ -65,6 +74,11 @@ final class ServiceFactory
             $this->logger ?? new NullLogger(),
             $timeout
         );
+
+        // Initialize filesystem infrastructure
+        $this->fileHelper = $fileHelper ?? new FileHelper();
+        $this->fileValidator = $fileValidator ?? new FileValidator($this->fileHelper);
+        $this->fileUploader = $fileUploader ?? new FileUploader($this->fileHelper, $this->fileValidator);
     }
 
     /**
@@ -87,13 +101,9 @@ final class ServiceFactory
     public function getTranscriptionService(): Transcription
     {
         if ($this->transcriptionService === null) {
-            $fileHelper = new FileHelper();
-            $fileValidator = new FileValidator($fileHelper);
-            $fileUploader = new FileUploader($fileHelper, $fileValidator);
-
             $this->transcriptionService = new Transcription(
                 $this->apiClient,
-                $fileUploader,
+                $this->fileUploader,
                 $this->logger
             );
         }
