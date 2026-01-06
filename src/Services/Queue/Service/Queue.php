@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Rarus\Echo\Services\Queue\Service;
 
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Exception\ApiException;
@@ -19,7 +18,7 @@ use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
  */
 final readonly class Queue
 {
-    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger = new NullLogger())
+    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger)
     {
     }
 
@@ -41,9 +40,9 @@ final readonly class Queue
         $queueInfoResult = QueueInfoResult::fromArray($data);
 
         $this->logger->debug('Queue info retrieved', [
-            'files_count' => $queueInfoResult->getFilesCount(),
-            'files_size_mb' => $queueInfoResult->getFilesSize(),
-            'files_duration_min' => $queueInfoResult->getFilesDuration(),
+            'files_count' => $queueInfoResult->filesCount,
+            'files_size_mb' => $queueInfoResult->filesSize,
+            'files_duration_min' => $queueInfoResult->filesDuration,
         ]);
 
         return $queueInfoResult;
