@@ -15,6 +15,7 @@ $finder = Finder::create()
     ->ignoreVCS(true);
 
 return (new Config())
+    ->setParallelConfig(new PhpCsFixer\Runner\Parallel\ParallelConfig(4, 20))
     ->setRules([
         '@PSR12' => true,
         '@PHP83Migration' => true,

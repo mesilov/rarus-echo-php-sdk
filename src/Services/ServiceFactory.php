@@ -50,7 +50,7 @@ final class ServiceFactory
      * @param RequestFactoryInterface|null   $requestFactory  PSR-17 request factory (auto-discovered if null)
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
-     * @param FileHelper|null                $fileHelper      File helper (auto-created if null)
+     * @param FileHelper                     $fileHelper      File helper
      * @param FileValidator|null             $fileValidator   File validator (auto-created if null)
      * @param FileUploader|null              $fileUploader    File uploader (auto-created if null)
      */
@@ -98,7 +98,7 @@ final class ServiceFactory
             $this->transcription = new Transcription(
                 $this->apiClient,
                 $this->fileUploader,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 
@@ -114,7 +114,7 @@ final class ServiceFactory
         if (!$this->status instanceof Status) {
             $this->status = new Status(
                 $this->apiClient,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 
@@ -130,7 +130,7 @@ final class ServiceFactory
         if (!$this->queue instanceof Queue) {
             $this->queue = new Queue(
                 $this->apiClient,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 

@@ -45,7 +45,7 @@ final readonly class StatusItemResult
 
         return new self(
             fileId: $data['file_id'],
-            status: TranscriptionStatus::from($data['status']),
+            transcriptionStatus: TranscriptionStatus::from($data['status']),
             fileSize: (float) ($data['file_size'] ?? 0), // Optional, defaults to 0
             fileDuration: (float) ($data['file_duration'] ?? 0), // Optional, defaults to 0
             timestampArrival: new DateTimeImmutable($data['timestamp_arrival'])

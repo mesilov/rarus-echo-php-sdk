@@ -44,7 +44,7 @@ final readonly class TranscriptItemResult
         return new self(
             fileId: $data['file_id'],
             taskType: TaskType::from($data['task_type']),
-            status: TranscriptionStatus::from($data['status']),
+            transcriptionStatus: TranscriptionStatus::from($data['status']),
             result: $data['result'] ?? '' // result is optional (empty if not yet completed)
         );
     }
