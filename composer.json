@@ -8,9 +8,7 @@
     "echo",
     "transcription",
     "speech-to-text",
-    "sdk",
-    "psr-18",
-    "symfony"
+    "sdk"
   ],
   "authors": [
     {
