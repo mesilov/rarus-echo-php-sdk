@@ -10,11 +10,14 @@ namespace Rarus\Echo\Exception;
  */
 class BadRequestException extends ApiException
 {
+    /**
+     * @param array<string, mixed> $context
+     */
     public function __construct(
         string $message = 'Bad request',
         array $context = [],
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, 400, $context, $previous);
+        parent::__construct($message, 400, $context, $throwable);
     }
 }

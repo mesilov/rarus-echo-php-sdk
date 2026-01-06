@@ -10,11 +10,14 @@ namespace Rarus\Echo\Exception;
  */
 class ServerErrorException extends ApiException
 {
+    /**
+     * @param array<string, mixed> $context
+     */
     public function __construct(
         string $message = 'Server error',
         array $context = [],
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, 500, $context, $previous);
+        parent::__construct($message, 500, $context, $throwable);
     }
 }

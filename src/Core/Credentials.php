@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Credentials for Rarus Echo API
  * Stores API key, user ID, and base URL
  */
-readonly final class Credentials
+final readonly class Credentials
 {
     private const string DEFAULT_BASE_URL = 'https://production-ai-ui-api.ai.rarus-cloud.ru';
 
@@ -20,7 +20,7 @@ readonly final class Credentials
         private Uuid $userId,
         private string $baseUrl
     ) {
-        if (empty($this->baseUrl)) {
+        if ($this->baseUrl === '' || $this->baseUrl === '0') {
             throw new InvalidArgumentException('Base URL cannot be empty');
         }
 

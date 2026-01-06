@@ -4,22 +4,25 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Unit\Services\Queue;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Services\Queue\Service\Queue;
 
 final class QueueServiceTest extends TestCase
 {
-    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
+    /** @var ApiClientInterface&MockObject */
     private ApiClientInterface $apiClient;
-    private Queue $service;
+    private Queue $queue;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->apiClient = $this->createMock(ApiClientInterface::class);
-        $this->service = new Queue($this->apiClient);
+        $this->queue = new Queue($this->apiClient, new NullLogger());
     }
 
     public function testGetQueueInfo(): void
@@ -42,12 +45,12 @@ final class QueueServiceTest extends TestCase
             ->with('/v1/async/transcription/queue')
             ->willReturn($response);
 
-        $result = $this->service->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
 
-        $this->assertSame(15, $result->getFilesCount());
-        $this->assertSame(250, $result->getFilesSize());
-        $this->assertSame(125, $result->getFilesDuration());
-        $this->assertFalse($result->isEmpty());
+        $this->assertSame(15, $queueInfoResult->filesCount);
+        $this->assertSame(250, $queueInfoResult->filesSize);
+        $this->assertSame(125, $queueInfoResult->filesDuration);
+        $this->assertFalse($queueInfoResult->isEmpty());
     }
 
     public function testGetQueueInfoEmpty(): void
@@ -69,10 +72,10 @@ final class QueueServiceTest extends TestCase
             ->method('get')
             ->willReturn($response);
 
-        $result = $this->service->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
 
-        $this->assertTrue($result->isEmpty());
-        $this->assertSame(0, $result->getFilesCount());
+        $this->assertTrue($queueInfoResult->isEmpty());
+        $this->assertSame(0, $queueInfoResult->filesCount);
     }
 
     /**

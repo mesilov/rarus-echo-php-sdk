@@ -7,16 +7,16 @@ namespace Rarus\Echo\Services\Status\Result;
 /**
  * Batch status result with pagination
  */
-final class StatusBatchResult
+final readonly class StatusBatchResult
 {
     /**
      * @param array<int, StatusItemResult> $results
      */
     public function __construct(
-        private readonly array $results,
-        private readonly int $page,
-        private readonly int $perPage,
-        private readonly int $totalPages
+        private array $results,
+        private int $page,
+        private int $perPage,
+        private int $totalPages
     ) {
     }
 
@@ -28,7 +28,7 @@ final class StatusBatchResult
     public static function fromArray(array $data): self
     {
         $results = array_map(
-            fn (array $item) => StatusItemResult::fromArray($item),
+            fn (array $item): StatusItemResult => StatusItemResult::fromArray($item),
             $data['results'] ?? []
         );
 

@@ -56,6 +56,7 @@ final class ResponseHandler
     private function handleErrorResponse(ResponseInterface $response, int $statusCode): void
     {
         $data = [];
+
         try {
             $data = JsonDecoder::decode($response);
         } catch (\RuntimeException) {
@@ -83,6 +84,8 @@ final class ResponseHandler
 
     /**
      * Extract error message from response data
+     *
+     * @param array<string, mixed> $data
      */
     private function extractErrorMessage(array $data, string $fallback): string
     {

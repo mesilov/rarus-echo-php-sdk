@@ -24,11 +24,11 @@ final class ValidationExceptionTest extends TestCase
             ],
         ];
 
-        $exception = new ValidationException('Validation failed', $errors);
+        $validationException = new ValidationException('Validation failed', $errors);
 
-        $this->assertSame('Validation failed', $exception->getMessage());
-        $this->assertSame(422, $exception->getCode());
-        $this->assertSame($errors, $exception->getValidationErrors());
+        $this->assertSame('Validation failed', $validationException->getMessage());
+        $this->assertSame(422, $validationException->getCode());
+        $this->assertSame($errors, $validationException->getValidationErrors());
     }
 
     public function testGetValidationErrorsAsString(): void
@@ -41,8 +41,8 @@ final class ValidationExceptionTest extends TestCase
             ],
         ];
 
-        $exception = new ValidationException('Validation failed', $errors);
-        $errorString = $exception->getValidationErrorsAsString();
+        $validationException = new ValidationException('Validation failed', $errors);
+        $errorString = $validationException->getValidationErrorsAsString();
 
         $this->assertStringContainsString('query.page', $errorString);
         $this->assertStringContainsString('must be greater than 1', $errorString);
@@ -51,9 +51,9 @@ final class ValidationExceptionTest extends TestCase
 
     public function testEmptyValidationErrors(): void
     {
-        $exception = new ValidationException('Validation failed');
+        $validationException = new ValidationException('Validation failed');
 
-        $this->assertEmpty($exception->getValidationErrors());
-        $this->assertSame('', $exception->getValidationErrorsAsString());
+        $this->assertEmpty($validationException->getValidationErrors());
+        $this->assertSame('', $validationException->getValidationErrorsAsString());
     }
 }

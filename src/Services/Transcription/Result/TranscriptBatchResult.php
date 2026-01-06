@@ -7,16 +7,16 @@ namespace Rarus\Echo\Services\Transcription\Result;
 /**
  * Batch result with pagination
  */
-final class TranscriptBatchResult
+final readonly class TranscriptBatchResult
 {
     /**
      * @param array<int, TranscriptItemResult> $results
      */
     public function __construct(
-        private readonly array $results,
-        private readonly int $page,
-        private readonly int $perPage,
-        private readonly int $totalPages
+        private array $results,
+        private int $page,
+        private int $perPage,
+        private int $totalPages
     ) {
     }
 
@@ -28,7 +28,7 @@ final class TranscriptBatchResult
     public static function fromArray(array $data): self
     {
         $results = array_map(
-            fn (array $item) => TranscriptItemResult::fromArray($item),
+            fn (array $item): TranscriptItemResult => TranscriptItemResult::fromArray($item),
             $data['results'] ?? []
         );
 

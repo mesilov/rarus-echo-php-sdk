@@ -10,9 +10,9 @@ namespace Rarus\Echo\Services\Queue\Result;
 final readonly class QueueInfoResult
 {
     public function __construct(
-        private int $filesCount,
-        private int $filesSize,
-        private int $filesDuration
+        public int $filesCount,
+        public int $filesSize,
+        public int $filesDuration
     ) {
     }
 
@@ -30,30 +30,6 @@ final readonly class QueueInfoResult
             filesSize: (int) ($results['files_size'] ?? 0),
             filesDuration: (int) ($results['files_duration'] ?? 0)
         );
-    }
-
-    /**
-     * Get number of files in queue
-     */
-    public function getFilesCount(): int
-    {
-        return $this->filesCount;
-    }
-
-    /**
-     * Get total size of files in queue (in megabytes)
-     */
-    public function getFilesSize(): int
-    {
-        return $this->filesSize;
-    }
-
-    /**
-     * Get total duration of files in queue (in minutes)
-     */
-    public function getFilesDuration(): int
-    {
-        return $this->filesDuration;
     }
 
     /**

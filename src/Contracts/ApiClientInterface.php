@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rarus\Echo\Contracts;
 
 use Psr\Http\Message\ResponseInterface;

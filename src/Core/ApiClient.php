@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Core;
 
-use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -13,7 +11,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
@@ -26,25 +23,16 @@ use Rarus\Echo\Exception\ValidationException;
  * Main API client for Rarus Echo service
  * Handles HTTP communication with the API
  */
-final class ApiClient implements ApiClientInterface
+final readonly class ApiClient implements ApiClientInterface
 {
-    private readonly ClientInterface $psrClient;
-    private readonly RequestFactoryInterface $requestFactory;
-    private readonly StreamFactoryInterface $streamFactory;
-    private readonly ResponseHandler $responseHandler;
-
     public function __construct(
-        private readonly Credentials $credentials,
-        ?ClientInterface $psrClient = null,
-        ?RequestFactoryInterface $requestFactory = null,
-        ?StreamFactoryInterface $streamFactory = null,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        private Credentials $credentials,
+        private ClientInterface $psrClient,
+        private RequestFactoryInterface $requestFactory,
+        private StreamFactoryInterface $streamFactory,
+        private LoggerInterface $logger,
+        private ResponseHandler $responseHandler,
     ) {
-        // Auto-discover PSR-18 client if not provided
-        $this->psrClient = $psrClient ?? Psr18ClientDiscovery::find();
-        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
-        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
-        $this->responseHandler = new ResponseHandler();
     }
 
     /**
@@ -60,6 +48,7 @@ final class ApiClient implements ApiClientInterface
      * @throws ApiException
      * @throws AuthorizationException
      */
+    #[\Override]
     public function get(string $endpoint, array $query = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
@@ -101,6 +90,7 @@ final class ApiClient implements ApiClientInterface
      * @throws ValidationException
      * @throws ApiException
      */
+    #[\Override]
     public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
@@ -132,6 +122,7 @@ final class ApiClient implements ApiClientInterface
     /**
      * Get credentials
      */
+    #[\Override]
     public function getCredentials(): Credentials
     {
         return $this->credentials;

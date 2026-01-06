@@ -106,11 +106,11 @@ lint-all: lint-cs-fixer lint-phpstan lint-rector ## Run all linters
 
 .PHONY: lint-cs-fixer
 lint-cs-fixer: ## Check code style with PHP CS Fixer
-	docker compose run php-cli vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php
+	docker compose run php-cli vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php --allow-risky=yes
 
 .PHONY: lint-cs-fixer-fix
 lint-cs-fixer-fix: ## Auto-fix code style with PHP CS Fixer
-	docker compose run php-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php
+	docker compose run php-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes
 
 .PHONY: lint-phpstan
 lint-phpstan: ## Run PHPStan static analysis

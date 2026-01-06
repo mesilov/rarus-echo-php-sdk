@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Unit\Services\Status;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -13,14 +14,15 @@ use Rarus\Echo\Services\Status\Service\Status;
 
 final class StatusServiceTest extends TestCase
 {
-    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
+    /** @var ApiClientInterface&MockObject */
     private ApiClientInterface $apiClient;
-    private Status $service;
+    private Status $status;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->apiClient = $this->createMock(ApiClientInterface::class);
-        $this->service = new Status($this->apiClient);
+        $this->status = new Status($this->apiClient);
     }
 
     public function testGetFileStatus(): void
@@ -47,12 +49,12 @@ final class StatusServiceTest extends TestCase
             ->with('/v1/async/transcription/fileid', ['file_id' => $fileId])
             ->willReturn($response);
 
-        $result = $this->service->getFileStatus($fileId);
+        $statusItemResult = $this->status->getFileStatus($fileId);
 
-        $this->assertSame($fileId, $result->getFileId());
-        $this->assertTrue($result->isSuccessful());
-        $this->assertSame(10.5, $result->getFileSize());
-        $this->assertSame(5.2, $result->getFileDuration());
+        $this->assertSame($fileId, $statusItemResult->getFileId());
+        $this->assertTrue($statusItemResult->isSuccessful());
+        $this->assertSame(10.5, $statusItemResult->getFileSize());
+        $this->assertSame(5.2, $statusItemResult->getFileDuration());
     }
 
     public function testGetStatusList(): void
@@ -94,11 +96,11 @@ final class StatusServiceTest extends TestCase
             ->willReturn($response);
 
         $pagination = new Pagination(page: 1, perPage: 10);
-        $result = $this->service->getStatusList($fileIds, $pagination);
+        $statusBatchResult = $this->status->getStatusList($fileIds, $pagination);
 
-        $this->assertCount(2, $result->getResults());
-        $this->assertSame(1, $result->getPage());
-        $this->assertFalse($result->hasNextPage());
+        $this->assertCount(2, $statusBatchResult->getResults());
+        $this->assertSame(1, $statusBatchResult->getPage());
+        $this->assertFalse($statusBatchResult->hasNextPage());
     }
 
     /**

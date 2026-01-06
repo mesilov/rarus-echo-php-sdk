@@ -9,12 +9,12 @@ use Rarus\Echo\Exception\ValidationException;
 /**
  * Validator for media files before transcription
  */
-final class FileValidator
+final readonly class FileValidator
 {
     /**
      * Allowed MIME types for audio and video files
      */
-    private const ALLOWED_MIME_TYPES = [
+    private const array ALLOWED_MIME_TYPES = [
         // Audio
         'audio/mpeg',
         'audio/mp3',
@@ -45,7 +45,7 @@ final class FileValidator
     private const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
     public function __construct(
-        private readonly FileHelper $fileHelper
+        private FileHelper $fileHelper
     ) {
     }
 
@@ -71,7 +71,7 @@ final class FileValidator
      */
     public function validateMultiple(array $filePaths): void
     {
-        if (empty($filePaths)) {
+        if ($filePaths === []) {
             throw new ValidationException('No files provided for validation');
         }
 

@@ -11,6 +11,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Core\ApiClientFactory;
 use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
@@ -36,12 +37,11 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
-    private readonly FileHelper $fileHelper;
     private readonly FileValidator $fileValidator;
     private readonly FileUploader $fileUploader;
-    private ?Transcription $transcriptionService = null;
-    private ?Status $statusService = null;
-    private ?Queue $queueService = null;
+    private ?Transcription $transcription = null;
+    private ?Status $status = null;
+    private ?Queue $queue = null;
 
     /**
      * Create new ServiceFactory instance
@@ -51,8 +51,7 @@ final class ServiceFactory
      * @param RequestFactoryInterface|null   $requestFactory  PSR-17 request factory (auto-discovered if null)
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
-     * @param int                            $timeout         Request timeout in seconds
-     * @param FileHelper|null                $fileHelper      File helper (auto-created if null)
+     * @param FileHelper                     $fileHelper      File helper
      * @param FileValidator|null             $fileValidator   File validator (auto-created if null)
      * @param FileUploader|null              $fileUploader    File uploader (auto-created if null)
      */
@@ -62,21 +61,31 @@ final class ServiceFactory
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly ?LoggerInterface $logger = null,
-        int $timeout = 120,
-        ?FileHelper $fileHelper = null,
+        private readonly FileHelper $fileHelper = new FileHelper(),
         ?FileValidator $fileValidator = null,
         ?FileUploader $fileUploader = null
     ) {
-        $this->apiClient = new ApiClient(
-            $this->credentials,
-            $psrClient,
-            $requestFactory,
-            $streamFactory,
-            $this->logger ?? new NullLogger()
-        );
+        // Build ApiClient using factory
+        $factory = new ApiClientFactory($this->credentials);
 
-        // Initialize filesystem infrastructure
-        $this->fileHelper = $fileHelper ?? new FileHelper();
+        if ($psrClient instanceof ClientInterface) {
+            $factory = $factory->withHttpClient($psrClient);
+        }
+
+        if ($requestFactory instanceof RequestFactoryInterface) {
+            $factory = $factory->withRequestFactory($requestFactory);
+        }
+
+        if ($streamFactory instanceof StreamFactoryInterface) {
+            $factory = $factory->withStreamFactory($streamFactory);
+        }
+
+        if ($this->logger instanceof LoggerInterface) {
+            $factory = $factory->withLogger($this->logger);
+        }
+
+        $this->apiClient = $factory->build();
+
         $this->fileValidator = $fileValidator ?? new FileValidator($this->fileHelper);
         $this->fileUploader = $fileUploader ?? new FileUploader($this->fileHelper, $this->fileValidator);
     }
@@ -100,15 +109,15 @@ final class ServiceFactory
      */
     public function getTranscriptionService(): Transcription
     {
-        if ($this->transcriptionService === null) {
-            $this->transcriptionService = new Transcription(
+        if (!$this->transcription instanceof Transcription) {
+            $this->transcription = new Transcription(
                 $this->apiClient,
                 $this->fileUploader,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 
-        return $this->transcriptionService;
+        return $this->transcription;
     }
 
     /**
@@ -117,14 +126,14 @@ final class ServiceFactory
      */
     public function getStatusService(): Status
     {
-        if ($this->statusService === null) {
-            $this->statusService = new Status(
+        if (!$this->status instanceof Status) {
+            $this->status = new Status(
                 $this->apiClient,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 
-        return $this->statusService;
+        return $this->status;
     }
 
     /**
@@ -133,14 +142,14 @@ final class ServiceFactory
      */
     public function getQueueService(): Queue
     {
-        if ($this->queueService === null) {
-            $this->queueService = new Queue(
+        if (!$this->queue instanceof Queue) {
+            $this->queue = new Queue(
                 $this->apiClient,
-                $this->logger
+                $this->logger ?? new NullLogger()
             );
         }
 
-        return $this->queueService;
+        return $this->queue;
     }
 
     /**
