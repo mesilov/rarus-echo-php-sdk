@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Core;
 
-use Http\Discovery\Psr17FactoryDiscovery;
-use Http\Discovery\Psr18ClientDiscovery;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -13,7 +11,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
@@ -28,23 +25,14 @@ use Rarus\Echo\Exception\ValidationException;
  */
 final readonly class ApiClient implements ApiClientInterface
 {
-    private ClientInterface $psrClient;
-    private RequestFactoryInterface $requestFactory;
-    private StreamFactoryInterface $streamFactory;
-    private ResponseHandler $responseHandler;
-
     public function __construct(
         private Credentials $credentials,
-        ?ClientInterface $psrClient = null,
-        ?RequestFactoryInterface $requestFactory = null,
-        ?StreamFactoryInterface $streamFactory = null,
-        private LoggerInterface $logger = new NullLogger(),
+        private ClientInterface $psrClient,
+        private RequestFactoryInterface $requestFactory,
+        private StreamFactoryInterface $streamFactory,
+        private LoggerInterface $logger,
+        private ResponseHandler $responseHandler,
     ) {
-        // Auto-discover PSR-18 client if not provided
-        $this->psrClient = $psrClient ?? Psr18ClientDiscovery::find();
-        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
-        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
-        $this->responseHandler = new ResponseHandler();
     }
 
     /**

@@ -11,6 +11,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Core\ApiClientFactory;
 use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
@@ -64,13 +65,27 @@ final class ServiceFactory
         ?FileValidator $fileValidator = null,
         ?FileUploader $fileUploader = null
     ) {
-        $this->apiClient = new ApiClient(
-            $this->credentials,
-            $psrClient,
-            $requestFactory,
-            $streamFactory,
-            $this->logger ?? new NullLogger()
-        );
+        // Build ApiClient using factory
+        $factory = new ApiClientFactory($this->credentials);
+
+        if ($psrClient instanceof ClientInterface) {
+            $factory = $factory->withHttpClient($psrClient);
+        }
+
+        if ($requestFactory instanceof RequestFactoryInterface) {
+            $factory = $factory->withRequestFactory($requestFactory);
+        }
+
+        if ($streamFactory instanceof StreamFactoryInterface) {
+            $factory = $factory->withStreamFactory($streamFactory);
+        }
+
+        if ($this->logger instanceof LoggerInterface) {
+            $factory = $factory->withLogger($this->logger);
+        }
+
+        $this->apiClient = $factory->build();
+
         $this->fileValidator = $fileValidator ?? new FileValidator($this->fileHelper);
         $this->fileUploader = $fileUploader ?? new FileUploader($this->fileHelper, $this->fileValidator);
     }
