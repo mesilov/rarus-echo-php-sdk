@@ -9,8 +9,9 @@ use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\ApiClient;
-use Rarus\Echo\Core\Credentials\Credentials;
+use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Infrastructure\Filesystem\FileValidator;
@@ -146,7 +147,7 @@ final class ServiceFactory
     /**
      * Get API client (for advanced usage)
      */
-    public function getApiClient(): ApiClient
+    public function getApiClient(): ApiClientInterface
     {
         return $this->apiClient;
     }

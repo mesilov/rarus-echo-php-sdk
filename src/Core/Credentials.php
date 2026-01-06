@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Core\Credentials;
+namespace Rarus\Echo\Core;
 
 use InvalidArgumentException;
 use Symfony\Component\Uid\Uuid;

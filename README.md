@@ -66,11 +66,7 @@ composer require rarus/echo-php-sdk
 
 declare(strict_types=1);
 
-use Rarus\Echo\Application\ServiceFactory;
-use Rarus\Echo\Core\Credentials\Credentials;
-use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-use Rarus\Echo\Enum\TaskType;
-use Rarus\Echo\Enum\Language;
+use Rarus\Echo\Application\ServiceFactory;use Rarus\Echo\Core\Credentials;use Rarus\Echo\Enum\Language;use Rarus\Echo\Enum\TaskType;use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 
 // Создание credentials
 $credentials = Credentials::fromString(

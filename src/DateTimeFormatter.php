@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Core;
+namespace Rarus\Echo;
 
 use DateTimeInterface;
 

@@ -7,18 +7,18 @@ namespace Rarus\Echo\Tests\Unit\Services\Queue;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Services\Queue\Service\Queue;
 
 final class QueueServiceTest extends TestCase
 {
-    private ApiClient $apiClient;
+    private ApiClientInterface $apiClient;
     private Queue $service;
 
     protected function setUp(): void
     {
-        $this->apiClient = $this->createMock(ApiClient::class);
+        $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->service = new Queue($this->apiClient);
     }
 
@@ -44,9 +44,9 @@ final class QueueServiceTest extends TestCase
 
         $result = $this->service->getQueueInfo();
 
-        $this->assertSame(15.0, $result->getFilesCount());
-        $this->assertSame(250.5, $result->getFilesSize());
-        $this->assertSame(125.3, $result->getFilesDuration());
+        $this->assertSame(15, $result->getFilesCount());
+        $this->assertSame(250, $result->getFilesSize());
+        $this->assertSame(125, $result->getFilesDuration());
         $this->assertFalse($result->isEmpty());
     }
 
@@ -72,7 +72,7 @@ final class QueueServiceTest extends TestCase
         $result = $this->service->getQueueInfo();
 
         $this->assertTrue($result->isEmpty());
-        $this->assertSame(0.0, $result->getFilesCount());
+        $this->assertSame(0, $result->getFilesCount());
     }
 
     private function createMockResponse(array $data): Response

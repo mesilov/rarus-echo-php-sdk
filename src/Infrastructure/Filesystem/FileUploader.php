@@ -10,7 +10,7 @@ use Rarus\Echo\Exception\ValidationException;
 /**
  * File uploader for preparing files for multipart/form-data upload
  */
-final class FileUploader
+class FileUploader
 {
     public function __construct(
         private readonly FileHelper $fileHelper,

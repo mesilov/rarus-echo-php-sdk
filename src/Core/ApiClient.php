@@ -13,20 +13,20 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\Credentials\Credentials;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * Main API client for Rarus Echo service
  * Handles HTTP communication with the API
  */
-final class ApiClient
+final class ApiClient implements ApiClientInterface
 {
     private readonly ClientInterface $psrClient;
     private readonly RequestFactoryInterface $requestFactory;
@@ -50,14 +50,15 @@ final class ApiClient
     /**
      * Send GET request to API
      *
-     * @param string                         $endpoint API endpoint (without base URL)
-     * @param array<string, string|int|bool> $query    Query parameters
-     * @param array<string, string>          $headers  Additional headers
+     * @param string $endpoint API endpoint (without base URL)
+     * @param array<string, string|int|bool> $query Query parameters
+     * @param array<string, string> $headers Additional headers
      *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
+     * @throws AuthorizationException
      */
     public function get(string $endpoint, array $query = [], array $headers = []): Response
     {

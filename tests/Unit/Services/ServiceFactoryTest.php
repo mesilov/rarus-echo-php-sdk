@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Rarus\Echo\Tests\Unit\Services;
 
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Services\ServiceFactory;
+use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Services\Queue\Service\Queue;
+use Rarus\Echo\Services\ServiceFactory;
 use Rarus\Echo\Services\Status\Service\Status;
 use Rarus\Echo\Services\Transcription\Service\Transcription;
-use Rarus\Echo\Core\Credentials\Credentials;
 
 final class ServiceFactoryTest extends TestCase
 {

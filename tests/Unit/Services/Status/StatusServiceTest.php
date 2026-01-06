@@ -7,19 +7,19 @@ namespace Rarus\Echo\Tests\Unit\Services\Status;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Services\Status\Service\Status;
 
 final class StatusServiceTest extends TestCase
 {
-    private ApiClient $apiClient;
+    private ApiClientInterface $apiClient;
     private Status $service;
 
     protected function setUp(): void
     {
-        $this->apiClient = $this->createMock(ApiClient::class);
+        $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->service = new Status($this->apiClient);
     }
 

@@ -6,10 +6,16 @@ namespace Rarus\Echo\Tests\Unit\Core;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Core\Credentials\Credentials;
+use Rarus\Echo\Core\Credentials;
 
 final class CredentialsTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        unset($_ENV['RARUS_ECHO_API_KEY'], $_ENV['RARUS_ECHO_USER_ID'], $_ENV['RARUS_ECHO_BASE_URL']);
+    }
+
     public function testCreateWithValidParameters(): void
     {
         $credentials = Credentials::fromString(
@@ -54,38 +60,27 @@ final class CredentialsTest extends TestCase
 
         $this->assertSame('33333333-3333-3333-3333-333333333333', $credentials->getApiKey()->toRfc4122());
         $this->assertSame('44444444-4444-4444-4444-444444444444', $credentials->getUserId()->toRfc4122());
-
-        // Cleanup
-        unset($_ENV['RARUS_ECHO_API_KEY'], $_ENV['RARUS_ECHO_USER_ID']);
     }
 
     public function testFromEnvironmentThrowsExceptionForInvalidApiKeyUuid(): void
     {
-        $_ENV['RARUS_ECHO_API_KEY'] = 'not-a-valid-uuid';
+        $_ENV['RARUS_ECHO_API_KEY'] = 'invalid';
         $_ENV['RARUS_ECHO_USER_ID'] = '44444444-4444-4444-4444-444444444444';
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('RARUS_ECHO_API_KEY is not a valid UUID: not-a-valid-uuid');
+        $this->expectExceptionMessage('RARUS_ECHO_API_KEY is not a valid UUID: invalid');
 
-        try {
-            Credentials::fromEnvironment();
-        } finally {
-            unset($_ENV['RARUS_ECHO_API_KEY'], $_ENV['RARUS_ECHO_USER_ID']);
-        }
+        Credentials::fromEnvironment();
     }
 
     public function testFromEnvironmentThrowsExceptionForInvalidUserIdUuid(): void
     {
         $_ENV['RARUS_ECHO_API_KEY'] = '33333333-3333-3333-3333-333333333333';
-        $_ENV['RARUS_ECHO_USER_ID'] = 'invalid-user-id';
+        $_ENV['RARUS_ECHO_USER_ID'] = 'invalid';
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('RARUS_ECHO_USER_ID is not a valid UUID: invalid-user-id');
+        $this->expectExceptionMessage('RARUS_ECHO_USER_ID is not a valid UUID: invalid');
 
-        try {
-            Credentials::fromEnvironment();
-        } finally {
-            unset($_ENV['RARUS_ECHO_API_KEY'], $_ENV['RARUS_ECHO_USER_ID']);
-        }
+        Credentials::fromEnvironment();
     }
 }

@@ -15,8 +15,8 @@ final readonly class StatusItemResult
     public function __construct(
         private string $fileId,
         private TranscriptionStatus $status,
-        private int $fileSize,
-        private int $fileDuration,
+        private float $fileSize,
+        private float $fileDuration,
         private DateTimeImmutable $timestampArrival
     ) {
     }
@@ -46,8 +46,8 @@ final readonly class StatusItemResult
         return new self(
             fileId: $data['file_id'],
             status: TranscriptionStatus::from($data['status']),
-            fileSize: (int) ($data['file_size'] ?? 0), // Optional, defaults to 0
-            fileDuration: (int) ($data['file_duration'] ?? 0), // Optional, defaults to 0
+            fileSize: (float) ($data['file_size'] ?? 0), // Optional, defaults to 0
+            fileDuration: (float) ($data['file_duration'] ?? 0), // Optional, defaults to 0
             timestampArrival: new DateTimeImmutable($data['timestamp_arrival'])
         );
     }

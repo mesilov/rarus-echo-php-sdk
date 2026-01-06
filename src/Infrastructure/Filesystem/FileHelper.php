@@ -12,7 +12,7 @@ use Symfony\Component\Filesystem\Filesystem;
  * Helper for file operations using Symfony Filesystem
  * Provides cross-platform file operations with proper error handling
  */
-final class FileHelper
+class FileHelper
 {
     private readonly Filesystem $filesystem;
 
@@ -183,8 +183,12 @@ final class FileHelper
      */
     public function formatBytes(int $bytes, int $precision = 2): string
     {
+        if ($bytes === 0) {
+            return '0 B';
+        }
+
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $power = $bytes > 0 ? floor(log($bytes, 1024)) : 0;
+        $power = floor(log($bytes, 1024));
         $power = min($power, count($units) - 1);
 
         return number_format($bytes / (1024 ** $power), $precision) . ' ' . $units[$power];

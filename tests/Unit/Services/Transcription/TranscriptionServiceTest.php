@@ -7,7 +7,7 @@ namespace Rarus\Echo\Tests\Unit\Services\Transcription;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Enum\Language;
@@ -18,13 +18,13 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 
 final class TranscriptionServiceTest extends TestCase
 {
-    private ApiClient $apiClient;
+    private ApiClientInterface $apiClient;
     private FileUploader $fileUploader;
     private Transcription $service;
 
     protected function setUp(): void
     {
-        $this->apiClient = $this->createMock(ApiClient::class);
+        $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->fileUploader = $this->createMock(FileUploader::class);
         $this->service = new Transcription($this->apiClient, $this->fileUploader);
     }

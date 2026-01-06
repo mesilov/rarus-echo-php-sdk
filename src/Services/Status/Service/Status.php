@@ -7,9 +7,9 @@ namespace Rarus\Echo\Services\Status\Service;
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\ApiClient;
-use Rarus\Echo\Core\DateTimeFormatter;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
@@ -26,7 +26,7 @@ final class Status
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        protected readonly ApiClient $apiClient,
+        protected readonly ApiClientInterface $apiClient,
         ?LoggerInterface $logger = null
     ) {
         $this->logger = $logger ?? new NullLogger();
