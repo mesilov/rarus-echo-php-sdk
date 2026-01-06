@@ -7,14 +7,14 @@ namespace Rarus\Echo\Services\Status\Service;
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
-use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
 
@@ -22,15 +22,14 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  * Status service
  * Handles status checking operations
  */
-final class Status extends AbstractService implements StatusServiceInterface
+final class Status
 {
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        ApiClient $apiClient,
+        protected readonly ApiClientInterface $apiClient,
         ?LoggerInterface $logger = null
     ) {
-        parent::__construct($apiClient);
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -50,7 +49,7 @@ final class Status extends AbstractService implements StatusServiceInterface
             ['file_id' => $fileId]
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         // API returns results array with single item
         $resultData = $data['results'][0] ?? [];
@@ -83,10 +82,7 @@ final class Status extends AbstractService implements StatusServiceInterface
         ]);
 
         $queryParams = [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
-            'time_start' => $startDate->format('H:i:s'),
-            'time_end' => $endDate->format('H:i:s'),
+            ...DateTimeFormatter::toQueryParams($startDate, $endDate),
             ...$pagination->toQueryParams(),
         ];
 
@@ -95,7 +91,7 @@ final class Status extends AbstractService implements StatusServiceInterface
             $queryParams
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return StatusBatchResult::fromArray($data);
     }
@@ -139,7 +135,7 @@ final class Status extends AbstractService implements StatusServiceInterface
             $headers
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return StatusBatchResult::fromArray($data);
     }

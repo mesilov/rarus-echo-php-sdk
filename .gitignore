@@ -3,9 +3,7 @@
 composer.lock
 
 # Environment
-.env
 .env.local
-tests/.env
 
 # IDEs
 .idea/
@@ -35,3 +33,7 @@ rector.log
 # Build artifacts
 /build/
 /dist/
+
+# Claude Code
+.claude/settings.local.json
+.claude-local/

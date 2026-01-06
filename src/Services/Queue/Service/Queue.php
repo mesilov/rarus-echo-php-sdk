@@ -6,27 +6,25 @@ namespace Rarus\Echo\Services\Queue\Service;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
-use Rarus\Echo\Application\Contracts\QueueServiceInterface;
-use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 
 /**
  * Queue service
  * Handles queue information operations
  */
-final class Queue extends AbstractService implements QueueServiceInterface
+final class Queue
 {
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        ApiClient $apiClient,
+        protected readonly ApiClientInterface $apiClient,
         ?LoggerInterface $logger = null
     ) {
-        parent::__construct($apiClient);
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -44,7 +42,7 @@ final class Queue extends AbstractService implements QueueServiceInterface
 
         $response = $this->apiClient->get('/v1/async/transcription/queue');
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
         $result = QueueInfoResult::fromArray($data);
 
         $this->logger->debug('Queue info retrieved', [

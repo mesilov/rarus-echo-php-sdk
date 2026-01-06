@@ -4,29 +4,33 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Core;
 
+use Http\Discovery\Psr17FactoryDiscovery;
+use Http\Discovery\Psr18ClientDiscovery;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\Credentials\Credentials;
-use Rarus\Echo\Core\Response\Response;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Infrastructure\HttpClient\HttpClientInterface;
-use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
-use Rarus\Echo\Infrastructure\HttpClient\RetryMiddleware;
 
 /**
  * Main API client for Rarus Echo service
  * Handles HTTP communication with the API
  */
-final class ApiClient
+final class ApiClient implements ApiClientInterface
 {
-    private readonly HttpClientInterface $httpClient;
+    private readonly ClientInterface $psrClient;
+    private readonly RequestFactoryInterface $requestFactory;
+    private readonly StreamFactoryInterface $streamFactory;
     private readonly ResponseHandler $responseHandler;
 
     public function __construct(
@@ -35,42 +39,28 @@ final class ApiClient
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-        private readonly int $maxRetries = 3,
-        private readonly int $timeout = 120
     ) {
         // Auto-discover PSR-18 client if not provided
-        if ($psrClient === null) {
-            $psrClient = \Http\Discovery\Psr18ClientDiscovery::find();
-        }
-
-        if ($requestFactory === null) {
-            $requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
-        }
-
-        if ($streamFactory === null) {
-            $streamFactory = \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
-        }
-
-        // Wrap client with retry middleware
-        $retryClient = new RetryMiddleware($psrClient, $this->maxRetries, 1000, $this->logger);
-
-        $this->httpClient = new PsrHttpClient($retryClient, $requestFactory, $streamFactory);
+        $this->psrClient = $psrClient ?? Psr18ClientDiscovery::find();
+        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
         $this->responseHandler = new ResponseHandler();
     }
 
     /**
      * Send GET request to API
      *
-     * @param string                         $endpoint API endpoint (without base URL)
-     * @param array<string, string|int|bool> $query    Query parameters
-     * @param array<string, string>          $headers  Additional headers
+     * @param string $endpoint API endpoint (without base URL)
+     * @param array<string, string|int|bool> $query Query parameters
+     * @param array<string, string> $headers Additional headers
      *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
+     * @throws AuthorizationException
      */
-    public function get(string $endpoint, array $query = [], array $headers = []): Response
+    public function get(string $endpoint, array $query = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
@@ -82,9 +72,19 @@ final class ApiClient
         $this->logger->debug('Sending GET request', [
             'uri' => $uri,
             'query' => $query,
+            'options' => $options,
         ]);
 
-        $psrResponse = $this->httpClient->get($uri, $options);
+        $request = $this->createRequest('GET', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -101,7 +101,7 @@ final class ApiClient
      * @throws ValidationException
      * @throws ApiException
      */
-    public function post(string $endpoint, array $body = [], array $headers = []): Response
+    public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
@@ -115,42 +115,16 @@ final class ApiClient
             'body_size' => strlen(json_encode($body) ?: ''),
         ]);
 
-        $psrResponse = $this->httpClient->post($uri, $options);
+        $request = $this->createRequest('POST', $uri, $options);
 
-        return $this->responseHandler->handle($psrResponse);
-    }
-
-    /**
-     * Send POST request with multipart/form-data
-     *
-     * @param string                $endpoint API endpoint
-     * @param array<string, mixed>  $data     Form data
-     * @param array<string, string> $headers  Additional headers
-     *
-     * @throws NetworkException
-     * @throws AuthenticationException
-     * @throws ValidationException
-     * @throws ApiException
-     */
-    public function postMultipart(string $endpoint, array $data, array $headers = []): Response
-    {
-        $uri = $this->buildUri($endpoint);
-
-        // Note: Actual multipart implementation will be handled in FileUploader
-        // This is a simplified version
-        $options = [
-            'body' => $data,
-            'headers' => array_merge(
-                $this->buildHeaders($headers),
-                ['Content-Type' => 'multipart/form-data']
-            ),
-        ];
-
-        $this->logger->debug('Sending POST multipart request', [
-            'uri' => $uri,
-        ]);
-
-        $psrResponse = $this->httpClient->post($uri, $options);
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -161,6 +135,52 @@ final class ApiClient
     public function getCredentials(): Credentials
     {
         return $this->credentials;
+    }
+
+    /**
+     * Create PSR-7 request from options
+     *
+     * @param array<string,mixed> $options
+     *
+     * @throws NetworkException
+     */
+    private function createRequest(string $method, string $uri, array $options): RequestInterface
+    {
+        $request = $this->requestFactory->createRequest($method, $uri);
+
+        // Add headers
+        if (isset($options['headers']) && is_array($options['headers'])) {
+            foreach ($options['headers'] as $name => $value) {
+                $request = $request->withHeader($name, $value);
+            }
+        }
+
+        // Add body
+        if (isset($options['body'])) {
+            if (is_string($options['body'])) {
+                $stream = $this->streamFactory->createStream($options['body']);
+                $request = $request->withBody($stream);
+            } elseif (is_array($options['body'])) {
+                $json = json_encode($options['body']);
+                if ($json === false) {
+                    throw new NetworkException('Failed to encode body as JSON');
+                }
+                $stream = $this->streamFactory->createStream($json);
+                $request = $request->withBody($stream)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+        }
+
+        // Add query parameters
+        if (isset($options['query']) && is_array($options['query'])) {
+            $queryString = http_build_query($options['query']);
+            $uri = $request->getUri();
+            $existingQuery = $uri->getQuery();
+            $newQuery = $existingQuery ? $existingQuery . '&' . $queryString : $queryString;
+            $request = $request->withUri($uri->withQuery($newQuery));
+        }
+
+        return $request;
     }
 
     /**
@@ -184,8 +204,8 @@ final class ApiClient
     private function buildHeaders(array $additionalHeaders = []): array
     {
         $headers = [
-            'Authorization' => $this->credentials->getApiKey(),
-            'user-id' => $this->credentials->getUserId(),
+            'Authorization' => $this->credentials->getApiKey()->toRfc4122(),
+            'user-id' => $this->credentials->getUserId()->toRfc4122(),
             'Accept' => 'application/json',
         ];
 

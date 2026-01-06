@@ -7,8 +7,8 @@ namespace Rarus\Echo\Tests\Unit\Services\Transcription;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Rarus\Echo\Core\ApiClient;
-use Rarus\Echo\Core\Response\Response;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
@@ -17,13 +17,15 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 
 final class TranscriptionServiceTest extends TestCase
 {
-    private ApiClient $apiClient;
+    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
+    private ApiClientInterface $apiClient;
+    /** @var FileUploader&\PHPUnit\Framework\MockObject\MockObject */
     private FileUploader $fileUploader;
     private Transcription $service;
 
     protected function setUp(): void
     {
-        $this->apiClient = $this->createMock(ApiClient::class);
+        $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->fileUploader = $this->createMock(FileUploader::class);
         $this->service = new Transcription($this->apiClient, $this->fileUploader);
     }
@@ -94,14 +96,18 @@ final class TranscriptionServiceTest extends TestCase
             ->method('post')
             ->willReturn($response);
 
-        $result = $this->service->getTranscriptsList($fileIds, 1, 10);
+        $pagination = new Pagination(page: 1, perPage: 10);
+        $result = $this->service->getTranscriptsList($fileIds, $pagination);
 
         $this->assertCount(2, $result->getResults());
         $this->assertSame(1, $result->getPage());
         $this->assertFalse($result->hasNextPage());
     }
 
-    private function createMockResponse(array $data): Response
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createMockResponse(array $data): ResponseInterface
     {
         $stream = $this->createMock(StreamInterface::class);
         $stream->method('__toString')->willReturn(json_encode($data));
@@ -110,6 +116,6 @@ final class TranscriptionServiceTest extends TestCase
         $psrResponse->method('getStatusCode')->willReturn(200);
         $psrResponse->method('getBody')->willReturn($stream);
 
-        return new Response($psrResponse);
+        return $psrResponse;
     }
 }

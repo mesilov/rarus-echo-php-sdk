@@ -10,14 +10,14 @@ use Rarus\Echo\Enum\TranscriptionStatus;
 /**
  * Single status result item
  */
-final class StatusItemResult
+final readonly class StatusItemResult
 {
     public function __construct(
-        private readonly string $fileId,
-        private readonly TranscriptionStatus $status,
-        private readonly float $fileSize,
-        private readonly float $fileDuration,
-        private readonly DateTimeImmutable $timestampArrival
+        private string $fileId,
+        private TranscriptionStatus $status,
+        private float $fileSize,
+        private float $fileDuration,
+        private DateTimeImmutable $timestampArrival
     ) {
     }
 
@@ -25,15 +25,30 @@ final class StatusItemResult
      * Create from API response
      *
      * @param array<string, mixed> $data
+     *
+     * @throws \InvalidArgumentException   If required fields are missing
+     * @throws \DateMalformedStringException
      */
     public static function fromArray(array $data): self
     {
+        if (!isset($data['file_id'])) {
+            throw new \InvalidArgumentException('Missing required field: file_id');
+        }
+
+        if (!isset($data['status'])) {
+            throw new \InvalidArgumentException('Missing required field: status');
+        }
+
+        if (!isset($data['timestamp_arrival'])) {
+            throw new \InvalidArgumentException('Missing required field: timestamp_arrival');
+        }
+
         return new self(
-            fileId: $data['file_id'] ?? '',
-            status: TranscriptionStatus::from($data['status'] ?? 'waiting'),
-            fileSize: (float) ($data['file_size'] ?? 0),
-            fileDuration: (float) ($data['file_duration'] ?? 0),
-            timestampArrival: new DateTimeImmutable($data['timestamp_arrival'] ?? 'now')
+            fileId: $data['file_id'],
+            status: TranscriptionStatus::from($data['status']),
+            fileSize: (float) ($data['file_size'] ?? 0), // Optional, defaults to 0
+            fileDuration: (float) ($data['file_duration'] ?? 0), // Optional, defaults to 0
+            timestampArrival: new DateTimeImmutable($data['timestamp_arrival'])
         );
     }
 

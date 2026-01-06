@@ -7,12 +7,12 @@ namespace Rarus\Echo\Services\Queue\Result;
 /**
  * Queue information result
  */
-final class QueueInfoResult
+final readonly class QueueInfoResult
 {
     public function __construct(
-        private readonly float $filesCount,
-        private readonly float $filesSize,
-        private readonly float $filesDuration
+        private int $filesCount,
+        private int $filesSize,
+        private int $filesDuration
     ) {
     }
 
@@ -26,16 +26,16 @@ final class QueueInfoResult
         $results = $data['results'][0] ?? [];
 
         return new self(
-            filesCount: (float) ($results['files_count'] ?? 0),
-            filesSize: (float) ($results['files_size'] ?? 0),
-            filesDuration: (float) ($results['files_duration'] ?? 0)
+            filesCount: (int) ($results['files_count'] ?? 0),
+            filesSize: (int) ($results['files_size'] ?? 0),
+            filesDuration: (int) ($results['files_duration'] ?? 0)
         );
     }
 
     /**
      * Get number of files in queue
      */
-    public function getFilesCount(): float
+    public function getFilesCount(): int
     {
         return $this->filesCount;
     }
@@ -43,7 +43,7 @@ final class QueueInfoResult
     /**
      * Get total size of files in queue (in megabytes)
      */
-    public function getFilesSize(): float
+    public function getFilesSize(): int
     {
         return $this->filesSize;
     }
@@ -51,7 +51,7 @@ final class QueueInfoResult
     /**
      * Get total duration of files in queue (in minutes)
      */
-    public function getFilesDuration(): float
+    public function getFilesDuration(): int
     {
         return $this->filesDuration;
     }
@@ -61,7 +61,7 @@ final class QueueInfoResult
      */
     public function isEmpty(): bool
     {
-        return $this->filesCount === 0.0;
+        return $this->filesCount === 0;
     }
 
     /**
@@ -70,8 +70,8 @@ final class QueueInfoResult
     public function toString(): string
     {
         return sprintf(
-            'Queue: %d files, %.2f MB, %.2f minutes',
-            (int) $this->filesCount,
+            'Queue: %d files, %d MB, %d minutes',
+            $this->filesCount,
             $this->filesSize,
             $this->filesDuration
         );

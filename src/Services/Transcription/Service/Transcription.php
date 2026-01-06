@@ -7,16 +7,16 @@ namespace Rarus\Echo\Services\Transcription\Service;
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
-use Rarus\Echo\Services\AbstractService;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptItemResult;
@@ -26,16 +26,15 @@ use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
  * Transcription service
  * Handles all transcription-related operations
  */
-final class Transcription extends AbstractService implements TranscriptionServiceInterface
+final class Transcription
 {
     private readonly LoggerInterface $logger;
 
     public function __construct(
-        ApiClient $apiClient,
+        protected readonly ApiClientInterface $apiClient,
         private readonly FileUploader $fileUploader,
         ?LoggerInterface $logger = null
     ) {
-        parent::__construct($apiClient);
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -73,7 +72,7 @@ final class Transcription extends AbstractService implements TranscriptionServic
                 $options->toHeaders()
             );
 
-            $data = $response->getJson();
+            $data = JsonDecoder::decode($response);
             $result = TranscriptPostResult::fromArray($data);
 
             $this->logger->info('Files submitted successfully', [
@@ -103,7 +102,7 @@ final class Transcription extends AbstractService implements TranscriptionServic
             ['file_id' => $fileId]
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         // API returns results array with single item
         $resultData = $data['results'][0] ?? [];
@@ -136,10 +135,7 @@ final class Transcription extends AbstractService implements TranscriptionServic
         ]);
 
         $queryParams = [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
-            'time_start' => $startDate->format('H:i:s'),
-            'time_end' => $endDate->format('H:i:s'),
+            ...DateTimeFormatter::toQueryParams($startDate, $endDate),
             ...$pagination->toQueryParams(),
         ];
 
@@ -148,7 +144,7 @@ final class Transcription extends AbstractService implements TranscriptionServic
             $queryParams
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return TranscriptBatchResult::fromArray($data);
     }
@@ -180,19 +176,13 @@ final class Transcription extends AbstractService implements TranscriptionServic
             $fileIds
         );
 
-        $paginationParams = $pagination->toQueryParams();
-        $headers = [
-            'page' => (string) $paginationParams['page'],
-            'per_page' => (string) $paginationParams['per_page'],
-        ];
-
         $response = $this->apiClient->post(
             '/v2/async/transcription/list',
             $body,
-            $headers
+            $pagination->toHeaders()
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return TranscriptBatchResult::fromArray($data);
     }

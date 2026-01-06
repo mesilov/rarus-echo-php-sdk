@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Application;
+namespace Rarus\Echo\Services;
 
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Rarus\Echo\Application\Contracts\QueueServiceInterface;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
-use Rarus\Echo\Application\Contracts\TranscriptionServiceInterface;
+use Psr\Log\NullLogger;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\ApiClient;
-use Rarus\Echo\Core\Credentials\Credentials;
+use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Infrastructure\Filesystem\FileValidator;
@@ -37,9 +36,12 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
-    private ?TranscriptionServiceInterface $transcriptionService = null;
-    private ?StatusServiceInterface $statusService = null;
-    private ?QueueServiceInterface $queueService = null;
+    private readonly FileHelper $fileHelper;
+    private readonly FileValidator $fileValidator;
+    private readonly FileUploader $fileUploader;
+    private ?Transcription $transcriptionService = null;
+    private ?Status $statusService = null;
+    private ?Queue $queueService = null;
 
     /**
      * Create new ServiceFactory instance
@@ -49,8 +51,10 @@ final class ServiceFactory
      * @param RequestFactoryInterface|null   $requestFactory  PSR-17 request factory (auto-discovered if null)
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
-     * @param int                            $maxRetries      Maximum number of retry attempts
      * @param int                            $timeout         Request timeout in seconds
+     * @param FileHelper|null                $fileHelper      File helper (auto-created if null)
+     * @param FileValidator|null             $fileValidator   File validator (auto-created if null)
+     * @param FileUploader|null              $fileUploader    File uploader (auto-created if null)
      */
     public function __construct(
         private readonly Credentials $credentials,
@@ -58,18 +62,23 @@ final class ServiceFactory
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly ?LoggerInterface $logger = null,
-        int $maxRetries = 3,
-        int $timeout = 120
+        int $timeout = 120,
+        ?FileHelper $fileHelper = null,
+        ?FileValidator $fileValidator = null,
+        ?FileUploader $fileUploader = null
     ) {
         $this->apiClient = new ApiClient(
             $this->credentials,
             $psrClient,
             $requestFactory,
             $streamFactory,
-            $this->logger,
-            $maxRetries,
-            $timeout
+            $this->logger ?? new NullLogger()
         );
+
+        // Initialize filesystem infrastructure
+        $this->fileHelper = $fileHelper ?? new FileHelper();
+        $this->fileValidator = $fileValidator ?? new FileValidator($this->fileHelper);
+        $this->fileUploader = $fileUploader ?? new FileUploader($this->fileHelper, $this->fileValidator);
     }
 
     /**
@@ -78,7 +87,7 @@ final class ServiceFactory
      *
      * @throws \InvalidArgumentException if environment variables are not set
      */
-    public static function fromEnvironment(?LoggerInterface $logger = null): self
+    public static function fromEnvironment(LoggerInterface $logger = new NullLogger()): self
     {
         $credentials = Credentials::fromEnvironment();
 
@@ -89,16 +98,12 @@ final class ServiceFactory
      * Get Transcription service
      * Handles file upload and transcription retrieval
      */
-    public function getTranscriptionService(): TranscriptionServiceInterface
+    public function getTranscriptionService(): Transcription
     {
         if ($this->transcriptionService === null) {
-            $fileHelper = new FileHelper();
-            $fileValidator = new FileValidator($fileHelper);
-            $fileUploader = new FileUploader($fileHelper, $fileValidator);
-
             $this->transcriptionService = new Transcription(
                 $this->apiClient,
-                $fileUploader,
+                $this->fileUploader,
                 $this->logger
             );
         }
@@ -110,7 +115,7 @@ final class ServiceFactory
      * Get Status service
      * Handles status checking for transcription tasks
      */
-    public function getStatusService(): StatusServiceInterface
+    public function getStatusService(): Status
     {
         if ($this->statusService === null) {
             $this->statusService = new Status(
@@ -126,7 +131,7 @@ final class ServiceFactory
      * Get Queue service
      * Provides queue statistics and monitoring
      */
-    public function getQueueService(): QueueServiceInterface
+    public function getQueueService(): Queue
     {
         if ($this->queueService === null) {
             $this->queueService = new Queue(
@@ -141,7 +146,7 @@ final class ServiceFactory
     /**
      * Get API client (for advanced usage)
      */
-    public function getApiClient(): ApiClient
+    public function getApiClient(): ApiClientInterface
     {
         return $this->apiClient;
     }

@@ -92,32 +92,10 @@ final readonly class Pagination
         return new self(page: $this->page - 1, perPage: $this->perPage);
     }
 
-    /**
-     * Create a new pagination with different page number
-     */
-    public function withPage(int $page): self
-    {
-        return new self(page: $page, perPage: $this->perPage);
-    }
-
-    /**
-     * Create a new pagination with different items per page
-     */
-    public function withPerPage(int $perPage): self
-    {
-        return new self(page: $this->page, perPage: $perPage);
-    }
-
-    /**
-     * Check if this is the first page
-     */
-    public function isFirstPage(): bool
-    {
-        return $this->page === 1;
-    }
 
     /**
      * Convert to query parameters array
+     * Use this when pagination is passed via URL query string
      *
      * @return array<string, int>
      */
@@ -130,10 +108,16 @@ final readonly class Pagination
     }
 
     /**
-     * Convert to string representation
+     * Convert to headers array
+     * Use this when pagination is passed via HTTP headers
+     *
+     * @return array<string, string>
      */
-    public function toString(): string
+    public function toHeaders(): array
     {
-        return "Page {$this->page}, {$this->perPage} items per page";
+        return [
+            'page' => (string) $this->page,
+            'per_page' => (string) $this->perPage,
+        ];
     }
 }

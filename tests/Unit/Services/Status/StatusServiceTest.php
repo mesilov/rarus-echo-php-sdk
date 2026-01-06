@@ -7,18 +7,19 @@ namespace Rarus\Echo\Tests\Unit\Services\Status;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Rarus\Echo\Core\ApiClient;
-use Rarus\Echo\Core\Response\Response;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Services\Status\Service\Status;
 
 final class StatusServiceTest extends TestCase
 {
-    private ApiClient $apiClient;
+    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
+    private ApiClientInterface $apiClient;
     private Status $service;
 
     protected function setUp(): void
     {
-        $this->apiClient = $this->createMock(ApiClient::class);
+        $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->service = new Status($this->apiClient);
     }
 
@@ -92,14 +93,18 @@ final class StatusServiceTest extends TestCase
             ->method('post')
             ->willReturn($response);
 
-        $result = $this->service->getStatusList($fileIds, 1, 10);
+        $pagination = new Pagination(page: 1, perPage: 10);
+        $result = $this->service->getStatusList($fileIds, $pagination);
 
         $this->assertCount(2, $result->getResults());
         $this->assertSame(1, $result->getPage());
         $this->assertFalse($result->hasNextPage());
     }
 
-    private function createMockResponse(array $data): Response
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createMockResponse(array $data): ResponseInterface
     {
         $stream = $this->createMock(StreamInterface::class);
         $stream->method('__toString')->willReturn(json_encode($data));
@@ -108,6 +113,6 @@ final class StatusServiceTest extends TestCase
         $psrResponse->method('getStatusCode')->willReturn(200);
         $psrResponse->method('getBody')->willReturn($stream);
 
-        return new Response($psrResponse);
+        return $psrResponse;
     }
 }
