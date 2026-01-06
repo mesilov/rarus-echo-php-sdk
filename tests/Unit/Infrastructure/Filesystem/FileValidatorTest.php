@@ -11,16 +11,18 @@ use Rarus\Echo\Infrastructure\Filesystem\FileValidator;
 
 final class FileValidatorTest extends TestCase
 {
-    private FileValidator $validator;
+    private FileValidator $fileValidator;
     private string $tempDir;
 
+    #[\Override]
     protected function setUp(): void
     {
-        $this->validator = new FileValidator(new FileHelper());
+        $this->fileValidator = new FileValidator(new FileHelper());
         $this->tempDir = sys_get_temp_dir() . '/rarus_echo_test_' . uniqid();
-        mkdir($this->tempDir, 0777, true);
+        mkdir($this->tempDir, 0o777, true);
     }
 
+    #[\Override]
     protected function tearDown(): void
     {
         if (is_dir($this->tempDir)) {
@@ -33,7 +35,7 @@ final class FileValidatorTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('File does not exist');
 
-        $this->validator->validate($this->tempDir . '/nonexistent.txt');
+        $this->fileValidator->validate($this->tempDir . '/nonexistent.txt');
     }
 
     public function testValidateEmptyFile(): void
@@ -44,7 +46,7 @@ final class FileValidatorTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('File is empty');
 
-        $this->validator->validate($filePath);
+        $this->fileValidator->validate($filePath);
     }
 
     public function testValidateTooLargeFile(): void
@@ -58,17 +60,15 @@ final class FileValidatorTest extends TestCase
         $fileHelper->method('exists')->willReturn(true);
         $fileHelper->method('isReadable')->willReturn(true);
         $fileHelper->method('getFileSize')->willReturn(501 * 1024 * 1024); // 501 MB
-        $fileHelper->method('formatBytes')->willReturnCallback(function ($bytes) {
-            return number_format($bytes / 1024 / 1024, 2) . ' MB';
-        });
+        $fileHelper->method('formatBytes')->willReturnCallback(fn ($bytes): string => number_format($bytes / 1024 / 1024, 2) . ' MB');
         $fileHelper->method('getMimeType')->willReturn('audio/mpeg');
 
-        $validator = new FileValidator($fileHelper);
+        $fileValidator = new FileValidator($fileHelper);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('exceeds maximum allowed size');
 
-        $validator->validate($filePath);
+        $fileValidator->validate($filePath);
     }
 
     public function testValidateInvalidMimeType(): void
@@ -80,7 +80,7 @@ final class FileValidatorTest extends TestCase
         $this->expectExceptionMessage('MIME type');
         $this->expectExceptionMessage('is not supported');
 
-        $this->validator->validate($filePath);
+        $this->fileValidator->validate($filePath);
     }
 
     public function testValidateMultipleFiles(): void
@@ -92,7 +92,7 @@ final class FileValidatorTest extends TestCase
 
         $this->expectException(ValidationException::class);
 
-        $this->validator->validateMultiple([$file1, $file2]);
+        $this->fileValidator->validateMultiple([$file1, $file2]);
     }
 
     public function testValidateMultipleFilesWithEmptyArray(): void
@@ -100,7 +100,7 @@ final class FileValidatorTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('No files provided');
 
-        $this->validator->validateMultiple([]);
+        $this->fileValidator->validateMultiple([]);
     }
 
     public function testIsValid(): void
@@ -109,10 +109,10 @@ final class FileValidatorTest extends TestCase
         file_put_contents($filePath, 'test');
 
         // Text file is not a valid media file
-        $this->assertFalse($this->validator->isValid($filePath));
+        $this->assertFalse($this->fileValidator->isValid($filePath));
 
         // Non-existent file
-        $this->assertFalse($this->validator->isValid($this->tempDir . '/nonexistent.mp3'));
+        $this->assertFalse($this->fileValidator->isValid($this->tempDir . '/nonexistent.mp3'));
     }
 
     public function testGetAllowedMimeTypes(): void

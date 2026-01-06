@@ -13,20 +13,20 @@ final class TranscriptionOptionsTest extends TestCase
 {
     public function testDefaultOptions(): void
     {
-        $options = TranscriptionOptions::default();
+        $transcriptionOptions = TranscriptionOptions::default();
 
-        $this->assertSame(TaskType::TRANSCRIPTION, $options->getTaskType());
-        $this->assertSame(Language::AUTO, $options->getLanguage());
-        $this->assertFalse($options->isCensor());
-        $this->assertFalse($options->isSpeakersCorrection());
-        $this->assertTrue($options->isStoreFile());
-        $this->assertFalse($options->isLowPriority());
-        $this->assertNull($options->getRequestSource());
+        $this->assertSame(TaskType::TRANSCRIPTION, $transcriptionOptions->getTaskType());
+        $this->assertSame(Language::AUTO, $transcriptionOptions->getLanguage());
+        $this->assertFalse($transcriptionOptions->isCensor());
+        $this->assertFalse($transcriptionOptions->isSpeakersCorrection());
+        $this->assertTrue($transcriptionOptions->isStoreFile());
+        $this->assertFalse($transcriptionOptions->isLowPriority());
+        $this->assertNull($transcriptionOptions->getRequestSource());
     }
 
     public function testBuilderPattern(): void
     {
-        $options = TranscriptionOptions::create()
+        $transcriptionOptions = TranscriptionOptions::create()
             ->withTaskType(TaskType::DIARIZATION)
             ->withLanguage(Language::RU)
             ->withCensor()
@@ -35,17 +35,17 @@ final class TranscriptionOptionsTest extends TestCase
             ->withRequestSource('test-source')
             ->build();
 
-        $this->assertSame(TaskType::DIARIZATION, $options->getTaskType());
-        $this->assertSame(Language::RU, $options->getLanguage());
-        $this->assertTrue($options->isCensor());
-        $this->assertTrue($options->isSpeakersCorrection());
-        $this->assertTrue($options->isLowPriority());
-        $this->assertSame('test-source', $options->getRequestSource());
+        $this->assertSame(TaskType::DIARIZATION, $transcriptionOptions->getTaskType());
+        $this->assertSame(Language::RU, $transcriptionOptions->getLanguage());
+        $this->assertTrue($transcriptionOptions->isCensor());
+        $this->assertTrue($transcriptionOptions->isSpeakersCorrection());
+        $this->assertTrue($transcriptionOptions->isLowPriority());
+        $this->assertSame('test-source', $transcriptionOptions->getRequestSource());
     }
 
     public function testToHeaders(): void
     {
-        $options = new TranscriptionOptions(
+        $transcriptionOptions = new TranscriptionOptions(
             taskType: TaskType::TIMESTAMPS,
             language: Language::EN,
             censor: true,
@@ -54,7 +54,7 @@ final class TranscriptionOptionsTest extends TestCase
             lowPriority: true
         );
 
-        $headers = $options->toHeaders();
+        $headers = $transcriptionOptions->toHeaders();
 
         $this->assertSame('timestamps', $headers['task-type']);
         $this->assertSame('en', $headers['language']);

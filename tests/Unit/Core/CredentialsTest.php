@@ -10,6 +10,7 @@ use Rarus\Echo\Core\Credentials;
 
 final class CredentialsTest extends TestCase
 {
+    #[\Override]
     protected function tearDown(): void
     {
         parent::tearDown();

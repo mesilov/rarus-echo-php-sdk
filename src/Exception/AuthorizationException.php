@@ -12,8 +12,8 @@ class AuthorizationException extends EchoException
 {
     public function __construct(
         string $message = 'Authorization failed: Insufficient permissions',
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, 403, $previous);
+        parent::__construct($message, 403, $throwable);
     }
 }

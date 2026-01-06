@@ -12,8 +12,8 @@ class AuthenticationException extends EchoException
 {
     public function __construct(
         string $message = 'Authentication failed: Invalid credentials',
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, 401, $previous);
+        parent::__construct($message, 401, $throwable);
     }
 }

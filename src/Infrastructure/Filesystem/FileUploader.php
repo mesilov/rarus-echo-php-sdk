@@ -14,7 +14,7 @@ class FileUploader
 {
     public function __construct(
         private readonly FileHelper $fileHelper,
-        private readonly FileValidator $validator
+        private readonly FileValidator $fileValidator
     ) {
     }
 
@@ -31,7 +31,7 @@ class FileUploader
     public function prepareFiles(array $filePaths): array
     {
         // Validate all files first
-        $this->validator->validateMultiple($filePaths);
+        $this->fileValidator->validateMultiple($filePaths);
 
         $preparedFiles = [];
 

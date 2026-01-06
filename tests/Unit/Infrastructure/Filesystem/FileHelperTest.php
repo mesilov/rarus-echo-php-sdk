@@ -13,13 +13,15 @@ final class FileHelperTest extends TestCase
     private FileHelper $fileHelper;
     private string $tempDir;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->fileHelper = new FileHelper();
         $this->tempDir = sys_get_temp_dir() . '/rarus_echo_test_' . uniqid();
-        mkdir($this->tempDir, 0777, true);
+        mkdir($this->tempDir, 0o777, true);
     }
 
+    #[\Override]
     protected function tearDown(): void
     {
         if (is_dir($this->tempDir)) {

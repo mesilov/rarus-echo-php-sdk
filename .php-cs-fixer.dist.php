@@ -8,7 +8,6 @@ use PhpCsFixer\Finder;
 $finder = Finder::create()
     ->in(__DIR__ . '/src')
     ->in(__DIR__ . '/tests')
-    ->in(__DIR__ . '/tools')
     ->exclude('Fixtures')
     ->exclude('Temp')
     ->name('*.php')

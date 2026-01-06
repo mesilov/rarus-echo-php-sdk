@@ -22,15 +22,10 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  * Status service
  * Handles status checking operations
  */
-final class Status
+final readonly class Status
 {
-    private readonly LoggerInterface $logger;
-
-    public function __construct(
-        protected readonly ApiClientInterface $apiClient,
-        ?LoggerInterface $logger = null
-    ) {
-        $this->logger = $logger ?? new NullLogger();
+    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger = new NullLogger())
+    {
     }
 
     /**
@@ -119,7 +114,7 @@ final class Status
 
         // Convert file IDs to required format
         $body = array_map(
-            fn (string $fileId) => ['file_id' => $fileId],
+            fn (string $fileId): array => ['file_id' => $fileId],
             $fileIds
         );
 

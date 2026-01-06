@@ -4,30 +4,29 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Unit\Services\Transcription;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Pagination;
-use Rarus\Echo\Enum\Language;
-use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
-use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Service\Transcription;
 
 final class TranscriptionServiceTest extends TestCase
 {
-    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
+    /** @var ApiClientInterface&MockObject */
     private ApiClientInterface $apiClient;
-    /** @var FileUploader&\PHPUnit\Framework\MockObject\MockObject */
+    /** @var FileUploader&MockObject */
     private FileUploader $fileUploader;
-    private Transcription $service;
+    private Transcription $transcription;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->fileUploader = $this->createMock(FileUploader::class);
-        $this->service = new Transcription($this->apiClient, $this->fileUploader);
+        $this->transcription = new Transcription($this->apiClient, $this->fileUploader);
     }
 
     public function testGetTranscript(): void
@@ -53,11 +52,11 @@ final class TranscriptionServiceTest extends TestCase
             ->with('/v1/async/transcription', ['file_id' => $fileId])
             ->willReturn($response);
 
-        $result = $this->service->getTranscript($fileId);
+        $transcriptItemResult = $this->transcription->getTranscript($fileId);
 
-        $this->assertSame($fileId, $result->getFileId());
-        $this->assertTrue($result->isSuccessful());
-        $this->assertSame('Test transcription result', $result->getResult());
+        $this->assertSame($fileId, $transcriptItemResult->getFileId());
+        $this->assertTrue($transcriptItemResult->isSuccessful());
+        $this->assertSame('Test transcription result', $transcriptItemResult->getResult());
     }
 
     public function testGetTranscriptsList(): void
@@ -97,11 +96,11 @@ final class TranscriptionServiceTest extends TestCase
             ->willReturn($response);
 
         $pagination = new Pagination(page: 1, perPage: 10);
-        $result = $this->service->getTranscriptsList($fileIds, $pagination);
+        $transcriptBatchResult = $this->transcription->getTranscriptsList($fileIds, $pagination);
 
-        $this->assertCount(2, $result->getResults());
-        $this->assertSame(1, $result->getPage());
-        $this->assertFalse($result->hasNextPage());
+        $this->assertCount(2, $transcriptBatchResult->getResults());
+        $this->assertSame(1, $transcriptBatchResult->getPage());
+        $this->assertFalse($transcriptBatchResult->hasNextPage());
     }
 
     /**

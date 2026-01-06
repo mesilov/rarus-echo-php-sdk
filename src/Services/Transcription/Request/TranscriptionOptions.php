@@ -10,16 +10,16 @@ use Rarus\Echo\Enum\TaskType;
 /**
  * Options for transcription request
  */
-final class TranscriptionOptions
+final readonly class TranscriptionOptions
 {
     public function __construct(
-        private readonly TaskType $taskType = TaskType::TRANSCRIPTION,
-        private readonly Language $language = Language::AUTO,
-        private readonly bool $censor = false,
-        private readonly bool $speakersCorrection = false,
-        private readonly bool $storeFile = true,
-        private readonly bool $lowPriority = false,
-        private readonly ?string $requestSource = null
+        private TaskType $taskType = TaskType::TRANSCRIPTION,
+        private Language $language = Language::AUTO,
+        private bool $censor = false,
+        private bool $speakersCorrection = false,
+        private bool $storeFile = true,
+        private bool $lowPriority = false,
+        private ?string $requestSource = null
     ) {
     }
 

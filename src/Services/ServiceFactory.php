@@ -36,12 +36,11 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
 final class ServiceFactory
 {
     private readonly ApiClient $apiClient;
-    private readonly FileHelper $fileHelper;
     private readonly FileValidator $fileValidator;
     private readonly FileUploader $fileUploader;
-    private ?Transcription $transcriptionService = null;
-    private ?Status $statusService = null;
-    private ?Queue $queueService = null;
+    private ?Transcription $transcription = null;
+    private ?Status $status = null;
+    private ?Queue $queue = null;
 
     /**
      * Create new ServiceFactory instance
@@ -51,7 +50,6 @@ final class ServiceFactory
      * @param RequestFactoryInterface|null   $requestFactory  PSR-17 request factory (auto-discovered if null)
      * @param StreamFactoryInterface|null    $streamFactory   PSR-17 stream factory (auto-discovered if null)
      * @param LoggerInterface|null           $logger          PSR-3 logger (NullLogger if null)
-     * @param int                            $timeout         Request timeout in seconds
      * @param FileHelper|null                $fileHelper      File helper (auto-created if null)
      * @param FileValidator|null             $fileValidator   File validator (auto-created if null)
      * @param FileUploader|null              $fileUploader    File uploader (auto-created if null)
@@ -62,8 +60,7 @@ final class ServiceFactory
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly ?LoggerInterface $logger = null,
-        int $timeout = 120,
-        ?FileHelper $fileHelper = null,
+        private readonly FileHelper $fileHelper = new FileHelper(),
         ?FileValidator $fileValidator = null,
         ?FileUploader $fileUploader = null
     ) {
@@ -74,9 +71,6 @@ final class ServiceFactory
             $streamFactory,
             $this->logger ?? new NullLogger()
         );
-
-        // Initialize filesystem infrastructure
-        $this->fileHelper = $fileHelper ?? new FileHelper();
         $this->fileValidator = $fileValidator ?? new FileValidator($this->fileHelper);
         $this->fileUploader = $fileUploader ?? new FileUploader($this->fileHelper, $this->fileValidator);
     }
@@ -100,15 +94,15 @@ final class ServiceFactory
      */
     public function getTranscriptionService(): Transcription
     {
-        if ($this->transcriptionService === null) {
-            $this->transcriptionService = new Transcription(
+        if (!$this->transcription instanceof Transcription) {
+            $this->transcription = new Transcription(
                 $this->apiClient,
                 $this->fileUploader,
                 $this->logger
             );
         }
 
-        return $this->transcriptionService;
+        return $this->transcription;
     }
 
     /**
@@ -117,14 +111,14 @@ final class ServiceFactory
      */
     public function getStatusService(): Status
     {
-        if ($this->statusService === null) {
-            $this->statusService = new Status(
+        if (!$this->status instanceof Status) {
+            $this->status = new Status(
                 $this->apiClient,
                 $this->logger
             );
         }
 
-        return $this->statusService;
+        return $this->status;
     }
 
     /**
@@ -133,14 +127,14 @@ final class ServiceFactory
      */
     public function getQueueService(): Queue
     {
-        if ($this->queueService === null) {
-            $this->queueService = new Queue(
+        if (!$this->queue instanceof Queue) {
+            $this->queue = new Queue(
                 $this->apiClient,
                 $this->logger
             );
         }
 
-        return $this->queueService;
+        return $this->queue;
     }
 
     /**

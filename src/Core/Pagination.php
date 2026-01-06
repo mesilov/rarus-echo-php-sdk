@@ -92,7 +92,6 @@ final readonly class Pagination
         return new self(page: $this->page - 1, perPage: $this->perPage);
     }
 
-
     /**
      * Convert to query parameters array
      * Use this when pagination is passed via URL query string

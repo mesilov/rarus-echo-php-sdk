@@ -22,7 +22,7 @@ final class JsonDecoder
     {
         $body = (string) $response->getBody();
 
-        if (empty($body)) {
+        if ($body === '' || $body === '0') {
             return [];
         }
 

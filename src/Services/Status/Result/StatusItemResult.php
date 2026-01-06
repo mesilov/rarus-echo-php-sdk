@@ -14,7 +14,7 @@ final readonly class StatusItemResult
 {
     public function __construct(
         private string $fileId,
-        private TranscriptionStatus $status,
+        private TranscriptionStatus $transcriptionStatus,
         private float $fileSize,
         private float $fileDuration,
         private DateTimeImmutable $timestampArrival
@@ -59,7 +59,7 @@ final readonly class StatusItemResult
 
     public function getStatus(): TranscriptionStatus
     {
-        return $this->status;
+        return $this->transcriptionStatus;
     }
 
     /**
@@ -88,7 +88,7 @@ final readonly class StatusItemResult
      */
     public function isCompleted(): bool
     {
-        return $this->status->isFinal();
+        return $this->transcriptionStatus->isFinal();
     }
 
     /**
@@ -96,6 +96,6 @@ final readonly class StatusItemResult
      */
     public function isSuccessful(): bool
     {
-        return $this->status === TranscriptionStatus::SUCCESS;
+        return $this->transcriptionStatus === TranscriptionStatus::SUCCESS;
     }
 }

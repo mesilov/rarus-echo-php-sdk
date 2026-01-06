@@ -8,13 +8,13 @@ namespace Rarus\Echo\Services\Transcription\Result;
  * Result of submitting file for transcription
  * Contains file_id that can be used to retrieve transcription result
  */
-final class TranscriptPostResult
+final readonly class TranscriptPostResult
 {
     /**
      * @param array<int, array{file_id: string}> $results
      */
     public function __construct(
-        private readonly array $results
+        private array $results
     ) {
     }
 
@@ -55,7 +55,7 @@ final class TranscriptPostResult
     public function getFileIds(): array
     {
         return array_map(
-            fn (array $item) => $item['file_id'],
+            fn (array $item): string => $item['file_id'],
             $this->results
         );
     }

@@ -26,23 +26,17 @@ use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
  * Transcription service
  * Handles all transcription-related operations
  */
-final class Transcription
+final readonly class Transcription
 {
-    private readonly LoggerInterface $logger;
-
-    public function __construct(
-        protected readonly ApiClientInterface $apiClient,
-        private readonly FileUploader $fileUploader,
-        ?LoggerInterface $logger = null
-    ) {
-        $this->logger = $logger ?? new NullLogger();
+    public function __construct(private ApiClientInterface $apiClient, private FileUploader $fileUploader, private LoggerInterface $logger = new NullLogger())
+    {
     }
 
     /**
      * Submit files for transcription
      *
      * @param array<string>        $files   Array of file paths
-     * @param TranscriptionOptions $options Transcription options
+     * @param TranscriptionOptions $transcriptionOptions Transcription options
      *
      * @throws ValidationException
      * @throws FileException
@@ -52,12 +46,12 @@ final class Transcription
      */
     public function submitTranscription(
         array $files,
-        TranscriptionOptions $options
+        TranscriptionOptions $transcriptionOptions
     ): TranscriptPostResult {
         $this->logger->info('Submitting files for transcription', [
             'file_count' => count($files),
-            'task_type' => $options->getTaskType()->value,
-            'language' => $options->getLanguage()->value,
+            'task_type' => $transcriptionOptions->getTaskType()->value,
+            'language' => $transcriptionOptions->getLanguage()->value,
         ]);
 
         // Prepare files for upload
@@ -69,7 +63,7 @@ final class Transcription
             $response = $this->apiClient->post(
                 '/v1/async/transcription',
                 [],
-                $options->toHeaders()
+                $transcriptionOptions->toHeaders()
             );
 
             $data = JsonDecoder::decode($response);
@@ -172,7 +166,7 @@ final class Transcription
 
         // Convert file IDs to required format
         $body = array_map(
-            fn (string $fileId) => ['file_id' => $fileId],
+            fn (string $fileId): array => ['file_id' => $fileId],
             $fileIds
         );
 

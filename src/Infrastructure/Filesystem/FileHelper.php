@@ -141,7 +141,7 @@ class FileHelper
      *
      * @throws FileException
      */
-    public function ensureDirectoryExists(string $dir, int $mode = 0755): void
+    public function ensureDirectoryExists(string $dir, int $mode = 0o755): void
     {
         if ($this->exists($dir)) {
             return;

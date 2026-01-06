@@ -16,9 +16,9 @@ class ValidationException extends EchoException
     public function __construct(
         string $message,
         private readonly array $validationErrors = [],
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, 422, $previous);
+        parent::__construct($message, 422, $throwable);
     }
 
     /**
@@ -37,12 +37,12 @@ class ValidationException extends EchoException
     public function getValidationErrorsAsString(): string
     {
         $errors = [];
-        foreach ($this->validationErrors as $error) {
+        foreach ($this->validationErrors as $validationError) {
             $errors[] = sprintf(
                 "Field '%s': %s (type: %s)",
-                $error['field'] ?? 'unknown',
-                $error['message'] ?? 'unknown error',
-                $error['type'] ?? 'unknown'
+                $validationError['field'] ?? 'unknown',
+                $validationError['message'] ?? 'unknown error',
+                $validationError['type'] ?? 'unknown'
             );
         }
 

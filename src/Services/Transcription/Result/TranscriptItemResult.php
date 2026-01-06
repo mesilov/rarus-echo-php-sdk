@@ -15,7 +15,7 @@ final readonly class TranscriptItemResult
     public function __construct(
         private string $fileId,
         private TaskType $taskType,
-        private TranscriptionStatus $status,
+        private TranscriptionStatus $transcriptionStatus,
         private string $result
     ) {
     }
@@ -61,7 +61,7 @@ final readonly class TranscriptItemResult
 
     public function getStatus(): TranscriptionStatus
     {
-        return $this->status;
+        return $this->transcriptionStatus;
     }
 
     public function getResult(): string
@@ -74,7 +74,7 @@ final readonly class TranscriptItemResult
      */
     public function isSuccessful(): bool
     {
-        return $this->status === TranscriptionStatus::SUCCESS;
+        return $this->transcriptionStatus === TranscriptionStatus::SUCCESS;
     }
 
     /**
@@ -82,7 +82,7 @@ final readonly class TranscriptItemResult
      */
     public function isFailed(): bool
     {
-        return $this->status === TranscriptionStatus::FAILURE;
+        return $this->transcriptionStatus === TranscriptionStatus::FAILURE;
     }
 
     /**
@@ -90,6 +90,6 @@ final readonly class TranscriptItemResult
      */
     public function isInProgress(): bool
     {
-        return $this->status->isInProgress();
+        return $this->transcriptionStatus->isInProgress();
     }
 }

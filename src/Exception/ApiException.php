@@ -10,13 +10,16 @@ namespace Rarus\Echo\Exception;
  */
 class ApiException extends EchoException
 {
+    /**
+     * @param array<string, mixed>|null $responseData
+     */
     public function __construct(
         string $message,
         private readonly int $statusCode,
         private readonly ?array $responseData = null,
-        ?\Throwable $previous = null
+        ?\Throwable $throwable = null
     ) {
-        parent::__construct($message, $statusCode, $previous);
+        parent::__construct($message, $statusCode, $throwable);
     }
 
     public function getStatusCode(): int
@@ -24,6 +27,9 @@ class ApiException extends EchoException
         return $this->statusCode;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getResponseData(): ?array
     {
         return $this->responseData;

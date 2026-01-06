@@ -17,15 +17,10 @@ use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
  * Queue service
  * Handles queue information operations
  */
-final class Queue
+final readonly class Queue
 {
-    private readonly LoggerInterface $logger;
-
-    public function __construct(
-        protected readonly ApiClientInterface $apiClient,
-        ?LoggerInterface $logger = null
-    ) {
-        $this->logger = $logger ?? new NullLogger();
+    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger = new NullLogger())
+    {
     }
 
     /**
@@ -43,14 +38,14 @@ final class Queue
         $response = $this->apiClient->get('/v1/async/transcription/queue');
 
         $data = JsonDecoder::decode($response);
-        $result = QueueInfoResult::fromArray($data);
+        $queueInfoResult = QueueInfoResult::fromArray($data);
 
         $this->logger->debug('Queue info retrieved', [
-            'files_count' => $result->getFilesCount(),
-            'files_size_mb' => $result->getFilesSize(),
-            'files_duration_min' => $result->getFilesDuration(),
+            'files_count' => $queueInfoResult->getFilesCount(),
+            'files_size_mb' => $queueInfoResult->getFilesSize(),
+            'files_duration_min' => $queueInfoResult->getFilesDuration(),
         ]);
 
-        return $result;
+        return $queueInfoResult;
     }
 }
