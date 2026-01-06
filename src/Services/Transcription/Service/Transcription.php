@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
@@ -71,7 +72,7 @@ final class Transcription
                 $options->toHeaders()
             );
 
-            $data = $response->getJson();
+            $data = JsonDecoder::decode($response);
             $result = TranscriptPostResult::fromArray($data);
 
             $this->logger->info('Files submitted successfully', [
@@ -101,7 +102,7 @@ final class Transcription
             ['file_id' => $fileId]
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         // API returns results array with single item
         $resultData = $data['results'][0] ?? [];
@@ -143,7 +144,7 @@ final class Transcription
             $queryParams
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return TranscriptBatchResult::fromArray($data);
     }
@@ -181,7 +182,7 @@ final class Transcription
             $pagination->toHeaders()
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return TranscriptBatchResult::fromArray($data);
     }

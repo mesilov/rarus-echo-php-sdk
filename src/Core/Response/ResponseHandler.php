@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rarus\Echo\Core\Response;
 
 use Psr\Http\Message\ResponseInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\AuthorizationException;
@@ -27,20 +28,19 @@ final class ResponseHandler
      * @throws ServerErrorException
      * @throws ApiException
      */
-    public function handle(ResponseInterface $psrResponse): Response
+    public function handle(ResponseInterface $psrResponse): ResponseInterface
     {
-        $response = new Response($psrResponse);
-        $statusCode = $response->getStatusCode();
+        $statusCode = $psrResponse->getStatusCode();
 
         // Success responses
-        if ($response->isSuccessful()) {
-            return $response;
+        if ($statusCode >= 200 && $statusCode < 300) {
+            return $psrResponse;
         }
 
         // Handle error responses
-        $this->handleErrorResponse($response, $statusCode);
+        $this->handleErrorResponse($psrResponse, $statusCode);
 
-        return $response;
+        return $psrResponse;
     }
 
     /**
@@ -53,16 +53,16 @@ final class ResponseHandler
      * @throws ServerErrorException
      * @throws ApiException
      */
-    private function handleErrorResponse(Response $response, int $statusCode): void
+    private function handleErrorResponse(ResponseInterface $response, int $statusCode): void
     {
         $data = [];
         try {
-            $data = $response->getJson();
+            $data = JsonDecoder::decode($response);
         } catch (\RuntimeException) {
             // If JSON parsing fails, use raw body
         }
 
-        $message = $this->extractErrorMessage($data, $response->getBody());
+        $message = $this->extractErrorMessage($data, (string) $response->getBody());
 
         match ($statusCode) {
             401 => throw new AuthenticationException($message),

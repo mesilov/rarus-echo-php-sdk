@@ -2,9 +2,8 @@
 
 namespace Rarus\Echo\Contracts;
 
-
+use Psr\Http\Message\ResponseInterface;
 use Rarus\Echo\Core\Credentials;
-use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
@@ -28,7 +27,7 @@ interface ApiClientInterface
      * @throws ValidationException
      * @throws ApiException
      */
-    public function get(string $endpoint, array $query = [], array $headers = []): Response;
+    public function get(string $endpoint, array $query = [], array $headers = []): ResponseInterface;
 
     /**
      * Send POST request to API
@@ -42,7 +41,7 @@ interface ApiClientInterface
      * @throws ValidationException
      * @throws ApiException
      */
-    public function post(string $endpoint, array $body = [], array $headers = []): Response;
+    public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface;
 
     /**
      * Get credentials

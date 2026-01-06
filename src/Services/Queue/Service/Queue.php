@@ -7,6 +7,7 @@ namespace Rarus\Echo\Services\Queue\Service;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
@@ -41,7 +42,7 @@ final class Queue
 
         $response = $this->apiClient->get('/v1/async/transcription/queue');
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
         $result = QueueInfoResult::fromArray($data);
 
         $this->logger->debug('Queue info retrieved', [

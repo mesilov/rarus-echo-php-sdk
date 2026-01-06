@@ -8,11 +8,11 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Rarus\Echo\Contracts\ApiClientInterface;
-use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Services\Queue\Service\Queue;
 
 final class QueueServiceTest extends TestCase
 {
+    /** @var ApiClientInterface&\PHPUnit\Framework\MockObject\MockObject */
     private ApiClientInterface $apiClient;
     private Queue $service;
 
@@ -75,7 +75,10 @@ final class QueueServiceTest extends TestCase
         $this->assertSame(0, $result->getFilesCount());
     }
 
-    private function createMockResponse(array $data): Response
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createMockResponse(array $data): ResponseInterface
     {
         $stream = $this->createMock(StreamInterface::class);
         $stream->method('__toString')->willReturn(json_encode($data));
@@ -84,6 +87,6 @@ final class QueueServiceTest extends TestCase
         $psrResponse->method('getStatusCode')->willReturn(200);
         $psrResponse->method('getBody')->willReturn($stream);
 
-        return new Response($psrResponse);
+        return $psrResponse;
     }
 }

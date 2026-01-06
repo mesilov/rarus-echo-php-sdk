@@ -72,8 +72,7 @@ final class ServiceFactory
             $psrClient,
             $requestFactory,
             $streamFactory,
-            $this->logger ?? new NullLogger(),
-            $timeout
+            $this->logger ?? new NullLogger()
         );
 
         // Initialize filesystem infrastructure

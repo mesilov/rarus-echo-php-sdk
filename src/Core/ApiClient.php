@@ -10,11 +10,11 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
-use Rarus\Echo\Core\Response\Response;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
@@ -60,7 +60,7 @@ final class ApiClient implements ApiClientInterface
      * @throws ApiException
      * @throws AuthorizationException
      */
-    public function get(string $endpoint, array $query = [], array $headers = []): Response
+    public function get(string $endpoint, array $query = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
@@ -101,7 +101,7 @@ final class ApiClient implements ApiClientInterface
      * @throws ValidationException
      * @throws ApiException
      */
-    public function post(string $endpoint, array $body = [], array $headers = []): Response
+    public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 

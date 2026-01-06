@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
@@ -48,7 +49,7 @@ final class Status
             ['file_id' => $fileId]
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         // API returns results array with single item
         $resultData = $data['results'][0] ?? [];
@@ -90,7 +91,7 @@ final class Status
             $queryParams
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return StatusBatchResult::fromArray($data);
     }
@@ -134,7 +135,7 @@ final class Status
             $headers
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         return StatusBatchResult::fromArray($data);
     }
