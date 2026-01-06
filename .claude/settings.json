@@ -6,6 +6,12 @@
           {
             "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR\" && make test-unit 2>&1 | tail -30",
+            "statusMessage": "Запуск юнит-тестов..."
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && make lint-all 2>&1 | tail -30",
+            "statusMessage": "Запуск линтеров..."
           }
         ]
       }

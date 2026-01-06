@@ -43,8 +43,7 @@ help:
 .PHONY: docker-init
 docker-init: ## Initial Docker setup (build, start, install dependencies)
 	docker compose build
-	docker compose up -d
-	docker compose exec php-cli composer install
+	docker compose run --rm php-cli composer install
 	@echo "Docker environment initialized successfully!"
 
 .PHONY: docker-up
@@ -107,23 +106,23 @@ lint-all: lint-cs-fixer lint-phpstan lint-rector ## Run all linters
 
 .PHONY: lint-cs-fixer
 lint-cs-fixer: ## Check code style with PHP CS Fixer
-	docker compose exec php-cli vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php
+	docker compose run php-cli vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php
 
 .PHONY: lint-cs-fixer-fix
 lint-cs-fixer-fix: ## Auto-fix code style with PHP CS Fixer
-	docker compose exec php-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php
+	docker compose run php-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php
 
 .PHONY: lint-phpstan
 lint-phpstan: ## Run PHPStan static analysis
-	docker compose exec php-cli vendor/bin/phpstan analyse --memory-limit=1G
+	docker compose run php-cli vendor/bin/phpstan analyse --memory-limit=1G
 
 .PHONY: lint-rector
 lint-rector: ## Check code with Rector (dry-run)
-	docker compose exec php-cli vendor/bin/rector process --dry-run
+	docker compose run php-cli vendor/bin/rector process --dry-run
 
 .PHONY: lint-rector-fix
 lint-rector-fix: ## Apply Rector fixes
-	docker compose exec php-cli vendor/bin/rector process
+	docker compose run php-cli vendor/bin/rector process
 
 # ============================================================================
 # Testing
@@ -153,21 +152,3 @@ php-cli-root: ## Access PHP CLI container as root
 .PHONY: clear-cache
 clear-cache: ## Clear all caches
 	docker compose exec php-cli rm -rf var/cache/* coverage/* .phpunit.cache/* .php-cs-fixer.cache
-
-# ============================================================================
-# Documentation
-# ============================================================================
-
-.PHONY: docs-generate
-docs-generate: ## Generate API documentation
-	@echo "Documentation generation not implemented yet"
-
-# ============================================================================
-# CI/CD Simulation
-# ============================================================================
-
-.PHONY: ci
-ci: composer-install lint-all test-all ## Run full CI pipeline locally
-
-.PHONY: pre-commit
-pre-commit: lint-cs-fixer-fix lint-phpstan test-unit ## Run pre-commit checks
