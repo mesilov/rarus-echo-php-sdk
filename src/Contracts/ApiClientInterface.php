@@ -46,6 +46,20 @@ interface ApiClientInterface
     public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface;
 
     /**
+     * Send POST request with multipart/form-data
+     *
+     * @param string $endpoint API endpoint (without base URL)
+     * @param array<int, array{name: string, contents: resource, filename: string, headers: array<string, string>}> $files Files prepared for upload
+     * @param array<string, string> $headers Additional headers
+     *
+     * @throws NetworkException
+     * @throws AuthenticationException
+     * @throws ValidationException
+     * @throws ApiException
+     */
+    public function postMultipart(string $endpoint, array $files, array $headers = []): ResponseInterface;
+
+    /**
      * Get credentials
      */
     public function getCredentials(): Credentials;

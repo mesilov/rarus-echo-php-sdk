@@ -26,7 +26,7 @@ final class TranscriptionServiceTest extends TestCase
     {
         $this->apiClient = $this->createMock(ApiClientInterface::class);
         $this->fileUploader = $this->createMock(FileUploader::class);
-        $this->transcription = new Transcription($this->apiClient, $this->fileUploader);
+        $this->transcription = new Transcription($this->apiClient, $this->fileUploader, new \Psr\Log\NullLogger());
     }
 
     public function testGetTranscript(): void

@@ -41,9 +41,12 @@ final readonly class TranscriptItemResult
             throw new \InvalidArgumentException('Missing required field: status');
         }
 
+        // Handle empty task_type (occurs when file is still queued/processing)
+        $taskTypeValue = !empty($data['task_type']) ? $data['task_type'] : 'transcription';
+
         return new self(
             fileId: $data['file_id'],
-            taskType: TaskType::from($data['task_type']),
+            taskType: TaskType::from($taskTypeValue),
             transcriptionStatus: TranscriptionStatus::from($data['status']),
             result: $data['result'] ?? '' // result is optional (empty if not yet completed)
         );

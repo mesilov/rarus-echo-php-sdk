@@ -61,14 +61,6 @@ final readonly class TranscriptPostResult
     }
 
     /**
-     * Get first file ID (for single file upload)
-     */
-    public function getFirstFileId(): ?string
-    {
-        return $this->results[0]['file_id'] ?? null;
-    }
-
-    /**
      * Get raw results
      *
      * @return array<int, array{file_id: string}>
@@ -76,13 +68,5 @@ final readonly class TranscriptPostResult
     public function getResults(): array
     {
         return $this->results;
-    }
-
-    /**
-     * Get count of submitted files
-     */
-    public function getCount(): int
-    {
-        return count($this->results);
     }
 }

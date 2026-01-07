@@ -6,7 +6,6 @@ namespace Rarus\Echo\Services\Transcription\Service;
 
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
@@ -28,14 +27,17 @@ use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
  */
 final readonly class Transcription
 {
-    public function __construct(private ApiClientInterface $apiClient, private FileUploader $fileUploader, private LoggerInterface $logger = new NullLogger())
-    {
+    public function __construct(
+        private ApiClientInterface $apiClient,
+        private FileUploader $fileUploader,
+        private LoggerInterface $logger
+    ) {
     }
 
     /**
      * Submit files for transcription
      *
-     * @param array<string>        $files   Array of file paths
+     * @param array<string> $files Array of file paths
      * @param TranscriptionOptions $transcriptionOptions Transcription options
      *
      * @throws ValidationException
@@ -58,11 +60,9 @@ final readonly class Transcription
         $preparedFiles = $this->fileUploader->prepareFiles($files);
 
         try {
-            // Note: Actual multipart implementation would use specific HTTP client features
-            // For now, we'll use a simplified approach
-            $response = $this->apiClient->post(
+            $response = $this->apiClient->postMultipart(
                 '/v1/async/transcription',
-                [],
+                $preparedFiles,
                 $transcriptionOptions->toHeaders()
             );
 
@@ -75,7 +75,7 @@ final readonly class Transcription
 
             return $result;
         } finally {
-            // Always cleanup file resources
+            // clean up file resources
             $this->fileUploader->cleanup($preparedFiles);
         }
     }
@@ -107,9 +107,9 @@ final readonly class Transcription
     /**
      * Get transcriptions by period
      *
-     * @param DateTimeInterface $startDate  Start date and time
-     * @param DateTimeInterface $endDate    End date and time
-     * @param Pagination        $pagination Pagination settings
+     * @param DateTimeInterface $startDate Start date and time
+     * @param DateTimeInterface $endDate End date and time
+     * @param Pagination $pagination Pagination settings
      *
      * @throws NetworkException
      * @throws AuthenticationException
@@ -146,8 +146,8 @@ final readonly class Transcription
     /**
      * Get transcriptions by list of file IDs
      *
-     * @param array<string> $fileIds    Array of file IDs
-     * @param Pagination    $pagination Pagination settings
+     * @param array<string> $fileIds Array of file IDs
+     * @param Pagination $pagination Pagination settings
      *
      * @throws NetworkException
      * @throws AuthenticationException
