@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Services\Transcription\Result;
 
+use Symfony\Component\Uid\Uuid;
+
 /**
  * Result of submitting file for transcription
  * Contains file_id that can be used to retrieve transcription result
@@ -11,10 +13,10 @@ namespace Rarus\Echo\Services\Transcription\Result;
 final readonly class TranscriptPostResult
 {
     /**
-     * @param array<int, array{file_id: string}> $results
+     * @param array<int, Uuid> $fileIds
      */
     public function __construct(
-        private array $results
+        private array $fileIds
     ) {
     }
 
@@ -36,37 +38,26 @@ final readonly class TranscriptPostResult
         }
 
         // Validate structure of each result item
+        $items = [];
         foreach ($data['results'] as $index => $result) {
             if (!is_array($result) || !isset($result['file_id'])) {
                 throw new \InvalidArgumentException(
                     sprintf('Invalid result structure at index %d: missing file_id', $index)
                 );
             }
-        }
 
-        return new self($data['results']);
+            $items[] = Uuid::fromString($result['file_id']);
+        }
+        return new self($items);
     }
 
     /**
      * Get all file IDs
      *
-     * @return array<string>
+     * @return Uuid[]
      */
     public function getFileIds(): array
     {
-        return array_map(
-            fn (array $item): string => $item['file_id'],
-            $this->results
-        );
-    }
-
-    /**
-     * Get raw results
-     *
-     * @return array<int, array{file_id: string}>
-     */
-    public function getResults(): array
-    {
-        return $this->results;
+        return $this->fileIds;
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Integration\Services\Transcription;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Enum\Language;
@@ -42,10 +44,12 @@ use Rarus\Echo\Tests\LoggerFactory;
  * Run with: make test-integration-transcription
  * Or: docker compose run php-cli vendor/bin/phpunit tests/Integration/Services/Transcription/
  */
+#[CoversClass(Transcription::class)]
+#[CoversMethod(Transcription::class, 'submitTranscription')]
 final class TranscriptionServiceIntegrationTest extends TestCase
 {
     private Transcription $transcription;
-    private string $testAudioFile;
+    private string $testAudioFolder;
 
     #[\Override]
     protected function setUp(): void
@@ -59,44 +63,38 @@ final class TranscriptionServiceIntegrationTest extends TestCase
         $serviceFactory = ServiceFactory::fromEnvironment(LoggerFactory::defaultStdout());
         $this->transcription = $serviceFactory->getTranscriptionService();
 
-        $this->testAudioFile = __DIR__ . '/../../../Assets/examp-1.ogg';
+        $this->testAudioFolder = __DIR__ . '/../../../Assets/ru/';
 
-        if (!file_exists($this->testAudioFile)) {
-            $this->markTestSkipped('Test audio file not found: ' . $this->testAudioFile);
+        if (!file_exists($this->testAudioFolder)) {
+            $this->markTestSkipped('Test audio file not found: ' . $this->testAudioFolder);
         }
     }
 
     public function testSubmitTranscriptionReturnsFileIds(): void
     {
-        $options = TranscriptionOptions::default();
         $result = $this->transcription->submitTranscription(
-            [$this->testAudioFile],
-            $options
+            [$this->testAudioFolder . 'examp-1.ogg'],
+            TranscriptionOptions::default()
         );
 
         $this->assertInstanceOf(TranscriptPostResult::class, $result);
-        $fileIds = $result->getFileIds();
-        $this->assertCount(1, $fileIds);
-        $this->assertNotEmpty($fileIds[0]);
-        $this->assertIsString($fileIds[0]);
+        $this->assertCount(1, $result->getFileIds());
     }
+
 
     public function testSubmitMultipleFiles(): void
     {
         $files = [
-            __DIR__ . '/../../../Assets/examp-1.ogg',
-            __DIR__ . '/../../../Assets/examp-2.ogg',
-            __DIR__ . '/../../../Assets/examp-3.ogg',
+            $this->testAudioFolder . 'examp-1.ogg',
+            $this->testAudioFolder . 'examp-2.ogg',
+            $this->testAudioFolder . 'examp-3.ogg',
         ];
 
         $result = $this->transcription->submitTranscription($files, TranscriptionOptions::default());
         $fileIds = $result->getFileIds();
 
         $this->assertCount(3, $fileIds);
-        foreach ($fileIds as $fileId) {
-            $this->assertNotEmpty($fileId);
-            $this->assertIsString($fileId);
-        }
+        var_dump($fileIds);
     }
 
     public function testSubmitWithCustomOptions(): void
@@ -107,7 +105,7 @@ final class TranscriptionServiceIntegrationTest extends TestCase
             ->withStoreFile(true)
             ->build();
 
-        $result = $this->transcription->submitTranscription([$this->testAudioFile], $options);
+        $result = $this->transcription->submitTranscription([$this->testAudioFolder], $options);
         $this->assertInstanceOf(TranscriptPostResult::class, $result);
         $this->assertNotEmpty($result->getFileIds());
     }
@@ -116,7 +114,7 @@ final class TranscriptionServiceIntegrationTest extends TestCase
     {
         // Upload file
         $postResult = $this->transcription->submitTranscription(
-            [$this->testAudioFile],
+            [$this->testAudioFolder],
             TranscriptionOptions::default()
         );
         $fileId = $postResult->getFileIds()[0];
