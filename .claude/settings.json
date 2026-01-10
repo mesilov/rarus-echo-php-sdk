@@ -16,5 +16,19 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make docker-down:*)",
+      "Bash(make docker-up:*)",
+      "Bash(make test-integration:*)",
+      "Bash(make test-unit:*)",
+      "Bash(make docker-init:*)",
+      "Bash(make lint-all:*)",
+      "Bash(make lint-phpstan:*)",
+      "Bash(make lint-cs-fixer-fix:*)",
+      "Bash(make lint-rector-fix:*)",
+      "Bash(make lint-cs-fixer:*)"
+    ]
   }
 }
