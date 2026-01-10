@@ -12,7 +12,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Single transcription result item
  */
-final readonly class TranscriptFileResult
+final readonly class FileItemTranscriptResult
 {
     public function __construct(
         public Uuid $fileId,

@@ -10,7 +10,7 @@ use Symfony\Component\Uid\Uuid;
  * Result of submitting file for transcription
  * Contains file_id that can be used to retrieve transcription result
  */
-final readonly class TranscriptPostResult
+final readonly class TranscriptSubmitResult
 {
     /**
      * @param array<int, Uuid> $fileIds
@@ -48,6 +48,7 @@ final readonly class TranscriptPostResult
 
             $items[] = Uuid::fromString($result['file_id']);
         }
+
         return new self($items);
     }
 

@@ -11,15 +11,17 @@ use InvalidArgumentException;
  */
 final readonly class Pagination
 {
+
     /**
-     * @param int<1, max> $page    Current page number (1-based)
+     * @param int<1, max> $page Current page number (1-based)
      * @param int<1, max> $perPage Items per page
      *
      * @throws InvalidArgumentException If page or perPage is less than 1
      */
     public function __construct(
         public int $page,
-        public int $perPage
+        public int $perPage,
+        public int $total = 0
     ) {
         if ($this->page < 1) {
             throw new InvalidArgumentException('Page must be greater than or equal to 1');
@@ -27,6 +29,9 @@ final readonly class Pagination
 
         if ($this->perPage < 1) {
             throw new InvalidArgumentException('Per page must be greater than or equal to 1');
+        }
+        if ($total !== null && $total < 0) {
+            throw new InvalidArgumentException('Total must be greater than or equal to 0');
         }
     }
 
@@ -38,12 +43,13 @@ final readonly class Pagination
         return new self(page: 1, perPage: 10);
     }
 
-    /**
-     * Create pagination with custom values
-     */
-    public static function create(int $page, int $perPage): self
+    public static function fromArray(array $data):self
     {
-        return new self($page, $perPage); // @phpstan-ignore-line
+        return new self(
+            page: (int)$data['page'],
+            perPage: (int)$data['per_page'],
+            total: (int)$data['total_pages']
+        );
     }
 
     /**
@@ -85,8 +91,8 @@ final readonly class Pagination
     public function toHeaders(): array
     {
         return [
-            'page' => (string) $this->page,
-            'per_page' => (string) $this->perPage,
+            'page' => (string)$this->page,
+            'per_page' => (string)$this->perPage,
         ];
     }
 }

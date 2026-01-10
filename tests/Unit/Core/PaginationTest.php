@@ -26,14 +26,6 @@ final class PaginationTest extends TestCase
         $this->assertSame(10, $pagination->perPage);
     }
 
-    public function testFactoryMethod(): void
-    {
-        $pagination = Pagination::create(page: 2, perPage: 25);
-
-        $this->assertSame(2, $pagination->page);
-        $this->assertSame(25, $pagination->perPage);
-    }
-
     public function testGetOffsetForFirstPage(): void
     {
         $pagination = new Pagination(page: 1, perPage: 10);

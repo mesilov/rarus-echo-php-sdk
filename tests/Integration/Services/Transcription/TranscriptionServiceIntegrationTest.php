@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Integration\Services\Transcription;
 
+use DateTime;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
+use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
-use Rarus\Echo\Enum\TranscriptionStatus;
+use Rarus\Echo\Exception\ApiException;
+use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\FileException;
+use Rarus\Echo\Exception\NetworkException;
+use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Services\ServiceFactory;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-use Rarus\Echo\Services\Transcription\Result\TranscriptBatchResult;
-use Rarus\Echo\Services\Transcription\Result\TranscriptItemResult;
-use Rarus\Echo\Services\Transcription\Result\TranscriptPostResult;
+use Rarus\Echo\Services\Transcription\Result\FilesTranscriptResult;
+use Rarus\Echo\Services\Transcription\Result\TranscriptSubmitResult;
 use Rarus\Echo\Services\Transcription\Service\Transcription;
 use Rarus\Echo\Tests\LoggerFactory;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Integration tests for Transcription service
@@ -45,7 +51,7 @@ use Rarus\Echo\Tests\LoggerFactory;
  * Or: docker compose run php-cli vendor/bin/phpunit tests/Integration/Services/Transcription/
  */
 #[CoversClass(Transcription::class)]
-#[CoversMethod(Transcription::class, 'submitTranscription')]
+#[CoversMethod(Transcription::class, 'submit')]
 final class TranscriptionServiceIntegrationTest extends TestCase
 {
     private Transcription $transcription;
@@ -70,18 +76,29 @@ final class TranscriptionServiceIntegrationTest extends TestCase
         }
     }
 
-    public function testSubmitTranscriptionReturnsFileIds(): void
+    #[TestDox('отправка одного файла на транскрипцию')]
+    public function testSubmitTranscriptForOneFile(): void
     {
-        $result = $this->transcription->submitTranscription(
+        $result = $this->transcription->submit(
             [$this->testAudioFolder . 'examp-1.ogg'],
             TranscriptionOptions::default()
         );
 
-        $this->assertInstanceOf(TranscriptPostResult::class, $result);
+        var_dump($this->transcription->getByFileId($result->getFileIds()[0]));
+
+        $this->assertInstanceOf(TranscriptSubmitResult::class, $result);
         $this->assertCount(1, $result->getFileIds());
     }
 
+    #[TestDox('получение транскрипции для несуществующего результата')]
+    public function testGetTranscriptForNonExistsResult(): void
+    {
+        $result = $this->transcription->getByFileId(Uuid::v7());
+        $this->assertTrue($result->isInProgress());
 
+    }
+
+    #[TestDox('отправка нескольких файлов на транскрипцию')]
     public function testSubmitMultipleFiles(): void
     {
         $files = [
@@ -90,13 +107,13 @@ final class TranscriptionServiceIntegrationTest extends TestCase
             $this->testAudioFolder . 'examp-3.ogg',
         ];
 
-        $result = $this->transcription->submitTranscription($files, TranscriptionOptions::default());
+        $result = $this->transcription->submit($files, TranscriptionOptions::default());
         $fileIds = $result->getFileIds();
 
         $this->assertCount(3, $fileIds);
-        var_dump($fileIds);
     }
 
+    #[TestDox('отправка файла на транскрипцию с пользовательскими настройками')]
     public function testSubmitWithCustomOptions(): void
     {
         $options = TranscriptionOptions::create()
@@ -105,76 +122,76 @@ final class TranscriptionServiceIntegrationTest extends TestCase
             ->withStoreFile(true)
             ->build();
 
-        $result = $this->transcription->submitTranscription([$this->testAudioFolder], $options);
-        $this->assertInstanceOf(TranscriptPostResult::class, $result);
+        $result = $this->transcription->submit([$this->testAudioFolder . 'examp-1.ogg'], $options);
+        $this->assertInstanceOf(TranscriptSubmitResult::class, $result);
         $this->assertNotEmpty($result->getFileIds());
     }
 
+    #[TestDox('получение транскрипций за период')]
+    public function testGetTranscriptsByPeriod(): void
+    {
+        $result = $this->transcription->getByPeriod(
+            new DateTime('today'),
+            new DateTime('today 23:59:59'),
+            Pagination::default()
+        );
+
+        $this->assertInstanceOf(FilesTranscriptResult::class, $result);
+        $this->assertIsArray($result->getResults());
+    }
+
+
+    /**
+     * @throws ValidationException
+     * @throws AuthenticationException
+     * @throws ApiException
+     * @throws NetworkException
+     * @throws FileException
+     */
+    #[TestDox('получение транскрипции по идентификатору файла')]
     public function testGetTranscriptByFileId(): void
     {
         // Upload file
-        $postResult = $this->transcription->submitTranscription(
-            [$this->testAudioFolder],
+        $postResult = $this->transcription->submit(
+            [$this->testAudioFolder . 'examp-1.ogg'],
             TranscriptionOptions::default()
         );
         $fileId = $postResult->getFileIds()[0];
 
-        // Get transcript (probably still processing)
-        $transcript = $this->transcription->getTranscript($fileId);
+        // Get transcript
+        $transcriptResult = $this->transcription->getByFileId($fileId);
 
-        $this->assertInstanceOf(TranscriptItemResult::class, $transcript);
-        $this->assertSame($fileId, $transcript->getFileId());
-        $this->assertInstanceOf(TranscriptionStatus::class, $transcript->getStatus());
-        $this->assertInstanceOf(TaskType::class, $transcript->getTaskType());
-
-        // Result may be empty if still processing
-        $this->assertIsString($transcript->getResult());
+        $this->assertTrue($transcriptResult->isInProgress());
     }
 
-    public function testGetTranscriptsByPeriod(): void
-    {
-        $startDate = new \DateTime('today');
-        $endDate = new \DateTime('today 23:59:59');
-        $pagination = new Pagination(page: 1, perPage: 10);
 
-        $result = $this->transcription->getTranscriptsByPeriod($startDate, $endDate, $pagination);
-
-        $this->assertInstanceOf(TranscriptBatchResult::class, $result);
-        $this->assertIsArray($result->getResults());
-        $this->assertIsInt($result->getPage());
-        $this->assertIsInt($result->getPerPage());
-        $this->assertIsInt($result->getTotalPages());
-        $this->assertGreaterThanOrEqual(0, $result->getCount());
-    }
 
     public function testGetTranscriptsListWithFileIds(): void
     {
         // Upload 2 files
         $files = [
-            __DIR__ . '/../../../Assets/examp-1.ogg',
-            __DIR__ . '/../../../Assets/examp-2.ogg',
+            $this->testAudioFolder . 'examp-1.ogg',
+            $this->testAudioFolder . 'examp-2.ogg',
         ];
-        $postResult = $this->transcription->submitTranscription($files, TranscriptionOptions::default());
-        $fileIds = $postResult->getFileIds();
+        $postResult = $this->transcription->submit($files, TranscriptionOptions::default());
 
         // Get transcripts by list
-        $pagination = new Pagination(page: 1, perPage: 10);
-        $result = $this->transcription->getTranscriptsList($fileIds, $pagination);
+        $result = $this->transcription->getList($postResult->getFileIds(), Pagination::default());
 
-        $this->assertInstanceOf(TranscriptBatchResult::class, $result);
-        $this->assertGreaterThanOrEqual(2, $result->getCount());
+        $this->assertInstanceOf(FilesTranscriptResult::class, $result);
+        $this->assertEquals(2, $result->pagination->total);
 
         // Verify all requested file_ids are present
-        foreach ($fileIds as $expectedFileId) {
+        foreach ($result->getResults() as $expectedFileId) {
             $found = false;
             foreach ($result->getResults() as $item) {
-                if ($item->getFileId() === $expectedFileId) {
+                if ($item->fileId->equals($expectedFileId)) {
                     $found = true;
 
                     break;
                 }
             }
-            $this->assertTrue($found, "File ID {$expectedFileId} not found in results");
+            $this->assertTrue($found, "File ID {$expectedFileId->fileId->toRfc4122()} not found in results");
         }
     }
 }
