@@ -12,12 +12,12 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Single transcription result item
  */
-final readonly class TranscriptItemResult
+final readonly class TranscriptFileResult
 {
     public function __construct(
         public Uuid $fileId,
-        public ?TaskType $taskType,
         public TranscriptionStatus $transcriptionStatus,
+        public ?TaskType $taskType,
         public ?string $result
     ) {
     }
@@ -44,12 +44,17 @@ final readonly class TranscriptItemResult
         }
 
         // Handle empty task_type (occurs when file is still queued/processing)
-        $taskTypeValue = !empty($data['task_type']) ? $data['task_type'] : null;
+        $taskTypeValue = $data['task_type'] ?? null;
+        if ($taskTypeValue !== null && $taskTypeValue !== '') {
+            $taskTypeValue = TaskType::from($taskTypeValue);
+        } else {
+            $taskTypeValue = null;
+        }
 
         return new self(
             fileId: Uuid::fromString($data['file_id']),
-            taskType: TaskType::from($taskTypeValue),
             transcriptionStatus: TranscriptionStatus::from($data['status']),
+            taskType: $taskTypeValue,
             result: $data['result'] ?? null
         );
     }
