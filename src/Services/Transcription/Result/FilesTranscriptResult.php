@@ -28,7 +28,7 @@ final readonly class FilesTranscriptResult
     public static function fromArray(array $data): self
     {
         $results = array_map(
-            static fn(array $item): FileItemTranscriptResult => FileItemTranscriptResult::fromArray($item),
+            static fn (array $item): FileItemTranscriptResult => FileItemTranscriptResult::fromArray($item),
             $data['results'] ?? []
         );
 

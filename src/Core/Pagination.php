@@ -11,7 +11,6 @@ use InvalidArgumentException;
  */
 final readonly class Pagination
 {
-
     /**
      * @param int<1, max> $page Current page number (1-based)
      * @param int<1, max> $perPage Items per page
@@ -30,7 +29,7 @@ final readonly class Pagination
         if ($this->perPage < 1) {
             throw new InvalidArgumentException('Per page must be greater than or equal to 1');
         }
-        if ($total !== null && $total < 0) {
+        if ($total < 0) {
             throw new InvalidArgumentException('Total must be greater than or equal to 0');
         }
     }
@@ -43,7 +42,7 @@ final readonly class Pagination
         return new self(page: 1, perPage: 10);
     }
 
-    public static function fromArray(array $data):self
+    public static function fromArray(array $data): self
     {
         return new self(
             page: (int)$data['page'],

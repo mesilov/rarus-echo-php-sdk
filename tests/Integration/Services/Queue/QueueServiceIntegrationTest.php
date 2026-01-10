@@ -41,38 +41,38 @@ final class QueueServiceIntegrationTest extends TestCase
 
     public function testGetQueueInfoReturnsValidResult(): void
     {
-        $result = $this->queue->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
 
-        $this->assertInstanceOf(QueueInfoResult::class, $result);
-        $this->assertIsInt($result->filesCount);
-        $this->assertIsInt($result->filesSize);
-        $this->assertIsInt($result->filesDuration);
-        $this->assertGreaterThanOrEqual(0, $result->filesCount);
-        $this->assertGreaterThanOrEqual(0, $result->filesSize);
-        $this->assertGreaterThanOrEqual(0, $result->filesDuration);
+        $this->assertInstanceOf(QueueInfoResult::class, $queueInfoResult);
+        $this->assertIsInt($queueInfoResult->filesCount);
+        $this->assertIsInt($queueInfoResult->filesSize);
+        $this->assertIsInt($queueInfoResult->filesDuration);
+        $this->assertGreaterThanOrEqual(0, $queueInfoResult->filesCount);
+        $this->assertGreaterThanOrEqual(0, $queueInfoResult->filesSize);
+        $this->assertGreaterThanOrEqual(0, $queueInfoResult->filesDuration);
     }
 
     public function testGetQueueInfoIsEmptyConsistency(): void
     {
-        $result = $this->queue->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
 
-        if ($result->filesCount === 0) {
-            $this->assertTrue($result->isEmpty());
+        if ($queueInfoResult->filesCount === 0) {
+            $this->assertTrue($queueInfoResult->isEmpty());
         } else {
-            $this->assertFalse($result->isEmpty());
+            $this->assertFalse($queueInfoResult->isEmpty());
         }
     }
 
     public function testGetQueueInfoToStringFormat(): void
     {
-        $result = $this->queue->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
 
-        $string = $result->toString();
+        $string = $queueInfoResult->toString();
         $expectedPattern = sprintf(
             'Queue: %d files, %d MB, %d minutes',
-            $result->filesCount,
-            $result->filesSize,
-            $result->filesDuration
+            $queueInfoResult->filesCount,
+            $queueInfoResult->filesSize,
+            $queueInfoResult->filesDuration
         );
 
         $this->assertSame($expectedPattern, $string);
@@ -80,14 +80,14 @@ final class QueueServiceIntegrationTest extends TestCase
 
     public function testGetQueueInfoMultipleCalls(): void
     {
-        $result1 = $this->queue->getQueueInfo();
+        $queueInfoResult = $this->queue->getQueueInfo();
         $result2 = $this->queue->getQueueInfo();
 
-        $this->assertInstanceOf(QueueInfoResult::class, $result1);
+        $this->assertInstanceOf(QueueInfoResult::class, $queueInfoResult);
         $this->assertInstanceOf(QueueInfoResult::class, $result2);
 
         // Значения могут отличаться, но типы должны быть корректными
-        $this->assertIsInt($result1->filesCount);
+        $this->assertIsInt($queueInfoResult->filesCount);
         $this->assertIsInt($result2->filesCount);
     }
 }

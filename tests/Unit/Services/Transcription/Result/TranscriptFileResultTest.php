@@ -15,26 +15,26 @@ use ValueError;
 
 final class TranscriptFileResultTest extends TestCase
 {
-    private const VALID_UUID = '11111111-1111-1111-1111-111111111111';
+    private const string VALID_UUID = '11111111-1111-1111-1111-111111111111';
 
     public function testConstructorCreatesObjectWithAllParameters(): void
     {
-        $fileId = Uuid::fromString(self::VALID_UUID);
+        $uuid = Uuid::fromString(self::VALID_UUID);
         $status = TranscriptionStatus::SUCCESS;
         $taskType = TaskType::TRANSCRIPTION;
         $result = 'Transcription result text';
 
-        $transcriptFileResult = new FileItemTranscriptResult(
-            fileId: $fileId,
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
+            fileId: $uuid,
             transcriptionStatus: $status,
             taskType: $taskType,
             result: $result
         );
 
-        $this->assertSame($fileId, $transcriptFileResult->fileId);
-        $this->assertSame($status, $transcriptFileResult->transcriptionStatus);
-        $this->assertSame($taskType, $transcriptFileResult->taskType);
-        $this->assertSame($result, $transcriptFileResult->result);
+        $this->assertSame($uuid, $fileItemTranscriptResult->fileId);
+        $this->assertSame($status, $fileItemTranscriptResult->transcriptionStatus);
+        $this->assertSame($taskType, $fileItemTranscriptResult->taskType);
+        $this->assertSame($result, $fileItemTranscriptResult->result);
     }
 
     public function testFromArrayCreatesObjectWithValidData(): void
@@ -46,12 +46,12 @@ final class TranscriptFileResultTest extends TestCase
             'result' => 'Sample transcription',
         ];
 
-        $result = FileItemTranscriptResult::fromArray($data);
+        $fileItemTranscriptResult = FileItemTranscriptResult::fromArray($data);
 
-        $this->assertSame(self::VALID_UUID, $result->fileId->toRfc4122());
-        $this->assertSame(TranscriptionStatus::SUCCESS, $result->transcriptionStatus);
-        $this->assertSame(TaskType::TRANSCRIPTION, $result->taskType);
-        $this->assertSame('Sample transcription', $result->result);
+        $this->assertSame(self::VALID_UUID, $fileItemTranscriptResult->fileId->toRfc4122());
+        $this->assertSame(TranscriptionStatus::SUCCESS, $fileItemTranscriptResult->transcriptionStatus);
+        $this->assertSame(TaskType::TRANSCRIPTION, $fileItemTranscriptResult->taskType);
+        $this->assertSame('Sample transcription', $fileItemTranscriptResult->result);
     }
 
     public function testFromArrayHandlesOptionalResultField(): void
@@ -62,9 +62,9 @@ final class TranscriptFileResultTest extends TestCase
             'status' => 'processing',
         ];
 
-        $result = FileItemTranscriptResult::fromArray($data);
+        $fileItemTranscriptResult = FileItemTranscriptResult::fromArray($data);
 
-        $this->assertNull($result->result);
+        $this->assertNull($fileItemTranscriptResult->result);
     }
 
     public function testFromArrayHandlesEmptyTaskType(): void
@@ -75,9 +75,9 @@ final class TranscriptFileResultTest extends TestCase
             'status' => 'waiting',
         ];
 
-        $result = FileItemTranscriptResult::fromArray($data);
+        $fileItemTranscriptResult = FileItemTranscriptResult::fromArray($data);
 
-        $this->assertNull($result->taskType);
+        $this->assertNull($fileItemTranscriptResult->taskType);
     }
 
     public function testFromArrayHandlesNullTaskType(): void
@@ -88,9 +88,9 @@ final class TranscriptFileResultTest extends TestCase
             'status' => 'waiting',
         ];
 
-        $result = FileItemTranscriptResult::fromArray($data);
+        $fileItemTranscriptResult = FileItemTranscriptResult::fromArray($data);
 
-        $this->assertNull($result->taskType);
+        $this->assertNull($fileItemTranscriptResult->taskType);
     }
 
     public function testFromArrayThrowsExceptionWhenFileIdMissing(): void
@@ -161,25 +161,25 @@ final class TranscriptFileResultTest extends TestCase
 
     public function testIsSuccessfulReturnsTrueWhenStatusIsSuccess(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::SUCCESS,
             taskType: TaskType::TRANSCRIPTION,
             result: 'Transcription text'
         );
 
-        $this->assertTrue($result->isSuccessful());
+        $this->assertTrue($fileItemTranscriptResult->isSuccessful());
     }
 
     public function testIsSuccessfulReturnsFalseWhenStatusIsNotSuccess(): void
     {
-        $fileId = Uuid::fromString(self::VALID_UUID);
+        $uuid = Uuid::fromString(self::VALID_UUID);
         $taskType = TaskType::TRANSCRIPTION;
         $result = 'Transcription text';
 
-        $waiting = new FileItemTranscriptResult($fileId, TranscriptionStatus::WAITING, $taskType, $result);
-        $processing = new FileItemTranscriptResult($fileId, TranscriptionStatus::PROCESSING, $taskType, $result);
-        $failure = new FileItemTranscriptResult($fileId, TranscriptionStatus::FAILURE, $taskType, $result);
+        $waiting = new FileItemTranscriptResult($uuid, TranscriptionStatus::WAITING, $taskType, $result);
+        $processing = new FileItemTranscriptResult($uuid, TranscriptionStatus::PROCESSING, $taskType, $result);
+        $failure = new FileItemTranscriptResult($uuid, TranscriptionStatus::FAILURE, $taskType, $result);
 
         $this->assertFalse($waiting->isSuccessful());
         $this->assertFalse($processing->isSuccessful());
@@ -188,25 +188,25 @@ final class TranscriptFileResultTest extends TestCase
 
     public function testIsFailedReturnsTrueWhenStatusIsFailure(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::FAILURE,
             taskType: null,
             result: 'Error message'
         );
 
-        $this->assertTrue($result->isFailed());
+        $this->assertTrue($fileItemTranscriptResult->isFailed());
     }
 
     public function testIsFailedReturnsFalseWhenStatusIsNotFailure(): void
     {
-        $fileId = Uuid::fromString(self::VALID_UUID);
+        $uuid = Uuid::fromString(self::VALID_UUID);
         $taskType = TaskType::TRANSCRIPTION;
         $resultText = 'Transcription text';
 
-        $waiting = new FileItemTranscriptResult($fileId, TranscriptionStatus::WAITING, $taskType, $resultText);
-        $processing = new FileItemTranscriptResult($fileId, TranscriptionStatus::PROCESSING, $taskType, $resultText);
-        $success = new FileItemTranscriptResult($fileId, TranscriptionStatus::SUCCESS, $taskType, $resultText);
+        $waiting = new FileItemTranscriptResult($uuid, TranscriptionStatus::WAITING, $taskType, $resultText);
+        $processing = new FileItemTranscriptResult($uuid, TranscriptionStatus::PROCESSING, $taskType, $resultText);
+        $success = new FileItemTranscriptResult($uuid, TranscriptionStatus::SUCCESS, $taskType, $resultText);
 
         $this->assertFalse($waiting->isFailed());
         $this->assertFalse($processing->isFailed());
@@ -215,49 +215,49 @@ final class TranscriptFileResultTest extends TestCase
 
     public function testIsInProgressReturnsTrueWhenStatusIsWaiting(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::WAITING,
             taskType: null,
             result: null
         );
 
-        $this->assertTrue($result->isInProgress());
+        $this->assertTrue($fileItemTranscriptResult->isInProgress());
     }
 
     public function testIsInProgressReturnsTrueWhenStatusIsProcessing(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::PROCESSING,
             taskType: TaskType::TRANSCRIPTION,
             result: null
         );
 
-        $this->assertTrue($result->isInProgress());
+        $this->assertTrue($fileItemTranscriptResult->isInProgress());
     }
 
     public function testIsInProgressReturnsFalseWhenStatusIsSuccess(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::SUCCESS,
             taskType: TaskType::TRANSCRIPTION,
             result: 'Completed transcription'
         );
 
-        $this->assertFalse($result->isInProgress());
+        $this->assertFalse($fileItemTranscriptResult->isInProgress());
     }
 
     public function testIsInProgressReturnsFalseWhenStatusIsFailure(): void
     {
-        $result = new FileItemTranscriptResult(
+        $fileItemTranscriptResult = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::VALID_UUID),
             transcriptionStatus: TranscriptionStatus::FAILURE,
             taskType: null,
             result: 'Error occurred'
         );
 
-        $this->assertFalse($result->isInProgress());
+        $this->assertFalse($fileItemTranscriptResult->isInProgress());
     }
 }

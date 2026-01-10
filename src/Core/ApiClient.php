@@ -172,7 +172,7 @@ final readonly class ApiClient implements ApiClientInterface
         }
 
         // Create FormDataPart from flat array structure
-        $formData = new FormDataPart($formFields);
+        $formDataPart = new FormDataPart($formFields);
 
         // Create request
         $request = $this->requestFactory->createRequest('POST', $uri);
@@ -184,14 +184,14 @@ final readonly class ApiClient implements ApiClientInterface
         }
 
         // Add FormDataPart headers (includes Content-Type with boundary)
-        $preparedHeaders = $formData->getPreparedHeaders();
+        $preparedHeaders = $formDataPart->getPreparedHeaders();
         foreach ($preparedHeaders->toArray() as $header) {
-            [$name, $value] = explode(':', $header, 2);
+            [$name, $value] = explode(':', (string) $header, 2);
             $request = $request->withHeader(trim($name), trim($value));
         }
 
         // Add body as stream
-        $body = $formData->bodyToString();
+        $body = $formDataPart->bodyToString();
         $stream = $this->streamFactory->createStream($body);
         $request = $request->withBody($stream);
 
