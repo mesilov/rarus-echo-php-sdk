@@ -12,8 +12,8 @@ use InvalidArgumentException;
 final readonly class Pagination
 {
     /**
-     * @param int $page    Current page number (1-based)
-     * @param int $perPage Items per page
+     * @param int<1, max> $page    Current page number (1-based)
+     * @param int<1, max> $perPage Items per page
      *
      * @throws InvalidArgumentException If page or perPage is less than 1
      */
@@ -39,19 +39,11 @@ final readonly class Pagination
     }
 
     /**
-     * Create pagination for the first page with specified items per page
-     */
-    public static function firstPage(int $perPage = 10): self
-    {
-        return new self(page: 1, perPage: $perPage);
-    }
-
-    /**
      * Create pagination with custom values
      */
     public static function create(int $page, int $perPage): self
     {
-        return new self($page, $perPage);
+        return new self($page, $perPage); // @phpstan-ignore-line
     }
 
     /**
@@ -68,28 +60,6 @@ final readonly class Pagination
     public function getLimit(): int
     {
         return $this->perPage;
-    }
-
-    /**
-     * Create a new pagination for the next page
-     */
-    public function next(): self
-    {
-        return new self(page: $this->page + 1, perPage: $this->perPage);
-    }
-
-    /**
-     * Create a new pagination for the previous page
-     *
-     * @throws InvalidArgumentException If already on the first page
-     */
-    public function previous(): self
-    {
-        if ($this->page === 1) {
-            throw new InvalidArgumentException('Cannot go to previous page, already on page 1');
-        }
-
-        return new self(page: $this->page - 1, perPage: $this->perPage);
     }
 
     /**
