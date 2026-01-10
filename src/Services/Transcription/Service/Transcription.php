@@ -17,8 +17,8 @@ use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Infrastructure\Filesystem\FileUploader;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-use Rarus\Echo\Services\Transcription\Result\FilesTranscriptResult;
 use Rarus\Echo\Services\Transcription\Result\FileItemTranscriptResult;
+use Rarus\Echo\Services\Transcription\Result\FilesTranscriptResult;
 use Rarus\Echo\Services\Transcription\Result\TranscriptSubmitResult;
 use Symfony\Component\Uid\Uuid;
 
