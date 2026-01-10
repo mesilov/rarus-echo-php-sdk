@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Services\Transcription\Result;
 
+use InvalidArgumentException;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Enum\TranscriptionStatus;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Single transcription result item
@@ -13,10 +15,10 @@ use Rarus\Echo\Enum\TranscriptionStatus;
 final readonly class TranscriptItemResult
 {
     public function __construct(
-        private string $fileId,
-        private TaskType $taskType,
-        private TranscriptionStatus $transcriptionStatus,
-        private string $result
+        public Uuid $fileId,
+        public ?TaskType $taskType,
+        public TranscriptionStatus $transcriptionStatus,
+        public ?string $result
     ) {
     }
 
@@ -25,51 +27,31 @@ final readonly class TranscriptItemResult
      *
      * @param array<string, mixed> $data
      *
-     * @throws \InvalidArgumentException If required fields are missing
+     * @throws InvalidArgumentException If required fields are missing
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['file_id'])) {
-            throw new \InvalidArgumentException('Missing required field: file_id');
+        if (!array_key_exists('file_id', $data)) {
+            throw new InvalidArgumentException('Missing required field: file_id');
         }
 
-        if (!isset($data['task_type'])) {
-            throw new \InvalidArgumentException('Missing required field: task_type');
+        if (!array_key_exists('task_type', $data)) {
+            throw new InvalidArgumentException('Missing required field: task_type');
         }
 
-        if (!isset($data['status'])) {
-            throw new \InvalidArgumentException('Missing required field: status');
+        if (!array_key_exists('status', $data)) {
+            throw new InvalidArgumentException('Missing required field: status');
         }
 
         // Handle empty task_type (occurs when file is still queued/processing)
-        $taskTypeValue = !empty($data['task_type']) ? $data['task_type'] : 'transcription';
+        $taskTypeValue = !empty($data['task_type']) ? $data['task_type'] : null;
 
         return new self(
-            fileId: $data['file_id'],
+            fileId: Uuid::fromString($data['file_id']),
             taskType: TaskType::from($taskTypeValue),
             transcriptionStatus: TranscriptionStatus::from($data['status']),
-            result: $data['result'] ?? '' // result is optional (empty if not yet completed)
+            result: $data['result'] ?? null
         );
-    }
-
-    public function getFileId(): string
-    {
-        return $this->fileId;
-    }
-
-    public function getTaskType(): TaskType
-    {
-        return $this->taskType;
-    }
-
-    public function getStatus(): TranscriptionStatus
-    {
-        return $this->transcriptionStatus;
-    }
-
-    public function getResult(): string
-    {
-        return $this->result;
     }
 
     /**
