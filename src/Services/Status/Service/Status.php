@@ -17,6 +17,7 @@ use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Services\Status\Result\StatusBatchResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Status service
@@ -24,8 +25,10 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  */
 final readonly class Status
 {
-    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger = new NullLogger())
-    {
+    public function __construct(
+        private ApiClientInterface $apiClient,
+        private LoggerInterface $logger = new NullLogger()
+    ) {
     }
 
     /**
@@ -35,13 +38,13 @@ final readonly class Status
      * @throws AuthenticationException
      * @throws ApiException
      */
-    public function getFileStatus(string $fileId): StatusItemResult
+    public function getByFileId(Uuid $fileId): StatusItemResult
     {
-        $this->logger->debug('Getting file status', ['file_id' => $fileId]);
+        $this->logger->debug('Getting file status', ['file_id' => $fileId->toRfc4122()]);
 
         $response = $this->apiClient->get(
             '/v1/async/transcription/fileid',
-            ['file_id' => $fileId]
+            ['file_id' => $fileId->toRfc4122()]
         );
 
         $data = JsonDecoder::decode($response);

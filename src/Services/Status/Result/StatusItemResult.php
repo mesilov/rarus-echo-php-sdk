@@ -6,6 +6,7 @@ namespace Rarus\Echo\Services\Status\Result;
 
 use DateTimeImmutable;
 use Rarus\Echo\Enum\TranscriptionStatus;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Single status result item
@@ -13,11 +14,11 @@ use Rarus\Echo\Enum\TranscriptionStatus;
 final readonly class StatusItemResult
 {
     public function __construct(
-        private string $fileId,
-        private TranscriptionStatus $transcriptionStatus,
-        private float $fileSize,
-        private float $fileDuration,
-        private DateTimeImmutable $timestampArrival
+        public Uuid $fileId,
+        public TranscriptionStatus $transcriptionStatus,
+        public int $fileSize,
+        public int $fileDuration,
+        public DateTimeImmutable $timestampArrival
     ) {
     }
 
@@ -44,43 +45,12 @@ final readonly class StatusItemResult
         }
 
         return new self(
-            fileId: $data['file_id'],
+            fileId: Uuid::fromString($data['file_id']),
             transcriptionStatus: TranscriptionStatus::from($data['status']),
-            fileSize: (float) ($data['file_size'] ?? 0), // Optional, defaults to 0
-            fileDuration: (float) ($data['file_duration'] ?? 0), // Optional, defaults to 0
+            fileSize: (int) ($data['file_size'] ?? 0), // Optional, defaults to 0
+            fileDuration: (int) ($data['file_duration'] ?? 0), // Optional, defaults to 0
             timestampArrival: new DateTimeImmutable($data['timestamp_arrival'])
         );
-    }
-
-    public function getFileId(): string
-    {
-        return $this->fileId;
-    }
-
-    public function getStatus(): TranscriptionStatus
-    {
-        return $this->transcriptionStatus;
-    }
-
-    /**
-     * Get file size in megabytes
-     */
-    public function getFileSize(): float
-    {
-        return $this->fileSize;
-    }
-
-    /**
-     * Get file duration in minutes
-     */
-    public function getFileDuration(): float
-    {
-        return $this->fileDuration;
-    }
-
-    public function getTimestampArrival(): DateTimeImmutable
-    {
-        return $this->timestampArrival;
     }
 
     /**
