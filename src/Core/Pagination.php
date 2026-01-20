@@ -42,12 +42,21 @@ final readonly class Pagination
         return new self(page: 1, perPage: 10);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function fromArray(array $data): self
     {
+        /** @var int<1, max> */
+        $page = (int)$data['page'];
+        /** @var int<1, max> */
+        $perPage = (int)$data['per_page'];
+        $total = (int)$data['total_pages'];
+
         return new self(
-            page: (int)$data['page'],
-            perPage: (int)$data['per_page'],
-            total: (int)$data['total_pages']
+            page: $page,
+            perPage: $perPage,
+            total: $total
         );
     }
 
