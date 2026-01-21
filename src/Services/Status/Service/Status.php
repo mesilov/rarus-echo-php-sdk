@@ -15,8 +15,9 @@ use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Services\Status\Result\StatusBatchResult;
+use Rarus\Echo\Services\Status\Result\StatusItemListResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Status service
@@ -24,8 +25,10 @@ use Rarus\Echo\Services\Status\Result\StatusItemResult;
  */
 final readonly class Status
 {
-    public function __construct(private ApiClientInterface $apiClient, private LoggerInterface $logger = new NullLogger())
-    {
+    public function __construct(
+        private ApiClientInterface $apiClient,
+        private LoggerInterface $logger = new NullLogger()
+    ) {
     }
 
     /**
@@ -35,13 +38,13 @@ final readonly class Status
      * @throws AuthenticationException
      * @throws ApiException
      */
-    public function getFileStatus(string $fileId): StatusItemResult
+    public function getByFileId(Uuid $fileId): StatusItemResult
     {
-        $this->logger->debug('Getting file status', ['file_id' => $fileId]);
+        $this->logger->debug('Getting file status', ['file_id' => $fileId->toRfc4122()]);
 
         $response = $this->apiClient->get(
             '/v1/async/transcription/fileid',
-            ['file_id' => $fileId]
+            ['file_id' => $fileId->toRfc4122()]
         );
 
         $data = JsonDecoder::decode($response);
@@ -64,14 +67,14 @@ final readonly class Status
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getUserStatuses(
+    public function getByPeriod(
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
         Pagination $pagination
-    ): StatusBatchResult {
+    ): StatusItemListResult {
         $this->logger->debug('Getting user statuses', [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
+            'period_start' => $startDate->format(DATE_ATOM),
+            'period_end' => $endDate->format(DATE_ATOM),
             'page' => $pagination->page,
             'per_page' => $pagination->perPage,
         ]);
@@ -88,13 +91,13 @@ final readonly class Status
 
         $data = JsonDecoder::decode($response);
 
-        return StatusBatchResult::fromArray($data);
+        return StatusItemListResult::fromArray($data);
     }
 
     /**
      * Get statuses by list of file IDs
      *
-     * @param array<string> $fileIds    Array of file IDs
+     * @param array<Uuid> $fileIds    Array of file IDs
      * @param Pagination    $pagination Pagination settings
      *
      * @throws NetworkException
@@ -102,10 +105,10 @@ final readonly class Status
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getStatusList(
+    public function getList(
         array $fileIds,
         Pagination $pagination
-    ): StatusBatchResult {
+    ): StatusItemListResult {
         $this->logger->debug('Getting status list', [
             'file_ids_count' => count($fileIds),
             'page' => $pagination->page,
@@ -114,24 +117,18 @@ final readonly class Status
 
         // Convert file IDs to required format
         $body = array_map(
-            fn (string $fileId): array => ['file_id' => $fileId],
+            static fn (Uuid $fileId): array => ['file_id' => $fileId->toRfc4122()],
             $fileIds
         );
-
-        $paginationParams = $pagination->toQueryParams();
-        $headers = [
-            'page' => (string) $paginationParams['page'],
-            'per_page' => (string) $paginationParams['per_page'],
-        ];
 
         $response = $this->apiClient->post(
             '/v2/async/transcription/fileid/list',
             $body,
-            $headers
+            $pagination->toHeaders()
         );
 
         $data = JsonDecoder::decode($response);
 
-        return StatusBatchResult::fromArray($data);
+        return StatusItemListResult::fromArray($data);
     }
 }

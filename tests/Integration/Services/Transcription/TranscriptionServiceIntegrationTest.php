@@ -84,8 +84,6 @@ final class TranscriptionServiceIntegrationTest extends TestCase
             TranscriptionOptions::default()
         );
 
-        var_dump($this->transcription->getByFileId($transcriptSubmitResult->getFileIds()[0]));
-
         $this->assertInstanceOf(TranscriptSubmitResult::class, $transcriptSubmitResult);
         $this->assertCount(1, $transcriptSubmitResult->getFileIds());
     }
@@ -95,7 +93,6 @@ final class TranscriptionServiceIntegrationTest extends TestCase
     {
         $fileItemTranscriptResult = $this->transcription->getByFileId(Uuid::v7());
         $this->assertTrue($fileItemTranscriptResult->isInProgress());
-
     }
 
     #[TestDox('отправка нескольких файлов на транскрипцию')]
@@ -176,19 +173,18 @@ final class TranscriptionServiceIntegrationTest extends TestCase
         $filesTranscriptResult = $this->transcription->getList($transcriptSubmitResult->getFileIds(), Pagination::default());
 
         $this->assertInstanceOf(FilesTranscriptResult::class, $filesTranscriptResult);
-        $this->assertEquals(2, $filesTranscriptResult->pagination->total);
-
+        $this->assertCount(2, $filesTranscriptResult->getResults());
         // Verify all requested file_ids are present
-        foreach ($filesTranscriptResult->getResults() as $fileItemTranscriptResult) {
+        foreach ($transcriptSubmitResult->getFileIds() as $fileIdSubmitResult) {
             $found = false;
             foreach ($filesTranscriptResult->getResults() as $item) {
-                if ($item->fileId->equals($fileItemTranscriptResult)) {
+                if ($item->fileId->equals($fileIdSubmitResult)) {
                     $found = true;
 
                     break;
                 }
             }
-            $this->assertTrue($found, "File ID {$fileItemTranscriptResult->fileId->toRfc4122()} not found in results");
+            $this->assertTrue($found, "File ID {$fileIdSubmitResult->toRfc4122()} not found in results");
         }
     }
 }

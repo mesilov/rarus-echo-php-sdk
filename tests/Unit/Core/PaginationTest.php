@@ -87,7 +87,8 @@ final class PaginationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Page must be greater than or equal to 1');
 
-        new Pagination(page: 0, perPage: 10);
+        $page = 0;
+        new Pagination(page: $page, perPage: 10); // @phpstan-ignore-line
     }
 
     public function testThrowsExceptionWhenPageIsNegative(): void
@@ -95,7 +96,8 @@ final class PaginationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Page must be greater than or equal to 1');
 
-        new Pagination(page: -1, perPage: 10);
+        $page = -1;
+        new Pagination(page: $page, perPage: 10); // @phpstan-ignore-line
     }
 
     public function testThrowsExceptionWhenPerPageIsZero(): void
@@ -103,7 +105,8 @@ final class PaginationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Per page must be greater than or equal to 1');
 
-        new Pagination(page: 1, perPage: 0);
+        $perPage = 0;
+        new Pagination(page: 1, perPage: $perPage); // @phpstan-ignore-line
     }
 
     public function testThrowsExceptionWhenPerPageIsNegative(): void
@@ -111,7 +114,8 @@ final class PaginationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Per page must be greater than or equal to 1');
 
-        new Pagination(page: 1, perPage: -5);
+        $perPage = -5;
+        new Pagination(page: 1, perPage: $perPage); // @phpstan-ignore-line
     }
 
     public function testAcceptsPageValueOfOne(): void
