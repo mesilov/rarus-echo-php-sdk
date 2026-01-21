@@ -1,5 +1,5 @@
 {
-  "name": "rarus/echo-php-sdk",
+  "name": "mesilov/rarus-echo-php-sdk",
   "description": "PHP SDK for Rarus Echo Transcription Service",
   "type": "library",
   "license": "MIT",
@@ -13,7 +13,7 @@
   "authors": [
     {
       "name": "Maksim Mesilov",
-      "email": "mesm@rarus.ru"
+      "email": "mesilov.maxim@gmail.com"
     }
   ],
   "require": {
@@ -63,21 +63,6 @@
     "psr-4": {
       "Rarus\\Echo\\Tests\\": "tests/"
     }
-  },
-  "scripts": {
-    "test:unit": "phpunit --testsuite=unit",
-    "test:integration": "phpunit --testsuite=integration",
-    "test:all": "phpunit",
-    "phpstan": "phpstan analyse --memory-limit=1G",
-    "cs-fix": "php-cs-fixer fix",
-    "cs-check": "php-cs-fixer fix --dry-run --diff",
-    "rector": "rector process",
-    "rector-dry": "rector process --dry-run",
-    "ci": [
-      "@cs-check",
-      "@phpstan",
-      "@test:all"
-    ]
   },
   "config": {
     "sort-packages": true,
