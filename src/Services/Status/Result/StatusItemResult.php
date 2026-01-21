@@ -6,18 +6,19 @@ namespace Rarus\Echo\Services\Status\Result;
 
 use DateTimeImmutable;
 use Rarus\Echo\Enum\TranscriptionStatus;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Single status result item
  */
-final class StatusItemResult
+final readonly class StatusItemResult
 {
     public function __construct(
-        private readonly string $fileId,
-        private readonly TranscriptionStatus $status,
-        private readonly float $fileSize,
-        private readonly float $fileDuration,
-        private readonly DateTimeImmutable $timestampArrival
+        public Uuid $fileId,
+        public TranscriptionStatus $transcriptionStatus,
+        public int $fileSize,
+        public int $fileDuration,
+        public DateTimeImmutable $timestampArrival
     ) {
     }
 
@@ -25,47 +26,31 @@ final class StatusItemResult
      * Create from API response
      *
      * @param array<string, mixed> $data
+     *
+     * @throws \InvalidArgumentException   If required fields are missing
+     * @throws \DateMalformedStringException
      */
     public static function fromArray(array $data): self
     {
+        if (!isset($data['file_id'])) {
+            throw new \InvalidArgumentException('Missing required field: file_id');
+        }
+
+        if (!isset($data['status'])) {
+            throw new \InvalidArgumentException('Missing required field: status');
+        }
+
+        if (!isset($data['timestamp_arrival'])) {
+            throw new \InvalidArgumentException('Missing required field: timestamp_arrival');
+        }
+
         return new self(
-            fileId: $data['file_id'] ?? '',
-            status: TranscriptionStatus::from($data['status'] ?? 'waiting'),
-            fileSize: (float) ($data['file_size'] ?? 0),
-            fileDuration: (float) ($data['file_duration'] ?? 0),
-            timestampArrival: new DateTimeImmutable($data['timestamp_arrival'] ?? 'now')
+            fileId: Uuid::fromString($data['file_id']),
+            transcriptionStatus: TranscriptionStatus::from($data['status']),
+            fileSize: (int) ($data['file_size'] ?? 0), // Optional, defaults to 0
+            fileDuration: (int) ($data['file_duration'] ?? 0), // Optional, defaults to 0
+            timestampArrival: new DateTimeImmutable($data['timestamp_arrival'])
         );
-    }
-
-    public function getFileId(): string
-    {
-        return $this->fileId;
-    }
-
-    public function getStatus(): TranscriptionStatus
-    {
-        return $this->status;
-    }
-
-    /**
-     * Get file size in megabytes
-     */
-    public function getFileSize(): float
-    {
-        return $this->fileSize;
-    }
-
-    /**
-     * Get file duration in minutes
-     */
-    public function getFileDuration(): float
-    {
-        return $this->fileDuration;
-    }
-
-    public function getTimestampArrival(): DateTimeImmutable
-    {
-        return $this->timestampArrival;
     }
 
     /**
@@ -73,7 +58,7 @@ final class StatusItemResult
      */
     public function isCompleted(): bool
     {
-        return $this->status->isFinal();
+        return $this->transcriptionStatus->isFinal();
     }
 
     /**
@@ -81,6 +66,6 @@ final class StatusItemResult
      */
     public function isSuccessful(): bool
     {
-        return $this->status === TranscriptionStatus::SUCCESS;
+        return $this->transcriptionStatus === TranscriptionStatus::SUCCESS;
     }
 }

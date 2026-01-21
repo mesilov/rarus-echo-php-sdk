@@ -7,31 +7,28 @@ namespace Rarus\Echo\Services\Status\Service;
 use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rarus\Echo\Core\ApiClient;
+use Rarus\Echo\Contracts\ApiClientInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\DateTimeFormatter;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Application\Contracts\StatusServiceInterface;
-use Rarus\Echo\Services\AbstractService;
-use Rarus\Echo\Services\Status\Result\StatusBatchResult;
+use Rarus\Echo\Services\Status\Result\StatusItemListResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Status service
  * Handles status checking operations
  */
-final class Status extends AbstractService implements StatusServiceInterface
+final readonly class Status
 {
-    private readonly LoggerInterface $logger;
-
     public function __construct(
-        ApiClient $apiClient,
-        ?LoggerInterface $logger = null
+        private ApiClientInterface $apiClient,
+        private LoggerInterface $logger = new NullLogger()
     ) {
-        parent::__construct($apiClient);
-        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -41,16 +38,16 @@ final class Status extends AbstractService implements StatusServiceInterface
      * @throws AuthenticationException
      * @throws ApiException
      */
-    public function getFileStatus(string $fileId): StatusItemResult
+    public function getByFileId(Uuid $fileId): StatusItemResult
     {
-        $this->logger->debug('Getting file status', ['file_id' => $fileId]);
+        $this->logger->debug('Getting file status', ['file_id' => $fileId->toRfc4122()]);
 
         $response = $this->apiClient->get(
             '/v1/async/transcription/fileid',
-            ['file_id' => $fileId]
+            ['file_id' => $fileId->toRfc4122()]
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
         // API returns results array with single item
         $resultData = $data['results'][0] ?? [];
@@ -70,23 +67,20 @@ final class Status extends AbstractService implements StatusServiceInterface
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getUserStatuses(
+    public function getByPeriod(
         DateTimeInterface $startDate,
         DateTimeInterface $endDate,
         Pagination $pagination
-    ): StatusBatchResult {
+    ): StatusItemListResult {
         $this->logger->debug('Getting user statuses', [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
+            'period_start' => $startDate->format(DATE_ATOM),
+            'period_end' => $endDate->format(DATE_ATOM),
             'page' => $pagination->page,
             'per_page' => $pagination->perPage,
         ]);
 
         $queryParams = [
-            'period_start' => $startDate->format('Y-m-d'),
-            'period_end' => $endDate->format('Y-m-d'),
-            'time_start' => $startDate->format('H:i:s'),
-            'time_end' => $endDate->format('H:i:s'),
+            ...DateTimeFormatter::toQueryParams($startDate, $endDate),
             ...$pagination->toQueryParams(),
         ];
 
@@ -95,15 +89,15 @@ final class Status extends AbstractService implements StatusServiceInterface
             $queryParams
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
-        return StatusBatchResult::fromArray($data);
+        return StatusItemListResult::fromArray($data);
     }
 
     /**
      * Get statuses by list of file IDs
      *
-     * @param array<string> $fileIds    Array of file IDs
+     * @param array<Uuid> $fileIds    Array of file IDs
      * @param Pagination    $pagination Pagination settings
      *
      * @throws NetworkException
@@ -111,10 +105,10 @@ final class Status extends AbstractService implements StatusServiceInterface
      * @throws ValidationException
      * @throws ApiException
      */
-    public function getStatusList(
+    public function getList(
         array $fileIds,
         Pagination $pagination
-    ): StatusBatchResult {
+    ): StatusItemListResult {
         $this->logger->debug('Getting status list', [
             'file_ids_count' => count($fileIds),
             'page' => $pagination->page,
@@ -123,24 +117,18 @@ final class Status extends AbstractService implements StatusServiceInterface
 
         // Convert file IDs to required format
         $body = array_map(
-            fn (string $fileId) => ['file_id' => $fileId],
+            static fn (Uuid $fileId): array => ['file_id' => $fileId->toRfc4122()],
             $fileIds
         );
-
-        $paginationParams = $pagination->toQueryParams();
-        $headers = [
-            'page' => (string) $paginationParams['page'],
-            'per_page' => (string) $paginationParams['per_page'],
-        ];
 
         $response = $this->apiClient->post(
             '/v2/async/transcription/fileid/list',
             $body,
-            $headers
+            $pagination->toHeaders()
         );
 
-        $data = $response->getJson();
+        $data = JsonDecoder::decode($response);
 
-        return StatusBatchResult::fromArray($data);
+        return StatusItemListResult::fromArray($data);
     }
 }

@@ -4,73 +4,54 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Core;
 
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-use Rarus\Echo\Core\Credentials\Credentials;
-use Rarus\Echo\Core\Response\Response;
+use Rarus\Echo\Contracts\ApiClientInterface;
 use Rarus\Echo\Core\Response\ResponseHandler;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Infrastructure\HttpClient\HttpClientInterface;
-use Rarus\Echo\Infrastructure\HttpClient\PsrHttpClient;
-use Rarus\Echo\Infrastructure\HttpClient\RetryMiddleware;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 
 /**
  * Main API client for Rarus Echo service
  * Handles HTTP communication with the API
  */
-final class ApiClient
+final readonly class ApiClient implements ApiClientInterface
 {
-    private readonly HttpClientInterface $httpClient;
-    private readonly ResponseHandler $responseHandler;
-
     public function __construct(
-        private readonly Credentials $credentials,
-        ?ClientInterface $psrClient = null,
-        ?RequestFactoryInterface $requestFactory = null,
-        ?StreamFactoryInterface $streamFactory = null,
-        private readonly LoggerInterface $logger = new NullLogger(),
-        private readonly int $maxRetries = 3,
-        private readonly int $timeout = 120
+        private Credentials $credentials,
+        private ClientInterface $psrClient,
+        private RequestFactoryInterface $requestFactory,
+        private StreamFactoryInterface $streamFactory,
+        private LoggerInterface $logger,
+        private ResponseHandler $responseHandler,
     ) {
-        // Auto-discover PSR-18 client if not provided
-        if ($psrClient === null) {
-            $psrClient = \Http\Discovery\Psr18ClientDiscovery::find();
-        }
-
-        if ($requestFactory === null) {
-            $requestFactory = \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
-        }
-
-        if ($streamFactory === null) {
-            $streamFactory = \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
-        }
-
-        // Wrap client with retry middleware
-        $retryClient = new RetryMiddleware($psrClient, $this->maxRetries, 1000, $this->logger);
-
-        $this->httpClient = new PsrHttpClient($retryClient, $requestFactory, $streamFactory);
-        $this->responseHandler = new ResponseHandler();
     }
 
     /**
      * Send GET request to API
      *
-     * @param string                         $endpoint API endpoint (without base URL)
-     * @param array<string, string|int|bool> $query    Query parameters
-     * @param array<string, string>          $headers  Additional headers
+     * @param string $endpoint API endpoint (without base URL)
+     * @param array<string, string|int|bool> $query Query parameters
+     * @param array<string, string> $headers Additional headers
      *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
+     * @throws AuthorizationException
      */
-    public function get(string $endpoint, array $query = [], array $headers = []): Response
+    #[\Override]
+    public function get(string $endpoint, array $query = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
@@ -82,9 +63,19 @@ final class ApiClient
         $this->logger->debug('Sending GET request', [
             'uri' => $uri,
             'query' => $query,
+            'options' => $options,
         ]);
 
-        $psrResponse = $this->httpClient->get($uri, $options);
+        $request = $this->createRequest('GET', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -101,7 +92,8 @@ final class ApiClient
      * @throws ValidationException
      * @throws ApiException
      */
-    public function post(string $endpoint, array $body = [], array $headers = []): Response
+    #[\Override]
+    public function post(string $endpoint, array $body = [], array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
@@ -115,7 +107,16 @@ final class ApiClient
             'body_size' => strlen(json_encode($body) ?: ''),
         ]);
 
-        $psrResponse = $this->httpClient->post($uri, $options);
+        $request = $this->createRequest('POST', $uri, $options);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -123,34 +124,85 @@ final class ApiClient
     /**
      * Send POST request with multipart/form-data
      *
-     * @param string                $endpoint API endpoint
-     * @param array<string, mixed>  $data     Form data
-     * @param array<string, string> $headers  Additional headers
+     * @param string $endpoint API endpoint (without base URL)
+     * @param array<int, array{name: string, contents: resource, filename: string, headers: array<string, string>}> $files Files prepared for upload
+     * @param array<string, string> $headers Additional headers
      *
      * @throws NetworkException
      * @throws AuthenticationException
      * @throws ValidationException
      * @throws ApiException
      */
-    public function postMultipart(string $endpoint, array $data, array $headers = []): Response
+    #[\Override]
+    public function postMultipart(string $endpoint, array $files, array $headers = []): ResponseInterface
     {
         $uri = $this->buildUri($endpoint);
 
-        // Note: Actual multipart implementation will be handled in FileUploader
-        // This is a simplified version
-        $options = [
-            'body' => $data,
-            'headers' => array_merge(
-                $this->buildHeaders($headers),
-                ['Content-Type' => 'multipart/form-data']
-            ),
-        ];
-
         $this->logger->debug('Sending POST multipart request', [
             'uri' => $uri,
+            'files_count' => count($files),
         ]);
 
-        $psrResponse = $this->httpClient->post($uri, $options);
+        // Build flat array structure for FormDataPart to create multiple fields with same name
+        // Each element is a single-key array: ['files' => DataPart]
+        // This creates multiple "files" fields instead of "files[0]", "files[1]"
+        $formFields = [];
+
+        foreach ($files as $file) {
+            // Read file content
+            if (is_resource($file['contents'])) {
+                rewind($file['contents']);
+                $fileContent = stream_get_contents($file['contents']);
+                if ($fileContent === false) {
+                    throw new NetworkException('Failed to read file content from resource');
+                }
+            } else {
+                $fileContent = $file['contents'];
+            }
+
+            // Create DataPart for this file
+            $dataPart = new DataPart(
+                $fileContent,
+                $file['filename'],
+                $file['headers']['Content-Type']
+            );
+
+            // Add as single-element array - this is key for duplicate field names
+            $formFields[] = [$file['name'] => $dataPart];
+        }
+
+        // Create FormDataPart from flat array structure
+        $formDataPart = new FormDataPart($formFields);
+
+        // Create request
+        $request = $this->requestFactory->createRequest('POST', $uri);
+
+        // Add auth headers
+        $authHeaders = $this->buildHeaders($headers);
+        foreach ($authHeaders as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        // Add FormDataPart headers (includes Content-Type with boundary)
+        $preparedHeaders = $formDataPart->getPreparedHeaders();
+        foreach ($preparedHeaders->toArray() as $header) {
+            [$name, $value] = explode(':', (string) $header, 2);
+            $request = $request->withHeader(trim($name), trim($value));
+        }
+
+        // Add body as stream
+        $body = $formDataPart->bodyToString();
+        $stream = $this->streamFactory->createStream($body);
+        $request = $request->withBody($stream);
+
+        try {
+            $psrResponse = $this->psrClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new NetworkException(
+                sprintf('HTTP request failed: %s', $e->getMessage()),
+                $e
+            );
+        }
 
         return $this->responseHandler->handle($psrResponse);
     }
@@ -158,9 +210,56 @@ final class ApiClient
     /**
      * Get credentials
      */
+    #[\Override]
     public function getCredentials(): Credentials
     {
         return $this->credentials;
+    }
+
+    /**
+     * Create PSR-7 request from options
+     *
+     * @param array<string,mixed> $options
+     *
+     * @throws NetworkException
+     */
+    private function createRequest(string $method, string $uri, array $options): RequestInterface
+    {
+        $request = $this->requestFactory->createRequest($method, $uri);
+
+        // Add headers
+        if (isset($options['headers']) && is_array($options['headers'])) {
+            foreach ($options['headers'] as $name => $value) {
+                $request = $request->withHeader($name, $value);
+            }
+        }
+
+        // Add body
+        if (isset($options['body'])) {
+            if (is_string($options['body'])) {
+                $stream = $this->streamFactory->createStream($options['body']);
+                $request = $request->withBody($stream);
+            } elseif (is_array($options['body'])) {
+                $json = json_encode($options['body']);
+                if ($json === false) {
+                    throw new NetworkException('Failed to encode body as JSON');
+                }
+                $stream = $this->streamFactory->createStream($json);
+                $request = $request->withBody($stream)
+                    ->withHeader('Content-Type', 'application/json');
+            }
+        }
+
+        // Add query parameters
+        if (isset($options['query']) && is_array($options['query'])) {
+            $queryString = http_build_query($options['query']);
+            $uri = $request->getUri();
+            $existingQuery = $uri->getQuery();
+            $newQuery = $existingQuery ? $existingQuery . '&' . $queryString : $queryString;
+            $request = $request->withUri($uri->withQuery($newQuery));
+        }
+
+        return $request;
     }
 
     /**
@@ -184,8 +283,8 @@ final class ApiClient
     private function buildHeaders(array $additionalHeaders = []): array
     {
         $headers = [
-            'Authorization' => $this->credentials->getApiKey(),
-            'user-id' => $this->credentials->getUserId(),
+            'Authorization' => $this->credentials->getApiKey()->toRfc4122(),
+            'user-id' => $this->credentials->getUserId()->toRfc4122(),
             'Accept' => 'application/json',
         ];
 

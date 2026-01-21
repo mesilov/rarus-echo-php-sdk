@@ -10,11 +10,11 @@ use Rarus\Echo\Exception\ValidationException;
 /**
  * File uploader for preparing files for multipart/form-data upload
  */
-final class FileUploader
+class FileUploader
 {
     public function __construct(
         private readonly FileHelper $fileHelper,
-        private readonly FileValidator $validator
+        private readonly FileValidator $fileValidator
     ) {
     }
 
@@ -31,7 +31,7 @@ final class FileUploader
     public function prepareFiles(array $filePaths): array
     {
         // Validate all files first
-        $this->validator->validateMultiple($filePaths);
+        $this->fileValidator->validateMultiple($filePaths);
 
         $preparedFiles = [];
 

@@ -8,7 +8,6 @@ use PhpCsFixer\Finder;
 $finder = Finder::create()
     ->in(__DIR__ . '/src')
     ->in(__DIR__ . '/tests')
-    ->in(__DIR__ . '/tools')
     ->exclude('Fixtures')
     ->exclude('Temp')
     ->name('*.php')
@@ -16,6 +15,7 @@ $finder = Finder::create()
     ->ignoreVCS(true);
 
 return (new Config())
+    ->setParallelConfig(new PhpCsFixer\Runner\Parallel\ParallelConfig(4, 20))
     ->setRules([
         '@PSR12' => true,
         '@PHP83Migration' => true,

@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && make test-unit 2>&1 | tail -30",
+            "statusMessage": "Запуск юнит-тестов..."
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && make lint-all 2>&1 | tail -30",
+            "statusMessage": "Запуск линтеров..."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make docker-down:*)",
+      "Bash(make docker-up:*)",
+      "Bash(make test-integration:*)",
+      "Bash(make test-unit:*)",
+      "Bash(make docker-init:*)",
+      "Bash(make lint-all:*)",
+      "Bash(make lint-phpstan:*)",
+      "Bash(make lint-cs-fixer-fix:*)",
+      "Bash(make lint-rector-fix:*)",
+      "Bash(make lint-cs-fixer:*)"
+    ]
+  }
+}

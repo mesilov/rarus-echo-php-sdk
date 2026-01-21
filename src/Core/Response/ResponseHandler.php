@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Rarus\Echo\Core\Response;
 
 use Psr\Http\Message\ResponseInterface;
+use Rarus\Echo\Core\JsonDecoder;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
+use Rarus\Echo\Exception\BadRequestException;
+use Rarus\Echo\Exception\ServerErrorException;
 use Rarus\Echo\Exception\ValidationException;
 
 /**
@@ -18,54 +22,58 @@ final class ResponseHandler
      * Handle response and throw exceptions for errors
      *
      * @throws AuthenticationException
+     * @throws AuthorizationException
+     * @throws BadRequestException
      * @throws ValidationException
+     * @throws ServerErrorException
      * @throws ApiException
      */
-    public function handle(ResponseInterface $psrResponse): Response
+    public function handle(ResponseInterface $psrResponse): ResponseInterface
     {
-        $response = new Response($psrResponse);
-        $statusCode = $response->getStatusCode();
+        $statusCode = $psrResponse->getStatusCode();
 
         // Success responses
-        if ($response->isSuccessful()) {
-            return $response;
+        if ($statusCode >= 200 && $statusCode < 300) {
+            return $psrResponse;
         }
 
         // Handle error responses
-        $this->handleErrorResponse($response, $statusCode);
+        $this->handleErrorResponse($psrResponse, $statusCode);
 
-        return $response;
+        return $psrResponse;
     }
 
     /**
      * Handle error response and throw appropriate exception
      *
      * @throws AuthenticationException
+     * @throws AuthorizationException
+     * @throws BadRequestException
      * @throws ValidationException
+     * @throws ServerErrorException
      * @throws ApiException
      */
-    private function handleErrorResponse(Response $response, int $statusCode): void
+    private function handleErrorResponse(ResponseInterface $response, int $statusCode): void
     {
         $data = [];
+
         try {
-            $data = $response->getJson();
+            $data = JsonDecoder::decode($response);
         } catch (\RuntimeException) {
             // If JSON parsing fails, use raw body
         }
 
-        $message = $this->extractErrorMessage($data, $response->getBody());
+        $message = $this->extractErrorMessage($data, (string) $response->getBody());
 
         match ($statusCode) {
-            403 => throw new AuthenticationException($message),
+            401 => throw new AuthenticationException($message),
+            403 => throw new AuthorizationException($message),
+            400 => throw new BadRequestException($message, $data),
             422 => throw new ValidationException(
                 $message,
                 $this->extractValidationErrors($data)
             ),
-            400, 500 => throw new ApiException(
-                $message,
-                $statusCode,
-                $data
-            ),
+            500 => throw new ServerErrorException($message, $data),
             default => throw new ApiException(
                 $message ?: "HTTP {$statusCode} error",
                 $statusCode,
@@ -76,6 +84,8 @@ final class ResponseHandler
 
     /**
      * Extract error message from response data
+     *
+     * @param array<string, mixed> $data
      */
     private function extractErrorMessage(array $data, string $fallback): string
     {
