@@ -1,4 +1,4 @@
-name: Tests
+name: Lint
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [main, dev]
 
 jobs:
-  unit-tests:
-    name: Unit Tests
+  lint:
+    name: Code Quality
     runs-on: ubuntu-latest
     env:
       UID: 1001
@@ -43,5 +43,5 @@ jobs:
       - name: Install dependencies
         run: make composer-install
 
-      - name: Run unit tests
-        run: make test-unit
+      - name: Run all linters
+        run: make lint-all
