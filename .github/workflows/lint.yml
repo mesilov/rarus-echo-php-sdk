@@ -10,6 +10,9 @@ jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
+    env:
+      UID: 1001
+      GID: 1001
 
     steps:
       - name: Checkout code
@@ -22,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yml', 'docker/Dockerfile') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/php-cli/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 

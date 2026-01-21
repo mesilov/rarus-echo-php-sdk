@@ -10,7 +10,8 @@ services:
     working_dir: /var/www/html
     env_file:
       - .env
-      - .env.local
+      - path: .env.local
+        required: false
     environment:
       - COMPOSER_CACHE_DIR=/tmp/composer/cache
     networks:
