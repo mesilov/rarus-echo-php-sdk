@@ -130,12 +130,12 @@ lint-rector-fix: ## Apply Rector fixes
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
-	docker compose run php-cli vendor/bin/phpunit --testsuite=unit
+	docker compose run php-cli vendor/bin/phpunit --testsuite=unit --no-coverage
 
 # integration tests
 .PHONY: test-integration
 test-integration:
-	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration
+	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
 
 # ============================================================================
 # Development Tools
