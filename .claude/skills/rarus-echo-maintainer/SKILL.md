@@ -1,70 +1,70 @@
 ---
 name: rarus-echo-maintainer
-description: Use when working with GitHub issues, maintainer workflow, OpenSpec changes, branches, pull requests, or CI for mesilov/rarus-echo-php-sdk.
+description: "Используй, когда работаешь с GitHub issues, процессом сопровождения, OpenSpec, ветками, pull requests или CI для mesilov/rarus-echo-php-sdk."
 user-invocable: true
 ---
 
-# RARUS Echo Maintainer
+# Сопровождение RARUS Echo
 
-Repository: `mesilov/rarus-echo-php-sdk`
+Репозиторий: `mesilov/rarus-echo-php-sdk`
 
-Use this skill for issue-driven maintenance work in this repository: reading issues, planning implementation, deciding whether OpenSpec is required, creating branches, running validation, opening pull requests, and checking CI.
+Используй этот скилл для сопровождения репозитория через GitHub issue: чтение задачи, планирование реализации, решение о необходимости OpenSpec, создание ветки, запуск проверок, открытие pull request и контроль CI.
 
-## Start Of Work
+## Начало работы
 
-1. Load the GitHub issue before implementation. Read title, body, labels, milestone, assignees, comments, and linked pull requests.
-2. From the repository root, check current state:
+1. Перед реализацией загрузи GitHub issue. Прочитай заголовок, описание, labels, milestone, assignees, комментарии и связанные pull requests.
+2. Из корня репозитория проверь текущее состояние:
    ```bash
    pwd
    git status --short --branch
    openspec list
    openspec list --specs
    ```
-3. Preserve unrelated local changes. Do not reset, delete, stage, or reformat files outside the issue scope.
-4. Use `dev` as the base branch for issue work unless the user explicitly says otherwise.
-5. Create a branch named:
+3. Сохраняй несвязанные локальные изменения. Не сбрасывай, не удаляй, не добавляй в индекс и не форматируй файлы вне области issue.
+4. Используй `dev` как базовую ветку для работы по issue, если пользователь явно не указал другое.
+5. Создай ветку с именем:
    ```text
    feature/<issue-number>-<short-slug>
    bugfix/<issue-number>-<short-slug>
    docs/<issue-number>-<short-slug>
    ```
 
-## OpenSpec Policy
+## Политика OpenSpec
 
-Create or update an OpenSpec change for:
+Создавай или обновляй OpenSpec change для:
 
-- public SDK API changes;
-- behavior visible to SDK users;
-- architecture or service-layer changes;
-- CI, support-process, or maintainer-process changes.
+- изменений публичного SDK API;
+- поведения, видимого пользователям SDK;
+- изменений архитектуры или сервисного слоя;
+- изменений CI, процесса поддержки или процесса сопровождения.
 
-OpenSpec may be skipped for typos, dependency bumps, mechanical formatting, and trivial one-file documentation edits.
+OpenSpec можно пропустить для исправления опечаток, обновления зависимостей, механического форматирования и тривиальных правок документации в одном файле.
 
-When OpenSpec is required:
+Когда OpenSpec обязателен:
 
-1. Check for overlapping active changes with `openspec list`.
-2. Create or continue `openspec/changes/<change-id>/`.
-3. Keep `proposal.md`, `design.md` when useful, `tasks.md`, and spec deltas aligned with the implementation.
-4. Validate with:
+1. Проверь пересекающиеся активные изменения через `openspec list`.
+2. Создай или продолжи `openspec/changes/<change-id>/`.
+3. Синхронизируй `proposal.md`, `design.md` при необходимости, `tasks.md` и дельты спецификаций с реализацией.
+4. Проверь:
    ```bash
    openspec validate --all --strict --no-interactive
    ```
-5. Archive completed changes only after the corresponding pull request is merged:
+5. Архивируй завершенные изменения только после merge соответствующего pull request:
    ```bash
    openspec archive <change-id> --yes
    ```
 
-## Implementation Rules
+## Правила реализации
 
-- Follow existing SDK structure: `Services`, `Core`, `Infrastructure`, `Contracts`, immutable result/configuration objects, strict types, and PSR-compatible dependencies.
-- Keep changes scoped to the issue.
-- Add or update tests when PHP runtime behavior changes.
-- Update `README.md`, `CONTRIBUTING.md`, or OpenSpec artifacts when workflow or public usage changes.
-- Do not introduce Bitrix24-specific rules, generated result-item contracts, OpenAPI refresh steps, or v1/v3 branch selection. Those belong to other SDKs, not this repository.
+- Следуй существующей структуре SDK: `Services`, `Core`, `Infrastructure`, `Contracts`, immutable result/configuration objects, strict types и PSR-compatible dependencies.
+- Держи изменения в рамках issue.
+- Добавляй или обновляй тесты, когда меняется runtime-поведение PHP-кода.
+- Обновляй `README.md`, `CONTRIBUTING.md` или артефакты OpenSpec, когда меняется процесс или публичное использование.
+- Не добавляй правила, специфичные для Bitrix24, generated result-item contracts, OpenAPI refresh steps или выбор веток v1/v3. Это относится к другим SDK, не к этому репозиторию.
 
-## Validation
+## Проверка
 
-For OpenSpec or workflow-only changes, run:
+Для OpenSpec или изменений только процесса запускай:
 
 ```bash
 openspec validate --all --strict --no-interactive
@@ -73,23 +73,23 @@ make test-unit
 make lint-all
 ```
 
-For PHP behavior changes, also run the focused unit tests that cover the changed code. Run integration tests only when the issue touches live API behavior and credentials are available:
+Для изменений PHP-поведения дополнительно запускай точечные unit-тесты, покрывающие измененный код. Integration tests запускай только когда issue затрагивает поведение реального API и доступны учетные данные:
 
 ```bash
 make test-integration
 ```
 
-If a required check cannot run because of missing infrastructure or credentials, report that exact blocker and do not describe the issue as complete.
+Если обязательную проверку нельзя запустить из-за отсутствующей инфраструктуры или учетных данных, укажи точный блокер и не описывай issue как завершенную.
 
 ## Pull Request
 
-Open the pull request only after local validation is green or after an explicitly documented external blocker.
+Открывай pull request только после зеленой локальной проверки или после явно задокументированного внешнего блокера.
 
-Rules:
+Правила:
 
-- Push the issue branch to `origin`.
-- Open the pull request against `dev`.
-- Include `Closes #<issue-number>` in the PR body as plain text.
-- Mention the validation commands that passed.
-- Check PR CI after opening or updating the PR.
-- Do not report the issue complete until required CI checks are green.
+- Отправь issue branch в `origin`.
+- Открой pull request в `dev`.
+- Добавь `Closes #<issue-number>` в тело PR как обычный текст.
+- Укажи команды проверки, которые прошли.
+- Проверь PR CI после открытия или обновления PR.
+- Не сообщай, что issue завершена, пока обязательные CI checks не стали зелеными.
