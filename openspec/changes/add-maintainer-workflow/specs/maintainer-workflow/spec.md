@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Maintainer skill availability
-The repository SHALL provide a maintainer skill for issue-driven maintenance work that is available to both Claude Code and Codex from repo-local paths.
+The repository SHALL provide a single Russian-language maintainer skill for issue-driven maintenance work that is available to both Claude Code and Codex from repo-local paths.
 
 #### Scenario: Claude Code maintainer skill exists
 - **WHEN** a maintainer opens the repository in Claude Code
@@ -10,6 +10,10 @@ The repository SHALL provide a maintainer skill for issue-driven maintenance wor
 #### Scenario: Codex maintainer skill exists
 - **WHEN** a maintainer opens the repository in Codex
 - **THEN** the maintainer workflow is available from `.codex/skills/rarus-echo-maintainer/SKILL.md`
+
+#### Scenario: Maintainer skill has one source
+- **WHEN** the Claude Code and Codex maintainer skill entrypoints are resolved
+- **THEN** both paths point to the same shared skill content
 
 ### Requirement: Issue-first maintainer workflow
 The maintainer workflow SHALL start from a GitHub issue and guide work through branch creation, OpenSpec decision-making, local validation, pull request creation, and CI verification.
@@ -39,7 +43,11 @@ The repository SHALL document when OpenSpec is required and how OpenSpec changes
 
 #### Scenario: OpenSpec validation
 - **WHEN** OpenSpec artifacts exist in the repository
-- **THEN** `openspec validate --all --strict --no-interactive` is the standard validation command
+- **THEN** `make lint-openspec` is the standard validation command
+
+#### Scenario: OpenSpec CI lint
+- **WHEN** a pull request targets `dev`
+- **THEN** GitHub Actions runs OpenSpec validation as part of the code quality workflow
 
 ### Requirement: README workflow documentation
 The repository SHALL document the maintainer development workflow in `README.md`.

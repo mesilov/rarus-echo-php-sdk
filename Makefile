@@ -102,7 +102,14 @@ composer:
 # ============================================================================
 
 .PHONY: lint-all
-lint-all: lint-cs-fixer lint-phpstan lint-rector ## Run all linters
+lint-all: lint-openspec lint-php ## Run all linters
+
+.PHONY: lint-php
+lint-php: lint-cs-fixer lint-phpstan lint-rector ## Run PHP linters
+
+.PHONY: lint-openspec
+lint-openspec: ## Validate OpenSpec changes and specs
+	openspec validate --all --strict --no-interactive
 
 .PHONY: lint-cs-fixer
 lint-cs-fixer: ## Check code style with PHP CS Fixer

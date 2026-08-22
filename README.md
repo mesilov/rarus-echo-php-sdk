@@ -146,6 +146,8 @@ make php-cli-bash     # Войти в контейнер
 
 ```bash
 make lint-all         # Запуск всех линтеров
+make lint-openspec    # Проверка OpenSpec артефактов
+make lint-php         # Запуск PHP-линтеров
 make lint-cs-fixer-fix # Исправление стиля кода
 make lint-phpstan     # Статический анализ
 make test-unit        # Юнит-тесты
@@ -179,7 +181,7 @@ OpenSpec change обычно содержит:
 ```bash
 openspec list
 openspec list --specs
-openspec validate --all --strict --no-interactive
+make lint-openspec
 ```
 
 После merge связанного PR завершенный change архивируется командой:
@@ -188,7 +190,7 @@ openspec validate --all --strict --no-interactive
 openspec archive <change-id> --yes
 ```
 
-Для agent-assisted поддержки используйте repo-local skill:
+Для agent-assisted поддержки используйте repo-local skill. Claude Code и Codex читают один общий русский skill через свои стандартные entrypoint-пути:
 
 - Claude Code: `.claude/skills/rarus-echo-maintainer/SKILL.md`
 - Codex: `.codex/skills/rarus-echo-maintainer/SKILL.md`

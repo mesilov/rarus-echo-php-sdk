@@ -11,3 +11,5 @@
 - [x] 1.9 Fix legacy `docker-compose` Makefile calls exposed by GitHub Actions.
 - [x] 1.10 Run OpenSpec validation and repository checks.
 - [x] 1.11 Open a pull request against `dev` and confirm CI is green.
+- [x] 1.12 Make Claude Code and Codex maintainer skill entrypoints resolve to one shared Russian skill.
+- [x] 1.13 Add GitHub Actions OpenSpec linting to the code quality workflow.
