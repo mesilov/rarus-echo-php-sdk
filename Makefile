@@ -77,23 +77,23 @@ docker-rebuild: ## Rebuild Docker images
 .PHONY: composer-install
 composer-install:
 	@echo "install dependencies…"
-	docker-compose run --rm php-cli composer install
+	docker compose run --rm php-cli composer install
 
 .PHONY: composer-update
 composer-update:
 	@echo "update dependencies…"
-	docker-compose run --rm php-cli composer update
+	docker compose run --rm php-cli composer update
 
 .PHONY: composer-dumpautoload
 composer-dumpautoload:
-	docker-compose run --rm php-cli composer dumpautoload
+	docker compose run --rm php-cli composer dumpautoload
 
 .PHONY: composer
 # call composer with any parameters
 # make composer install
 # make composer "install --no-dev"
 composer:
-	docker-compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
+	docker compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
 
 
 
@@ -135,7 +135,7 @@ test-unit: ## Run unit tests
 # integration tests
 .PHONY: test-integration
 test-integration:
-	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
+	docker compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
 
 # ============================================================================
 # Development Tools
