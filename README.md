@@ -133,6 +133,12 @@ try {
 
 - Docker & Docker Compose
 - Make
+- Node.js 20.19+ или 24+
+- OpenSpec CLI 1.3.1 для OpenSpec workflow:
+  ```bash
+  npm install -g @fission-ai/openspec@1.3.1
+  openspec --version
+  ```
 
 ### Первоначальная настройка
 
@@ -182,6 +188,12 @@ OpenSpec change обычно содержит:
 openspec list
 openspec list --specs
 make lint-openspec
+```
+
+OpenSpec CLI генерирует repo-local commands/skills для Claude Code и Codex. После обновления CLI синхронизируйте эти файлы командой:
+
+```bash
+openspec update --force
 ```
 
 После merge связанного PR завершенный change архивируется командой:

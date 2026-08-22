@@ -30,6 +30,10 @@ The maintainer workflow SHALL start from a GitHub issue and guide work through b
 - **WHEN** the pull request is opened or updated
 - **THEN** the agent checks CI status and does not report the issue complete until required checks are green
 
+#### Scenario: Agent review comments are resolved
+- **WHEN** an agent reviewer posts pull request comments
+- **THEN** the agent evaluates each comment, implements or responds to it, and resolves the thread before reporting the issue complete
+
 ### Requirement: OpenSpec policy
 The repository SHALL document when OpenSpec is required and how OpenSpec changes are validated and archived.
 
@@ -48,6 +52,14 @@ The repository SHALL document when OpenSpec is required and how OpenSpec changes
 #### Scenario: OpenSpec CI lint
 - **WHEN** a pull request targets `dev`
 - **THEN** GitHub Actions runs OpenSpec validation as part of the code quality workflow
+
+#### Scenario: Repository-wide OpenSpec policy
+- **WHEN** an agent changes files outside `openspec/`
+- **THEN** repository-wide OpenSpec policy is discoverable from the root `AGENTS.md`
+
+#### Scenario: OpenSpec CLI provisioning
+- **WHEN** a contributor prepares a clean checkout for OpenSpec workflow
+- **THEN** the README documents the OpenSpec CLI package, version, and update command for generated instructions
 
 ### Requirement: README workflow documentation
 The repository SHALL document the maintainer development workflow in `README.md`.

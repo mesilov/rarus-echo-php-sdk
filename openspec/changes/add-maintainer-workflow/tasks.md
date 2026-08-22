@@ -13,3 +13,7 @@
 - [x] 1.11 Open a pull request against `dev` and confirm CI is green.
 - [x] 1.12 Make Claude Code and Codex maintainer skill entrypoints resolve to one shared Russian skill.
 - [x] 1.13 Add GitHub Actions OpenSpec linting to the code quality workflow.
+- [x] 1.14 Add repository-wide agent policy at root `AGENTS.md`.
+- [x] 1.15 Document OpenSpec CLI installation and generated instruction update flow.
+- [x] 1.16 Require maintainer workflow to handle and resolve agent review comments.
+- [x] 1.17 Guard OpenSpec apply instructions from suggesting archive before PR merge.
