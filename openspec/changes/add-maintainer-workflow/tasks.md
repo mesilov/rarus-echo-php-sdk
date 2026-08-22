@@ -10,4 +10,4 @@
 - [x] 1.8 Fix the existing PHPUnit coverage-driver warning blocker in Makefile test targets.
 - [x] 1.9 Fix legacy `docker-compose` Makefile calls exposed by GitHub Actions.
 - [x] 1.10 Run OpenSpec validation and repository checks.
-- [ ] 1.11 Open a pull request against `dev` and confirm CI is green.
+- [x] 1.11 Open a pull request against `dev` and confirm CI is green.
