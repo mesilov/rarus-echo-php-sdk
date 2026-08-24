@@ -41,4 +41,4 @@
 - [x] 5.9 Reproduce the no-lock PHPStan failure and constrain Symfony Console to the CI-compatible initial range.
 - [x] 5.10 Address Codex review comments for Composer bin autoloading and raw CLI output.
 - [x] 5.11 Push the CI and review fixes to `feature/11-cli-app`.
-- [ ] 5.12 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.12 Check PR CI and agent review comments before reporting issue work complete.
