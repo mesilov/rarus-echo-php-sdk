@@ -10,12 +10,14 @@ SDK users need a quick way to operate the RARUS Echo service from a terminal wit
 - Support human-readable output by default and JSON output for automation.
 - Add CLI help, validation, exit codes, stdout/stderr behavior, unit tests, and README usage examples.
 - Add the Symfony Console component as a runtime dependency.
+- Update GitHub Actions Composer cache keys so dependency metadata changes invalidate the restored `vendor` directory.
 
 ## Capabilities
 
 ### New Capabilities
 
 - `cli-app`: Command-line application for common RARUS Echo service operations.
+- `ci-composer-cache`: GitHub Actions Composer dependency cache invalidates when Composer dependency metadata changes.
 
 ### Modified Capabilities
 
@@ -27,4 +29,5 @@ SDK users need a quick way to operate the RARUS Echo service from a terminal wit
 - Affected package metadata: `composer.json` gains a `bin` entry and the Symfony Console dependency.
 - Affected documentation: `README.md` gains CLI installation and usage examples.
 - Affected tests: new unit tests for command behavior, output formatting, option parsing, and error handling.
+- Affected CI: Composer dependency cache keys in GitHub Actions lint and unit-test workflows.
 - Public SDK service APIs remain unchanged; the CLI uses existing `ServiceFactory`, credentials, queue, status, and transcription services.

@@ -45,12 +45,17 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
   - Rationale: text output is readable for humans, while JSON on stdout is stable for scripts. Errors continue to go to stderr.
   - Alternative considered: only text output. That would make automation parse labels and formatting.
 
+- Make Composer `vendor` cache exact-keyed by Composer dependency metadata in GitHub Actions.
+  - Rationale: this repository ignores `composer.lock`, so a cache key based only on `composer.lock` can restore stale dependencies after `composer.json` changes. Exact-keying by `composer.json` and future `composer.lock` prevents PHPStan/tests from running against an old cached `vendor` tree.
+  - Alternative considered: keep broad Composer restore keys. This is faster on cold metadata changes, but it can reuse stale dependency trees and hide missing runtime packages.
+
 ## Risks / Trade-offs
 
 - Dependency promotion changes package metadata. Mitigation: require `symfony/console` with the same Symfony major range used elsewhere and update the lock file with Composer.
 - CLI behavior may become too broad for a first release. Mitigation: keep the first command set to `submit`, `status`, `transcript`, and `queue`.
 - API errors can leak stack traces if uncaught. Mitigation: commands catch operation failures, print concise messages to stderr, and return non-zero exit codes.
 - Missing credentials can make basic usage confusing. Mitigation: help documents required environment variables and credential loading reports the missing variable name from existing `Credentials::fromEnvironment()`.
+- Exact Composer cache keys reduce stale-cache risk at the cost of fewer partial cache hits. Mitigation: keep Docker layer caching and Composer's normal package cache.
 
 ## Migration Plan
 
@@ -59,8 +64,9 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
 3. Add CLI client interfaces, real SDK adapter, application factory, and command classes.
 4. Add command unit tests with fake clients.
 5. Update README with installation, environment, and command examples.
-6. Run OpenSpec validation, unit tests, PHP linting, and diff whitespace checks.
-7. Open a pull request against `dev`.
+6. Update GitHub Actions Composer cache keys to include Composer dependency metadata.
+7. Run OpenSpec validation, unit tests, PHP linting, and diff whitespace checks.
+8. Open or update a pull request against `dev`.
 
 Rollback is removing the new `bin` entry, `src/Cli/` code, CLI tests, README section, and `symfony/console` runtime requirement.
 

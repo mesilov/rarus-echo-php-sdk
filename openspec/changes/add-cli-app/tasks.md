@@ -37,4 +37,6 @@
 - [x] 5.5 Run `make lint-all`.
 - [x] 5.6 Push `feature/11-cli-app` to `origin`.
 - [x] 5.7 Open a pull request against `dev` with `Closes #11` and local validation notes.
-- [ ] 5.8 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.8 Diagnose the failed PR `Code Quality` check and update Composer cache keys.
+- [ ] 5.9 Push the CI cache fix to `feature/11-cli-app`.
+- [ ] 5.10 Check PR CI and agent review comments before reporting issue work complete.
