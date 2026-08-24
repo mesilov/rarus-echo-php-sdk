@@ -30,7 +30,10 @@ abstract class AbstractEchoCommand extends Command
      */
     protected function writeJson(OutputInterface $output, array $payload): void
     {
-        $output->writeln((string) json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        $output->writeln(
+            (string) json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            OutputInterface::OUTPUT_RAW
+        );
     }
 
     protected function parseFileId(InputInterface $input, OutputInterface $output): ?Uuid

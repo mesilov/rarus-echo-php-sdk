@@ -56,7 +56,7 @@ final class TranscriptCommand extends AbstractEchoCommand
         }
         $output->writeln('result:');
         if ($transcript->result !== null) {
-            $output->writeln($transcript->result);
+            $output->writeln($transcript->result, OutputInterface::OUTPUT_RAW);
         }
 
         return Command::SUCCESS;

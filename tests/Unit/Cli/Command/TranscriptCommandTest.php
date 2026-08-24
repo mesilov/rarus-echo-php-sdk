@@ -56,6 +56,27 @@ final class TranscriptCommandTest extends TestCase
         );
     }
 
+    public function testOutputsTranscriptJsonWithoutFormattingResultMarkup(): void
+    {
+        $client = $this->clientWithTranscript('<info>keep tags</info>');
+        $tester = new CommandTester(new TranscriptCommand(new FakeEchoClientFactory($client)));
+
+        $this->assertSame(Command::SUCCESS, $tester->execute(['file-id' => self::FILE_ID, '--json' => true]));
+        $this->assertSame(
+            '<info>keep tags</info>',
+            json_decode($tester->getDisplay(), true, flags: JSON_THROW_ON_ERROR)['result']
+        );
+    }
+
+    public function testOutputsTranscriptTextWithoutFormattingResultMarkup(): void
+    {
+        $client = $this->clientWithTranscript('<info>keep tags</info>');
+        $tester = new CommandTester(new TranscriptCommand(new FakeEchoClientFactory($client)));
+
+        $this->assertSame(Command::SUCCESS, $tester->execute(['file-id' => self::FILE_ID]));
+        $this->assertStringContainsString('<info>keep tags</info>', $tester->getDisplay(true));
+    }
+
     public function testInvalidFileIdWritesErrorWithoutCreatingClient(): void
     {
         $client = new FakeEchoClient();
@@ -85,14 +106,14 @@ final class TranscriptCommandTest extends TestCase
         $this->assertStringContainsString('Error: Service unavailable', $tester->getErrorOutput(true));
     }
 
-    private function clientWithTranscript(): FakeEchoClient
+    private function clientWithTranscript(?string $result = 'hello from transcript'): FakeEchoClient
     {
         $client = new FakeEchoClient();
         $client->transcript = new FileItemTranscriptResult(
             fileId: Uuid::fromString(self::FILE_ID),
             transcriptionStatus: TranscriptionStatus::SUCCESS,
             taskType: TaskType::DIARIZATION,
-            result: 'hello from transcript'
+            result: $result
         );
 
         return $client;
