@@ -9,7 +9,7 @@ SDK users need a quick way to operate the RARUS Echo service from a terminal wit
 - Read credentials from the existing `RARUS_ECHO_API_KEY`, `RARUS_ECHO_USER_ID`, and optional `RARUS_ECHO_BASE_URL` environment contract, including local `.env` files when available.
 - Support human-readable output by default and JSON output for automation.
 - Add CLI help, validation, exit codes, stdout/stderr behavior, unit tests, and README usage examples.
-- Add the Symfony Console component as a runtime dependency.
+- Add the Symfony Console component as a runtime dependency with a CI-compatible initial version range.
 - Update GitHub Actions Composer cache keys so dependency metadata changes invalidate the restored `vendor` directory.
 
 ## Capabilities

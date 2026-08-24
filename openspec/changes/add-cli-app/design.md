@@ -29,6 +29,10 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
   - Rationale: it is the standard Symfony component for argument parsing, help, command testing, output sections, and exit code conventions. It also matches the CLI guideline to use a parser library.
   - Alternative considered: a custom `argv` parser. This would avoid one dependency, but it would duplicate parsing, help, and testing behavior.
 
+- Allow Symfony Console 6.4, 7.x, and 8.0.x for the initial CLI dependency range.
+  - Rationale: the repository currently uses PHPStan 1.x and Rector 1.x in CI. Without a tracked `composer.lock`, Composer can otherwise resolve Symfony Console 8.1.x, which PHPStan 1.x does not analyze correctly under the current dev-tooling set.
+  - Alternative considered: upgrade PHPStan, PHPStan extensions, and Rector to their 2.x-compatible ranges. That is a broader dev-tooling migration than issue #11 needs.
+
 - Keep CLI code under `Rarus\Echo\Cli`.
   - Rationale: the CLI is a public executable but not part of the core service API. A dedicated namespace keeps formatting, command parsing, and dependency construction away from `Services`.
   - Alternative considered: add methods directly to `ServiceFactory`. That would mix terminal concerns into SDK service construction.
@@ -51,7 +55,7 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
 
 ## Risks / Trade-offs
 
-- Dependency promotion changes package metadata. Mitigation: require `symfony/console` with the same Symfony major range used elsewhere and update the lock file with Composer.
+- Dependency promotion changes package metadata. Mitigation: require `symfony/console` with Symfony 6.4, 7.x, and 8.0.x support while keeping the current CI tooling stable.
 - CLI behavior may become too broad for a first release. Mitigation: keep the first command set to `submit`, `status`, `transcript`, and `queue`.
 - API errors can leak stack traces if uncaught. Mitigation: commands catch operation failures, print concise messages to stderr, and return non-zero exit codes.
 - Missing credentials can make basic usage confusing. Mitigation: help documents required environment variables and credential loading reports the missing variable name from existing `Credentials::fromEnvironment()`.

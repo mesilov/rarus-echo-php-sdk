@@ -38,5 +38,6 @@
 - [x] 5.6 Push `feature/11-cli-app` to `origin`.
 - [x] 5.7 Open a pull request against `dev` with `Closes #11` and local validation notes.
 - [x] 5.8 Diagnose the failed PR `Code Quality` check and update Composer cache keys.
-- [ ] 5.9 Push the CI cache fix to `feature/11-cli-app`.
-- [ ] 5.10 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.9 Reproduce the no-lock PHPStan failure and constrain Symfony Console to the CI-compatible initial range.
+- [ ] 5.10 Push the CI fixes to `feature/11-cli-app`.
+- [ ] 5.11 Check PR CI and agent review comments before reporting issue work complete.

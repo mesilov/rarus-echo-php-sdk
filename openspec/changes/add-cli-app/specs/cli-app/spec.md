@@ -11,6 +11,13 @@ The package SHALL provide a Composer-installed `rarus-echo` command line executa
 - **WHEN** the package is installed through Composer
 - **THEN** Composer exposes the CLI executable from the package `bin` configuration
 
+### Requirement: CLI runtime dependency
+The package SHALL depend on Symfony Console versions that support the CLI entrypoint and remain compatible with the repository lint tooling.
+
+#### Scenario: Composer installs without a lock file
+- **WHEN** Composer resolves package dependencies without a tracked `composer.lock`
+- **THEN** the resolved Symfony Console version can be analyzed by the repository PHPStan lint configuration
+
 ### Requirement: Credential loading
 Service commands SHALL load RARUS Echo credentials from `RARUS_ECHO_API_KEY`, `RARUS_ECHO_USER_ID`, and optional `RARUS_ECHO_BASE_URL` environment variables, including values loaded from local `.env` files when present.
 
