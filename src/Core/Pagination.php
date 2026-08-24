@@ -48,10 +48,10 @@ final readonly class Pagination
     public static function fromArray(array $data): self
     {
         /** @var int<1, max> */
-        $page = (int)$data['page'];
+        $page = (int)($data['page'] ?? 0);
         /** @var int<1, max> */
-        $perPage = (int)$data['per_page'];
-        $total = (int)$data['total_pages'];
+        $perPage = (int)($data['per_page'] ?? 0);
+        $total = (int)($data['total_pages'] ?? 0);
 
         return new self(
             page: $page,

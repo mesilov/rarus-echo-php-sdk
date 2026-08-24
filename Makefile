@@ -77,23 +77,23 @@ docker-rebuild: ## Rebuild Docker images
 .PHONY: composer-install
 composer-install:
 	@echo "install dependencies…"
-	docker-compose run --rm php-cli composer install
+	docker compose run --rm php-cli composer install
 
 .PHONY: composer-update
 composer-update:
 	@echo "update dependencies…"
-	docker-compose run --rm php-cli composer update
+	docker compose run --rm php-cli composer update
 
 .PHONY: composer-dumpautoload
 composer-dumpautoload:
-	docker-compose run --rm php-cli composer dumpautoload
+	docker compose run --rm php-cli composer dumpautoload
 
 .PHONY: composer
 # call composer with any parameters
 # make composer install
 # make composer "install --no-dev"
 composer:
-	docker-compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
+	docker compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
 
 
 
@@ -102,7 +102,14 @@ composer:
 # ============================================================================
 
 .PHONY: lint-all
-lint-all: lint-cs-fixer lint-phpstan lint-rector ## Run all linters
+lint-all: lint-openspec lint-php ## Run all linters
+
+.PHONY: lint-php
+lint-php: lint-cs-fixer lint-phpstan lint-rector ## Run PHP linters
+
+.PHONY: lint-openspec
+lint-openspec: ## Validate OpenSpec changes and specs
+	openspec validate --all --strict --no-interactive
 
 .PHONY: lint-cs-fixer
 lint-cs-fixer: ## Check code style with PHP CS Fixer
@@ -130,12 +137,12 @@ lint-rector-fix: ## Apply Rector fixes
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
-	docker compose run php-cli vendor/bin/phpunit --testsuite=unit
+	docker compose run php-cli vendor/bin/phpunit --testsuite=unit --no-coverage
 
 # integration tests
 .PHONY: test-integration
 test-integration:
-	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration
+	docker compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
 
 # ============================================================================
 # Development Tools

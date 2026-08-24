@@ -1,0 +1,24 @@
+schema: spec-driven
+
+context: |
+  Project: RARUS Echo PHP SDK, a PHP library for the RARUS Echo transcription API.
+  Tech stack: PHP 8.4/8.5, Composer, Symfony components, PSR interfaces, Docker, Make, PHPUnit, PHPStan, PHP CS Fixer, Rector.
+  Base branch for development PRs: dev.
+  Public SDK behavior changes must preserve strict types, immutable result/configuration objects, PSR compatibility, and existing service/result layering.
+  OpenSpec is required for non-trivial public API, behavior, architecture, and support-process changes.
+  OpenSpec is optional for typo fixes, dependency bumps, and trivial one-file documentation edits when a formal change would add overhead without clarifying behavior.
+  Standard OpenSpec validation: openspec validate --all --strict --no-interactive.
+
+rules:
+  proposal:
+    - Keep scope tied to the linked GitHub issue.
+    - List affected SDK capabilities explicitly.
+    - State when the change does not affect runtime PHP code.
+  specs:
+    - Use SHALL or MUST for normative requirements.
+    - Include at least one Scenario for every requirement.
+    - Prefer a single focused capability unless the issue clearly spans multiple independent workflows.
+  tasks:
+    - Include local validation commands.
+    - Include README or CONTRIBUTING updates when maintainer workflow changes.
+    - Include PR target branch and CI verification when the task is issue-to-PR work.
