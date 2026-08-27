@@ -38,6 +38,8 @@ COPY src ./src
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
     && chmod +x bin/rarus-echo
 
+RUN php -r 'require "/app/vendor/autoload.php"; \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory(); \Http\Discovery\Psr17FactoryDiscovery::findResponseFactory(); \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory(); \Http\Discovery\Psr18ClientDiscovery::find();'
+
 FROM php:8.4-cli-bookworm AS cli
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
@@ -53,6 +55,7 @@ RUN set -eux; \
 
 WORKDIR /app
 
+COPY docker/rarus-echo-cli/conf.d/php.ini /usr/local/etc/php/conf.d/rarus-echo-cli.ini
 COPY --from=vendor /app /app
 
 RUN ln -s /app/bin/rarus-echo /usr/local/bin/rarus-echo

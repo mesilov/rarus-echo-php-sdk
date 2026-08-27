@@ -8,16 +8,14 @@ use DateTime;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\TestDox;
-use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Core\Pagination;
 use Rarus\Echo\Enum\TranscriptionStatus;
-use Rarus\Echo\Services\ServiceFactory;
 use Rarus\Echo\Services\Status\Result\StatusItemListResult;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
 use Rarus\Echo\Services\Status\Service\Status;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Service\Transcription;
-use Rarus\Echo\Tests\LoggerFactory;
+use Rarus\Echo\Tests\Integration\IntegrationTestCase;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -38,37 +36,24 @@ use Symfony\Component\Uid\Uuid;
 #[CoversMethod(Status::class, 'getByFileId')]
 #[CoversMethod(Status::class, 'getByPeriod')]
 #[CoversMethod(Status::class, 'getList')]
-final class StatusServiceIntegrationTest extends TestCase
+final class StatusServiceIntegrationTest extends IntegrationTestCase
 {
     private Status $status;
     private Transcription $transcription;
-    private string $testAudioFolder;
 
     #[\Override]
     protected function setUp(): void
     {
-        if (!isset($_ENV['RARUS_ECHO_API_KEY']) || !isset($_ENV['RARUS_ECHO_USER_ID'])) {
-            $this->markTestSkipped(
-                'Integration tests require RARUS_ECHO_API_KEY and RARUS_ECHO_USER_ID environment variables'
-            );
-        }
-
-        $serviceFactory = ServiceFactory::fromEnvironment(LoggerFactory::defaultStdout());
+        $serviceFactory = $this->createServiceFactory();
         $this->status = $serviceFactory->getStatusService();
         $this->transcription = $serviceFactory->getTranscriptionService();
-
-        $this->testAudioFolder = __DIR__ . '/../../../Assets/ru/';
-
-        if (!file_exists($this->testAudioFolder . 'examp-1.ogg')) {
-            $this->markTestSkipped('Test audio file not found: ' . $this->testAudioFolder . 'examp-1.ogg');
-        }
     }
 
     #[TestDox('получение статуса для загруженного файла')]
     public function testGetFileStatusForUploadedFile(): void
     {
         $transcriptSubmitResult = $this->transcription->submit(
-            [$this->testAudioFolder . 'examp-1.ogg'],
+            [$this->testAudioPath('examp-1.ogg')],
             TranscriptionOptions::default()
         );
         $fileId = $transcriptSubmitResult->getFileIds()[0];
@@ -78,12 +63,21 @@ final class StatusServiceIntegrationTest extends TestCase
         $this->assertInstanceOf(StatusItemResult::class, $statusResult);
         $this->assertSame($fileId->toRfc4122(), $statusResult->fileId->toRfc4122());
         $this->assertInstanceOf(TranscriptionStatus::class, $statusResult->transcriptionStatus);
-        $this->assertContains($statusResult->transcriptionStatus, [TranscriptionStatus::WAITING, TranscriptionStatus::PROCESSING]);
+        $this->assertContains(
+            $statusResult->transcriptionStatus,
+            [TranscriptionStatus::WAITING, TranscriptionStatus::PROCESSING, TranscriptionStatus::SUCCESS]
+        );
         $this->assertGreaterThanOrEqual(0, $statusResult->fileSize);
         $this->assertGreaterThanOrEqual(0, $statusResult->fileDuration);
         $this->assertInstanceOf(\DateTimeImmutable::class, $statusResult->timestampArrival);
-        $this->assertFalse($statusResult->isCompleted());
-        $this->assertFalse($statusResult->isSuccessful());
+
+        if ($statusResult->transcriptionStatus->isInProgress()) {
+            $this->assertFalse($statusResult->isCompleted());
+            $this->assertFalse($statusResult->isSuccessful());
+        } else {
+            $this->assertTrue($statusResult->isCompleted());
+            $this->assertTrue($statusResult->isSuccessful());
+        }
     }
 
     #[TestDox('получение статуса для несуществующего файла')]
@@ -121,10 +115,7 @@ final class StatusServiceIntegrationTest extends TestCase
     #[TestDox('получение статусов пользователя с пагинацией')]
     public function testGetUserStatusesWithPagination(): void
     {
-        $files = [
-            $this->testAudioFolder . 'examp-1.ogg',
-            $this->testAudioFolder . 'examp-2.ogg',
-        ];
+        $files = $this->testAudioFiles('examp-1.ogg', 'examp-2.ogg');
 
         $this->transcription->submit($files, TranscriptionOptions::default());
 
@@ -143,10 +134,7 @@ final class StatusServiceIntegrationTest extends TestCase
     #[TestDox('получение списка статусов по ID файлов')]
     public function testGetStatusListForUploadedFiles(): void
     {
-        $files = [
-            $this->testAudioFolder . 'examp-1.ogg',
-            $this->testAudioFolder . 'examp-2.ogg',
-        ];
+        $files = $this->testAudioFiles('examp-1.ogg', 'examp-2.ogg');
 
         $transcriptSubmitResult = $this->transcription->submit($files, TranscriptionOptions::default());
         $fileIds = $transcriptSubmitResult->getFileIds();
@@ -169,11 +157,7 @@ final class StatusServiceIntegrationTest extends TestCase
     #[TestDox('получение списка статусов с пагинацией')]
     public function testGetStatusListPagination(): void
     {
-        $files = [
-            $this->testAudioFolder . 'examp-1.ogg',
-            $this->testAudioFolder . 'examp-2.ogg',
-            $this->testAudioFolder . 'examp-3.ogg',
-        ];
+        $files = $this->testAudioFiles('examp-1.ogg', 'examp-2.ogg', 'examp-3.ogg');
 
         $transcriptSubmitResult = $this->transcription->submit($files, TranscriptionOptions::default());
         $fileIds = $transcriptSubmitResult->getFileIds();

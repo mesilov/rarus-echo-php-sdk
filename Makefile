@@ -37,6 +37,15 @@ help:
 	@echo "composer-dumpautoload     - regenerate composer autoload file"
 	@echo "composer                  - run composer and pass arguments"
 	@echo ""
+	@echo "test-unit                 - run unit tests"
+	@echo "test-integration          - run live integration tests"
+	@echo "test-integration-core     - run core integration tests"
+	@echo "test-integration-queue    - run queue integration tests"
+	@echo "test-integration-status   - run status integration tests"
+	@echo "test-integration-transcription - run transcription integration tests"
+	@echo "test-all                  - run unit and integration tests"
+	@echo "ci                        - run local CI checks"
+	@echo ""
 	@echo "show-env                  - show environment variables from .env files"
 	@echo ""
 
@@ -143,6 +152,28 @@ test-unit: ## Run unit tests
 .PHONY: test-integration
 test-integration:
 	docker compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
+
+.PHONY: test-integration-core
+test-integration-core:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Core --no-coverage
+
+.PHONY: test-integration-queue
+test-integration-queue:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Queue --no-coverage
+
+.PHONY: test-integration-status
+test-integration-status:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Status --no-coverage
+
+.PHONY: test-integration-transcription
+test-integration-transcription:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Transcription --no-coverage
+
+.PHONY: test-all
+test-all: test-unit test-integration
+
+.PHONY: ci
+ci: lint-all test-unit
 
 # ============================================================================
 # Development Tools
