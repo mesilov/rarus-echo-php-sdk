@@ -26,12 +26,15 @@ use Rarus\Echo\Services\Transcription\Service\Transcription;
  *
  * @example
  * ```php
- * $credentials = Credentials::create('api-key', 'user-id');
+ * $credentials = Credentials::fromString(
+ *     '11111111-1111-1111-1111-111111111111',
+ *     '22222222-2222-2222-2222-222222222222'
+ * );
  * $factory = new ServiceFactory($credentials);
  *
  * // Use services
  * $transcription = $factory->getTranscriptionService();
- * $result = $transcription->submitTranscription(['/path/to/file.mp3'], $options);
+ * $result = $transcription->submit(['/path/to/file.mp3'], $options);
  * ```
  */
 final class ServiceFactory
