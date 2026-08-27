@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local integration test targets for core, queue, status, and transcription services.
 ### Changed
 - Docker CLI usage is now the first quick-start path in the README.
+### Fixed
+- CLI Docker image now includes production PSR-17 discovery dependencies and a 4G PHP memory limit for large audio submissions.
 ### Removed
 
 
