@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Cli\Command;
+namespace Rarus\Echo\Infrastructure\Console\Command;
 
 use Rarus\Echo\Enum\TaskType;
 use Symfony\Component\Console\Command\Command;

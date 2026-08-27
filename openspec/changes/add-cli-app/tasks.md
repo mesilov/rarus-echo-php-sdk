@@ -7,7 +7,7 @@
 ## 2. CLI Infrastructure
 
 - [x] 2.1 Add failing unit tests for CLI application help and command registration.
-- [x] 2.2 Implement `Rarus\Echo\Cli\ApplicationFactory` and register service commands.
+- [x] 2.2 Implement `Rarus\Echo\Infrastructure\Console\ApplicationFactory` and register service commands.
 - [x] 2.3 Add failing unit tests for environment-backed client creation.
 - [x] 2.4 Implement CLI client interfaces, SDK adapter, and environment client factory.
 - [x] 2.5 Add shared command helpers for JSON output, UUID parsing, and concise error handling.
@@ -42,3 +42,4 @@
 - [x] 5.10 Address Codex review comments for Composer bin autoloading and raw CLI output.
 - [x] 5.11 Push the CI and review fixes to `feature/11-cli-app`.
 - [x] 5.12 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.13 Move CLI implementation to `Infrastructure\Console` and root Echo client contracts under `Contracts`.

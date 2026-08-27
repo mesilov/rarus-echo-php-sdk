@@ -33,8 +33,8 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
   - Rationale: the repository currently uses PHPStan 1.x and Rector 1.x in CI. Without a tracked `composer.lock`, Composer can otherwise resolve Symfony Console 8.1.x, which PHPStan 1.x does not analyze correctly under the current dev-tooling set.
   - Alternative considered: upgrade PHPStan, PHPStan extensions, and Rector to their 2.x-compatible ranges. That is a broader dev-tooling migration than issue #11 needs.
 
-- Keep CLI code under `Rarus\Echo\Cli`.
-  - Rationale: the CLI is a public executable but not part of the core service API. A dedicated namespace keeps formatting, command parsing, and dependency construction away from `Services`.
+- Keep console implementation code under `Rarus\Echo\Infrastructure\Console` and the testable client contracts under `Rarus\Echo\Contracts`.
+  - Rationale: the CLI is a public executable but the Symfony Console integration is infrastructure. Root contracts keep command dependencies visible at the SDK boundary while formatting, command parsing, and dependency construction stay away from `Services`.
   - Alternative considered: add methods directly to `ServiceFactory`. That would mix terminal concerns into SDK service construction.
 
 - Introduce a small CLI client boundary.
@@ -72,7 +72,7 @@ The CLI should follow the linked Command Line Interface Guidelines by using a re
 7. Run OpenSpec validation, unit tests, PHP linting, and diff whitespace checks.
 8. Open or update a pull request against `dev`.
 
-Rollback is removing the new `bin` entry, `src/Cli/` code, CLI tests, README section, and `symfony/console` runtime requirement.
+Rollback is removing the new `bin` entry, `src/Infrastructure/Console/` code, CLI tests, Echo client contracts, README section, and `symfony/console` runtime requirement.
 
 ## Open Questions
 

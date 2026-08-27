@@ -25,7 +25,7 @@ SDK users need a quick way to operate the RARUS Echo service from a terminal wit
 
 ## Impact
 
-- Affected runtime code: new CLI namespace under `src/Cli/` and a new `bin/rarus-echo` executable.
+- Affected runtime code: new console implementation under `src/Infrastructure/Console/`, root SDK contracts under `src/Contracts/`, and a new `bin/rarus-echo` executable.
 - Affected package metadata: `composer.json` gains a `bin` entry and the Symfony Console dependency.
 - Affected documentation: `README.md` gains CLI installation and usage examples.
 - Affected tests: new unit tests for command behavior, output formatting, option parsing, and error handling.

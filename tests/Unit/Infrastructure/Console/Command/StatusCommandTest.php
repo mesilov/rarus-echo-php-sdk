@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Tests\Unit\Cli\Command;
+namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Command;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Cli\Command\StatusCommand;
 use Rarus\Echo\Enum\TranscriptionStatus;
+use Rarus\Echo\Infrastructure\Console\Command\StatusCommand;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;
-use Rarus\Echo\Tests\Unit\Cli\Support\FakeEchoClient;
-use Rarus\Echo\Tests\Unit\Cli\Support\FakeEchoClientFactory;
+use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClient;
+use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClientFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Uid\Uuid;

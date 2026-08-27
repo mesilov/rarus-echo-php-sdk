@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Tests\Unit\Cli;
+namespace Rarus\Echo\Tests\Unit\Infrastructure\Console;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Cli\EnvironmentEchoClientFactory;
-use Rarus\Echo\Cli\SdkEchoClient;
+use Rarus\Echo\Infrastructure\Console\EnvironmentEchoClientFactory;
+use Rarus\Echo\Infrastructure\Console\SdkEchoClient;
 
 final class EnvironmentEchoClientFactoryTest extends TestCase
 {

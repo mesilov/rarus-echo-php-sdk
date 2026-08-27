@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Cli\Contract;
+namespace Rarus\Echo\Contracts;
 
 interface EchoClientFactoryInterface
 {

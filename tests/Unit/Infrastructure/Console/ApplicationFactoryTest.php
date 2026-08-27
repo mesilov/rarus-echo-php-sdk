@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Tests\Unit\Cli;
+namespace Rarus\Echo\Tests\Unit\Infrastructure\Console;
 
 use PHPUnit\Framework\TestCase;
-use Rarus\Echo\Cli\ApplicationFactory;
-use Rarus\Echo\Tests\Unit\Cli\Support\FailingEchoClientFactory;
-use Rarus\Echo\Tests\Unit\Cli\Support\FakeEchoClient;
-use Rarus\Echo\Tests\Unit\Cli\Support\FakeEchoClientFactory;
+use Rarus\Echo\Infrastructure\Console\ApplicationFactory;
+use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FailingEchoClientFactory;
+use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClient;
+use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClientFactory;
 use Symfony\Component\Console\Tester\ApplicationTester;
 
 final class ApplicationFactoryTest extends TestCase
@@ -39,7 +39,7 @@ final class ApplicationFactoryTest extends TestCase
 
     public function testBinEntrypointUsesComposerProxyAutoloadPath(): void
     {
-        $root = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 4);
         $tempDir = sys_get_temp_dir() . '/rarus-echo-bin-test-' . bin2hex(random_bytes(4));
 
         self::assertTrue(mkdir($tempDir));
@@ -54,7 +54,7 @@ final class ApplicationFactoryTest extends TestCase
 
                 declare(strict_types=1);
 
-                namespace Rarus\Echo\Cli;
+                namespace Rarus\Echo\Infrastructure\Console;
 
                 final class ApplicationFactory
                 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Cli;
+namespace Rarus\Echo\Infrastructure\Console;
 
-use Rarus\Echo\Cli\Contract\EchoClientFactoryInterface;
-use Rarus\Echo\Cli\Contract\EchoClientInterface;
+use Rarus\Echo\Contracts\EchoClientFactoryInterface;
+use Rarus\Echo\Contracts\EchoClientInterface;
 use Rarus\Echo\Services\ServiceFactory;
 use Symfony\Component\Dotenv\Dotenv;
 

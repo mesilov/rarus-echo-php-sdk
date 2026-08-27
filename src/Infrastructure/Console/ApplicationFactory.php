@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Cli;
+namespace Rarus\Echo\Infrastructure\Console;
 
-use Rarus\Echo\Cli\Command\QueueCommand;
-use Rarus\Echo\Cli\Command\StatusCommand;
-use Rarus\Echo\Cli\Command\SubmitCommand;
-use Rarus\Echo\Cli\Command\TranscriptCommand;
-use Rarus\Echo\Cli\Contract\EchoClientFactoryInterface;
+use Rarus\Echo\Contracts\EchoClientFactoryInterface;
+use Rarus\Echo\Infrastructure\Console\Command\QueueCommand;
+use Rarus\Echo\Infrastructure\Console\Command\StatusCommand;
+use Rarus\Echo\Infrastructure\Console\Command\SubmitCommand;
+use Rarus\Echo\Infrastructure\Console\Command\TranscriptCommand;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 

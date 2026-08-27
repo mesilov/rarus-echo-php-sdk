@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Cli;
+namespace Rarus\Echo\Infrastructure\Console;
 
-use Rarus\Echo\Cli\Contract\EchoClientInterface;
+use Rarus\Echo\Contracts\EchoClientInterface;
 use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 use Rarus\Echo\Services\ServiceFactory;
 use Rarus\Echo\Services\Status\Result\StatusItemResult;

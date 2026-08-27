@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-use Rarus\Echo\Cli\ApplicationFactory;
+use Rarus\Echo\Infrastructure\Console\ApplicationFactory;
 
 $autoloadPath = $GLOBALS['_composer_autoload_path'] ?? dirname(__DIR__) . '/vendor/autoload.php';
 

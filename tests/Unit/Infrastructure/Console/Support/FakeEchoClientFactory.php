@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Echo\Tests\Unit\Cli\Support;
+namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Support;
 
-use Rarus\Echo\Cli\Contract\EchoClientFactoryInterface;
-use Rarus\Echo\Cli\Contract\EchoClientInterface;
+use Rarus\Echo\Contracts\EchoClientFactoryInterface;
+use Rarus\Echo\Contracts\EchoClientInterface;
 
 final class FakeEchoClientFactory implements EchoClientFactoryInterface
 {
