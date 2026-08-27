@@ -32,4 +32,4 @@
 - [x] 5.5 Run `make lint-all`.
 - [x] 5.6 Push `feature/10-docker-image-build-pipeline` to `origin`.
 - [x] 5.7 Open a pull request against `dev` with `Closes #10` and validation notes.
-- [ ] 5.8 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.8 Check PR CI and agent review comments before reporting issue work complete.
