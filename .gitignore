@@ -1,6 +1,7 @@
 # Dependencies
 /vendor/
 composer.lock
+!docker/rarus-echo-cli/composer.lock
 
 # Environment
 .env.local
