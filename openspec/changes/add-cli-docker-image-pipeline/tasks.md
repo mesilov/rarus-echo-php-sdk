@@ -30,6 +30,6 @@
 - [x] 5.3 Run `git diff --check`.
 - [x] 5.4 Run `make test-unit`.
 - [x] 5.5 Run `make lint-all`.
-- [ ] 5.6 Push `feature/10-docker-image-build-pipeline` to `origin`.
-- [ ] 5.7 Open a pull request against `dev` with `Closes #10` and validation notes.
+- [x] 5.6 Push `feature/10-docker-image-build-pipeline` to `origin`.
+- [x] 5.7 Open a pull request against `dev` with `Closes #10` and validation notes.
 - [ ] 5.8 Check PR CI and agent review comments before reporting issue work complete.
