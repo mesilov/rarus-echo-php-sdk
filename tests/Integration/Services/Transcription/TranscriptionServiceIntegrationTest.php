@@ -13,6 +13,7 @@ use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
 use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
@@ -103,6 +104,30 @@ final class TranscriptionServiceIntegrationTest extends IntegrationTestCase
         $transcriptSubmitResult = $this->transcription->submit([$this->testAudioPath('examp-1.ogg')], $transcriptionOptions);
         $this->assertInstanceOf(TranscriptSubmitResult::class, $transcriptSubmitResult);
         $this->assertNotEmpty($transcriptSubmitResult->getFileIds());
+    }
+
+    #[TestDox('отправка файла на диаризацию с расширенными таймкодами')]
+    public function testSubmitDiarizationWithExtendedTimestamps(): void
+    {
+        $transcriptionOptions = TranscriptionOptions::create()
+            ->withTaskType(TaskType::DIARIZATION)
+            ->withLanguage(Language::RU)
+            ->withSpeakersCorrection()
+            ->withTimestampsExtended()
+            ->build();
+
+        try {
+            $transcriptSubmitResult = $this->transcription->submit([$this->testAudioPath('examp-1.ogg')], $transcriptionOptions);
+        } catch (AuthorizationException $exception) {
+            if (str_contains($exception->getMessage(), 'Недостаточно средств')) {
+                $this->markTestSkipped('Live API rejected the paid submit request: insufficient funds.');
+            }
+
+            throw $exception;
+        }
+
+        $this->assertInstanceOf(TranscriptSubmitResult::class, $transcriptSubmitResult);
+        $this->assertCount(1, $transcriptSubmitResult->getFileIds());
     }
 
     #[TestDox('получение транскрипций за период')]
