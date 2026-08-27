@@ -25,6 +25,6 @@
 - [x] 5.1 Run `git diff --check`.
 - [x] 5.2 Run `make test-unit`.
 - [x] 5.3 Run `make lint-all`.
-- [ ] 5.4 Commit and push `feature/22-diarization-extended-timestamps`.
-- [ ] 5.5 Open a pull request against `dev` with `Closes #22`.
-- [ ] 5.6 Check required CI and agent review comments.
+- [x] 5.4 Commit and push `feature/22-diarization-extended-timestamps`.
+- [x] 5.5 Open a pull request against `dev` with `Closes #22`.
+- [x] 5.6 Check required CI and agent review comments.
