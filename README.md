@@ -106,6 +106,42 @@ try {
 }
 ```
 
+## CLI
+
+После установки через Composer доступен исполняемый файл:
+
+```bash
+vendor/bin/rarus-echo --help
+```
+
+CLI использует те же credentials, что и SDK:
+
+```bash
+export RARUS_ECHO_API_KEY=your-api-key-uuid
+export RARUS_ECHO_USER_ID=your-user-id-uuid
+export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # опционально
+```
+
+Если в текущей рабочей директории есть `.env`, CLI загрузит значения из него перед выполнением сервисной команды.
+
+### Команды
+
+```bash
+vendor/bin/rarus-echo queue
+vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
+vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
+vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru
+```
+
+Для автоматизации добавьте `--json`:
+
+```bash
+vendor/bin/rarus-echo queue --json
+vendor/bin/rarus-echo submit /path/to/audio.ogg --json
+```
+
+`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
+
 ## Поддерживаемые возможности API
 
 ### Типы транскрибации
