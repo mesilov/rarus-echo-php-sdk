@@ -230,6 +230,46 @@ printf(
 );
 ```
 
+### Проверка списка статусов
+
+```php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\Services\ServiceFactory;
+use Symfony\Component\Uid\Uuid;
+
+$factory = ServiceFactory::fromEnvironment();
+$fileIds = [
+    Uuid::fromString('11111111-1111-1111-1111-111111111111'),
+    Uuid::fromString('22222222-2222-2222-2222-222222222222'),
+];
+
+$statusList = $factory->getStatusService()->getList(
+    fileIds: $fileIds,
+    pagination: new Pagination(page: 1, perPage: 10)
+);
+
+foreach ($statusList->getResults() as $status) {
+    printf(
+        "file_id=%s status=%s\n",
+        $status->fileId->toRfc4122(),
+        $status->transcriptionStatus->value
+    );
+}
+
+printf(
+    "page=%d per_page=%d total_pages=%d\n",
+    $statusList->pagination->page,
+    $statusList->pagination->perPage,
+    $statusList->pagination->total
+);
+```
+
 ### Получение результата
 
 ```php
