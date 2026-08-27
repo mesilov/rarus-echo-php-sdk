@@ -142,6 +142,31 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --json
 
 `submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
 
+### Docker image
+
+CLI также доступен как Docker image:
+
+```bash
+docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
+```
+
+Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
+
+```bash
+docker run --rm \
+  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
+  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
+
+docker run --rm \
+  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
+  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
+  -v "$PWD/audio.ogg:/audio.ogg:ro" \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg --language=ru --json
+```
+
+GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
+
 ## Поддерживаемые возможности API
 
 ### Типы транскрибации
