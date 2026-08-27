@@ -32,21 +32,21 @@ composer require mesilov/rarus-echo-php-sdk
 
 ### CLI через Docker image
 
-Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image.
+Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image. Используйте `--pull=always`, если нужен актуальный опубликованный image, а не локально закешированный tag.
 
 ```bash
-docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
+docker run --pull=always --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
 ```
 
 Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
 
 ```bash
-docker run --rm \
+docker run --pull=always --rm \
   -e RARUS_ECHO_API_KEY=your-api-key-uuid \
   -e RARUS_ECHO_USER_ID=your-user-id-uuid \
   ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
 
-docker run --rm \
+docker run --pull=always --rm \
   -e RARUS_ECHO_API_KEY=your-api-key-uuid \
   -e RARUS_ECHO_USER_ID=your-user-id-uuid \
   -v "$PWD/audio.ogg:/audio.ogg:ro" \
