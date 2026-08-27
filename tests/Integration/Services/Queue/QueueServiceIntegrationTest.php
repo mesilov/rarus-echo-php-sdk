@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Integration\Services\Queue;
 
-use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 use Rarus\Echo\Services\Queue\Service\Queue;
-use Rarus\Echo\Services\ServiceFactory;
-use Rarus\Echo\Tests\LoggerFactory;
+use Rarus\Echo\Tests\Integration\IntegrationTestCase;
 
 /**
  * Integration tests for Queue service
@@ -20,22 +18,16 @@ use Rarus\Echo\Tests\LoggerFactory;
  * - RARUS_ECHO_BASE_URL: API base URL (optional)
  *
  * Run with: make test-integration-queue
- * Or: docker compose run php-cli vendor/bin/phpunit --testsuite=integration
+ * Or: make test-integration
  */
-final class QueueServiceIntegrationTest extends TestCase
+final class QueueServiceIntegrationTest extends IntegrationTestCase
 {
     private Queue $queue;
 
     #[\Override]
     protected function setUp(): void
     {
-        if (!isset($_ENV['RARUS_ECHO_API_KEY']) || !isset($_ENV['RARUS_ECHO_USER_ID'])) {
-            $this->markTestSkipped(
-                'Integration tests require RARUS_ECHO_API_KEY and RARUS_ECHO_USER_ID environment variables'
-            );
-        }
-
-        $serviceFactory = ServiceFactory::fromEnvironment(LoggerFactory::defaultStdout());
+        $serviceFactory = $this->createServiceFactory();
         $this->queue = $serviceFactory->getQueueService();
     }
 

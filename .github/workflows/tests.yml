@@ -2,53 +2,44 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, dev]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, dev]
 
 jobs:
-  tests:
-    name: PHP ${{ matrix.php-version }}
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php-version: ['8.4']
+    env:
+      UID: 1001
+      GID: 1001
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
         with:
-          php-version: ${{ matrix.php-version }}
-          extensions: json, curl, mbstring, fileinfo, intl, bcmath, yaml, zip, xml, dom
-          coverage: xdebug
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/php-cli/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-      - name: Validate composer.json
-        run: composer validate --strict
-
-      - name: Get Composer Cache Directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - name: Build Docker environment
+        run: docker compose build
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.json', 'composer.lock') }}
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: make composer-install
 
       - name: Run unit tests
-        run: composer test:unit
-
-      - name: Run PHPStan
-        run: composer phpstan
-        if: matrix.php-version == '8.4'
-
-      - name: Check code style
-        run: composer cs-check
-        if: matrix.php-version == '8.4'
+        run: make test-unit

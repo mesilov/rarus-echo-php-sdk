@@ -37,6 +37,15 @@ help:
 	@echo "composer-dumpautoload     - regenerate composer autoload file"
 	@echo "composer                  - run composer and pass arguments"
 	@echo ""
+	@echo "test-unit                 - run unit tests"
+	@echo "test-integration          - run live integration tests"
+	@echo "test-integration-core     - run core integration tests"
+	@echo "test-integration-queue    - run queue integration tests"
+	@echo "test-integration-status   - run status integration tests"
+	@echo "test-integration-transcription - run transcription integration tests"
+	@echo "test-all                  - run unit and integration tests"
+	@echo "ci                        - run local CI checks"
+	@echo ""
 	@echo "show-env                  - show environment variables from .env files"
 	@echo ""
 
@@ -77,23 +86,23 @@ docker-rebuild: ## Rebuild Docker images
 .PHONY: composer-install
 composer-install:
 	@echo "install dependencies…"
-	docker-compose run --rm php-cli composer install
+	docker compose run --rm php-cli composer install
 
 .PHONY: composer-update
 composer-update:
 	@echo "update dependencies…"
-	docker-compose run --rm php-cli composer update
+	docker compose run --rm php-cli composer update
 
 .PHONY: composer-dumpautoload
 composer-dumpautoload:
-	docker-compose run --rm php-cli composer dumpautoload
+	docker compose run --rm php-cli composer dumpautoload
 
 .PHONY: composer
 # call composer with any parameters
 # make composer install
 # make composer "install --no-dev"
 composer:
-	docker-compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
+	docker compose run --rm php-cli composer $(filter-out $@,$(MAKECMDGOALS))
 
 
 
@@ -102,7 +111,14 @@ composer:
 # ============================================================================
 
 .PHONY: lint-all
-lint-all: lint-cs-fixer lint-phpstan lint-rector ## Run all linters
+lint-all: lint-openspec lint-php ## Run all linters
+
+.PHONY: lint-php
+lint-php: lint-cs-fixer lint-phpstan lint-rector ## Run PHP linters
+
+.PHONY: lint-openspec
+lint-openspec: ## Validate OpenSpec changes and specs
+	openspec validate --all --strict --no-interactive
 
 .PHONY: lint-cs-fixer
 lint-cs-fixer: ## Check code style with PHP CS Fixer
@@ -130,12 +146,34 @@ lint-rector-fix: ## Apply Rector fixes
 
 .PHONY: test-unit
 test-unit: ## Run unit tests
-	docker compose run php-cli vendor/bin/phpunit --testsuite=unit
+	docker compose run php-cli vendor/bin/phpunit --testsuite=unit --no-coverage
 
 # integration tests
 .PHONY: test-integration
 test-integration:
-	docker-compose run --rm php-cli vendor/bin/phpunit --testsuite integration
+	docker compose run --rm php-cli vendor/bin/phpunit --testsuite integration --no-coverage
+
+.PHONY: test-integration-core
+test-integration-core:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Core --no-coverage
+
+.PHONY: test-integration-queue
+test-integration-queue:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Queue --no-coverage
+
+.PHONY: test-integration-status
+test-integration-status:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Status --no-coverage
+
+.PHONY: test-integration-transcription
+test-integration-transcription:
+	docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Transcription --no-coverage
+
+.PHONY: test-all
+test-all: test-unit test-integration
+
+.PHONY: ci
+ci: lint-all test-unit
 
 # ============================================================================
 # Development Tools
