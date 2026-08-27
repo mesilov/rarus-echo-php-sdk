@@ -8,8 +8,9 @@ The CLI app from issue #11 is a Composer bin entrypoint at `bin/rarus-echo`. Iss
 
 - Add a separate `docker/rarus-echo-cli/Dockerfile` for the publishable CLI image.
 - Use the repository root as the Docker build context so the image can copy `composer.json`, `bin/`, and `src/` explicitly.
+- Keep a Docker-image-scoped Composer lock file at `docker/rarus-echo-cli/composer.lock` so published `cli-<sha>` tags are reproducible without changing the library repository's root no-lock policy.
 - Keep the runtime image self-contained: install production Composer dependencies during image build and expose `rarus-echo` through `ENTRYPOINT`.
-- Do not copy `.env`, `.env.local`, local `vendor/`, caches, downloads, or local Composer artifacts into the Docker context; protect that with `.dockerignore`.
+- Do not copy `.env`, `.env.local`, local `vendor/`, caches, downloads, or local Composer artifacts into the Docker context; protect that with `.dockerignore`, while allowing the Docker-image-scoped lock file.
 - Publish to `ghcr.io/mesilov/rarus-echo-php-sdk` with mutable `cli` and immutable `cli-<sha>` tags.
 - Run the same workflow on pull requests with `push: false` so PRs validate that the image still builds without publishing packages.
 - Reuse the linked b24phpsdk workflow shape: timestamp labels, GHCR login, QEMU, Buildx, multi-platform build, GitHub Actions layer cache, and OCI source/revision labels.

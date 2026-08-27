@@ -8,6 +8,11 @@ The repository SHALL provide a Dockerfile that builds a self-contained RARUS Ech
 - **THEN** the image includes production Composer dependencies, SDK source code, and `bin/rarus-echo`
 - **AND** the container entrypoint executes `rarus-echo`
 
+#### Scenario: Published image dependencies are pinned
+- **WHEN** the CLI Docker image installs Composer dependencies
+- **THEN** it uses a committed lock file that is scoped to the Docker image build
+- **AND** rebuilding the same git revision does not resolve newer dependency versions for the same `cli-<git-sha>` image tag
+
 #### Scenario: Default command lists CLI commands
 - **WHEN** the CLI Docker image is run without command arguments
 - **THEN** the command exits successfully without requiring RARUS Echo credentials
@@ -44,3 +49,4 @@ The Docker build context SHALL exclude local-only files that are unrelated to th
 #### Scenario: Local artifacts exist
 - **WHEN** local dependencies, credentials, caches, downloads, or generated artifacts exist in the checkout
 - **THEN** they are excluded from the Docker build context
+- **AND** the Docker-image-scoped Composer lock file remains included

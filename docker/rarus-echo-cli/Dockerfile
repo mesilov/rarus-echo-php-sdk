@@ -27,6 +27,7 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_CACHE_DIR=/tmp/composer/cache
 
 COPY composer.json ./
+COPY docker/rarus-echo-cli/composer.lock ./composer.lock
 
 RUN --mount=type=cache,target=/tmp/composer/cache \
     composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts

@@ -10,6 +10,7 @@
 - [x] 2.2 Add a self-contained CLI image Dockerfile.
 - [x] 2.3 Add Docker build context exclusions for local-only files and credentials.
 - [x] 2.4 Verify the built image lists commands and starts `rarus-echo --help` without credentials.
+- [x] 2.5 Add a Docker-image-scoped Composer lock file for reproducible published image tags.
 
 ## 3. GitHub Actions
 
@@ -33,3 +34,4 @@
 - [x] 5.6 Push `feature/10-docker-image-build-pipeline` to `origin`.
 - [x] 5.7 Open a pull request against `dev` with `Closes #10` and validation notes.
 - [x] 5.8 Check PR CI and agent review comments before reporting issue work complete.
+- [x] 5.9 Address Codex review feedback about pinned Composer dependencies.

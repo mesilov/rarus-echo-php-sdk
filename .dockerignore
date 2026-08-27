@@ -13,6 +13,7 @@
 
 vendor
 composer.lock
+!docker/rarus-echo-cli/composer.lock
 composer.phar
 
 coverage
