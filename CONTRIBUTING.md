@@ -22,7 +22,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 ### Prerequisites
 
 Before contributing, ensure you have:
-- PHP 8.2 or higher installed
+- PHP 8.4 or 8.5 installed
 - Docker and Docker Compose
 - Make utility
 - Git
@@ -175,7 +175,7 @@ This project follows these PSR standards:
 
 ### PHP Standards
 
-- **PHP Version**: Write code compatible with PHP 8.2+
+- **PHP Version**: Write code compatible with PHP 8.4 and PHP 8.5
 - **Strict Types**: Always use `declare(strict_types=1);`
 - **Type Declarations**: Use type hints for all parameters and return types
 - **Readonly Properties**: Use `readonly` for immutable properties
@@ -262,7 +262,7 @@ tests/
    public function testInvalidApiKey(string $apiKey): void
    {
        $this->expectException(ValidationException::class);
-       Credentials::create($apiKey, 'user-id');
+       Credentials::fromString($apiKey, '22222222-2222-2222-2222-222222222222');
    }
    ```
 
@@ -276,12 +276,15 @@ make test-all
 make test-unit
 make test-integration
 
-# Run with coverage
-make test-coverage
+# Run focused live integration suites
+make test-integration-core
+make test-integration-queue
+make test-integration-status
+make test-integration-transcription
 
 # Run specific test file
 make php-cli-bash
-./vendor/bin/phpunit tests/Unit/Core/Credentials/CredentialsTest.php
+./vendor/bin/phpunit tests/Unit/Core/CredentialsTest.php
 ```
 
 ### Test Coverage
@@ -365,12 +368,12 @@ Application → Services → Core → Infrastructure
 
 When adding new features:
 
-1. **Define Interface**: Start with interface in `Application/Contracts/`
+1. **Define Interface**: Start with interface in `src/Contracts/`
 2. **Implement Service**: Create service in `Services/`
 3. **Add Models**: Create request/result models in `Services/.../Request` and `Services/.../Result`
 4. **Update Application**: Add service getter in `ServiceFactory`
 5. **Add Tests**: Create comprehensive unit tests
-6. **Document**: Update README and add examples
+6. **Document**: Update README with inline examples or add PHPDoc examples where useful
 
 ## Documentation
 
@@ -388,7 +391,7 @@ Example:
  * @param array<string>        $files   Array of file paths to transcribe
  * @param TranscriptionOptions $options Transcription configuration options
  *
- * @return TranscriptPostResult Result containing file IDs
+ * @return TranscriptSubmitResult Result containing file IDs
  *
  * @throws FileException           If file is invalid or cannot be read
  * @throws ValidationException     If request validation fails
@@ -397,16 +400,16 @@ Example:
  *
  * @example
  * ```php
- * $result = $service->submitTranscription(
+ * $result = $service->submit(
  *     ['/path/to/audio.mp3'],
  *     TranscriptionOptions::default()
  * );
  * ```
  */
-public function submitTranscription(
+public function submit(
     array $files,
     TranscriptionOptions $options
-): TranscriptPostResult {
+): TranscriptSubmitResult {
     // ...
 }
 ```
@@ -416,12 +419,12 @@ public function submitTranscription(
 Update README.md when:
 - Adding new features
 - Changing public APIs
-- Adding new examples
+- Adding new inline examples
 - Changing requirements
 
 ### Examples
 
-Add examples to `examples/` directory for new features.
+Add examples directly to `README.md` for user-facing workflows, or to PHPDoc `@example` blocks for API-level details.
 
 ## Release Process
 

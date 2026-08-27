@@ -11,7 +11,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Возможности
 
 - Асинхронная транскрибация аудио и видео файлов
-- Поддержка 13 языков (включая автоопределение)
+- Поддержка 13 языков и автоопределения языка
 - Различные типы транскрибации (обычная, с метками времени, с диаризацией)
 - PSR-совместимость (PSR-3, PSR-7, PSR-17, PSR-18)
 - Автоматическое обнаружение HTTP клиента (php-http/discovery)
@@ -67,7 +67,6 @@ use Rarus\Echo\Core\Credentials;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-use Symfony\Component\Uid\Uuid;
 
 // Создание credentials
 $credentials = Credentials::fromString(
@@ -93,7 +92,7 @@ $result = $factory->getTranscriptionService()->submit(
 
 $fileIds = $result->getFileIds();
 $fileId = $fileIds[0]; // Uuid объект
-echo "Файл отправлен: {$fileId}\n";
+echo "Файл отправлен: {$fileId->toRfc4122()}\n";
 
 // Проверка статуса
 $status = $factory->getStatusService()->getByFileId($fileId);
@@ -109,6 +108,10 @@ if ($status->isSuccessful()) {
 ### С обработкой ошибок
 
 ```php
+<?php
+
+declare(strict_types=1);
+
 use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Exception\ValidationException;
 use Rarus\Echo\Exception\AuthenticationException;
@@ -166,6 +169,128 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --json
 ```
 
 `submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
+
+## Примеры PHP SDK
+
+### Очередь транскрибации
+
+```php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Rarus\Echo\Services\ServiceFactory;
+
+$factory = ServiceFactory::fromEnvironment();
+$queue = $factory->getQueueService()->getQueueInfo();
+
+printf(
+    "В очереди: %d файлов, %d MB, %d минут\n",
+    $queue->filesCount,
+    $queue->filesSize,
+    $queue->filesDuration
+);
+```
+
+### Отправка файла и проверка статуса
+
+```php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Rarus\Echo\Enum\Language;
+use Rarus\Echo\Enum\TaskType;
+use Rarus\Echo\Services\ServiceFactory;
+use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
+
+$factory = ServiceFactory::fromEnvironment();
+
+$options = TranscriptionOptions::create()
+    ->withTaskType(TaskType::DIARIZATION)
+    ->withLanguage(Language::RU)
+    ->build();
+
+$submitResult = $factory->getTranscriptionService()->submit(
+    files: ['/path/to/audio.ogg'],
+    transcriptionOptions: $options
+);
+
+$fileId = $submitResult->getFileIds()[0];
+$status = $factory->getStatusService()->getByFileId($fileId);
+
+printf(
+    "file_id=%s status=%s\n",
+    $fileId->toRfc4122(),
+    $status->transcriptionStatus->value
+);
+```
+
+### Проверка списка статусов
+
+```php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Rarus\Echo\Core\Pagination;
+use Rarus\Echo\Services\ServiceFactory;
+use Symfony\Component\Uid\Uuid;
+
+$factory = ServiceFactory::fromEnvironment();
+$fileIds = [
+    Uuid::fromString('11111111-1111-1111-1111-111111111111'),
+    Uuid::fromString('22222222-2222-2222-2222-222222222222'),
+];
+
+$statusList = $factory->getStatusService()->getList(
+    fileIds: $fileIds,
+    pagination: new Pagination(page: 1, perPage: 10)
+);
+
+foreach ($statusList->getResults() as $status) {
+    printf(
+        "file_id=%s status=%s\n",
+        $status->fileId->toRfc4122(),
+        $status->transcriptionStatus->value
+    );
+}
+
+printf(
+    "page=%d per_page=%d total_pages=%d\n",
+    $statusList->pagination->page,
+    $statusList->pagination->perPage,
+    $statusList->pagination->total
+);
+```
+
+### Получение результата
+
+```php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Rarus\Echo\Services\ServiceFactory;
+use Symfony\Component\Uid\Uuid;
+
+$factory = ServiceFactory::fromEnvironment();
+$fileId = Uuid::fromString('11111111-1111-1111-1111-111111111111');
+
+$transcript = $factory->getTranscriptionService()->getByFileId($fileId);
+
+if ($transcript->isSuccessful()) {
+    echo $transcript->result ?? '';
+}
+```
 
 ## Поддерживаемые возможности API
 
