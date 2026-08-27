@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - CLI app `vendor/bin/rarus-echo` for queue, status, transcript, and submit service operations.
 - Docker image build pipeline for the CLI app with GHCR publication.
+- Local integration test targets for core, queue, status, and transcription services.
 ### Changed
+- Docker CLI usage is now the first quick-start path in the README.
 ### Removed
 
 

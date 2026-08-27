@@ -25,12 +25,37 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require rarus/echo-php-sdk
+composer require mesilov/rarus-echo-php-sdk
 ```
 
 ## Быстрый старт
 
-### Базовое использование
+### CLI через Docker image
+
+Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image.
+
+```bash
+docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
+```
+
+Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
+
+```bash
+docker run --rm \
+  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
+  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
+
+docker run --rm \
+  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
+  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
+  -v "$PWD/audio.ogg:/audio.ogg:ro" \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg --language=ru --json
+```
+
+GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
+
+### PHP SDK
 
 ```php
 <?php
@@ -142,31 +167,6 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --json
 
 `submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
 
-### Docker image
-
-CLI также доступен как Docker image:
-
-```bash
-docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
-```
-
-Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
-
-```bash
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
-
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg --language=ru --json
-```
-
-GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
-
 ## Поддерживаемые возможности API
 
 ### Типы транскрибации
@@ -224,6 +224,26 @@ make ci               # Полный CI pipeline локально
 ```
 
 Полный список команд: `make help`
+
+### Интеграционные тесты
+
+Integration tests делают реальные API-запросы и загружают короткие аудиофайлы из `tests/Assets/ru/`. Для локального запуска добавьте credentials в `.env.local`; файл уже игнорируется Git:
+
+```dotenv
+RARUS_ECHO_API_KEY=your-api-key-uuid
+RARUS_ECHO_USER_ID=your-user-id-uuid
+RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru
+```
+
+Если credentials не заданы или в `.env` остались placeholder-значения, integration tests будут пропущены.
+
+```bash
+make test-integration
+make test-integration-core
+make test-integration-queue
+make test-integration-status
+make test-integration-transcription
+```
 
 ### Workflow поддержки
 
