@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI `submit --wait` can now submit audio and poll until terminal transcript results, including JSON, raw transcript, and output-file modes while keeping progress on stderr.
 - Long-running `submit --wait` commands now handle `SIGINT` and `SIGTERM` gracefully by writing a shutdown message to stderr and exiting with a signal-aware non-zero status.
 
+### Changed
+- README Docker CLI examples no longer use `--pull=always` by default; the pull flag remains documented as an opt-in image refresh.
+- Maintainer workflow now requires updating local `dev` from `origin/dev` before creating an issue worktree.
+
 ## [0.3.0] - 2026-08-27
 
 ### Added
