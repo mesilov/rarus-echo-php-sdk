@@ -27,6 +27,7 @@
 - [x] 4.1 Update README CLI examples for `submit --wait --json`, Docker one-shot usage, raw transcript redirection, timeout, and polling interval.
 - [x] 4.2 Update README option list to include the new wait options and stdout/stderr contract.
 - [x] 4.3 Document signal shutdown behavior for long-running `submit --wait` commands.
+- [x] 4.4 Add `CHANGELOG.md` Unreleased entries for `submit --wait` polling and signal shutdown behavior.
 
 ## 5. Verification
 

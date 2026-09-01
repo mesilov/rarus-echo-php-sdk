@@ -34,6 +34,10 @@ The maintainer workflow SHALL start from a GitHub issue and guide work through b
 - **WHEN** an agent reviewer posts pull request comments
 - **THEN** the agent evaluates each comment, implements or responds to it, and resolves the thread before reporting the issue complete
 
+#### Scenario: Changelog describes issue work
+- **WHEN** issue-driven work is prepared for review
+- **THEN** the agent updates `CHANGELOG.md` under `Unreleased` with a concise description of the change
+
 ### Requirement: OpenSpec policy
 The repository SHALL document when OpenSpec is required and how OpenSpec changes are validated and archived.
 

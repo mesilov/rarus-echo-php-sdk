@@ -27,5 +27,5 @@ The CLI currently submits files and returns `file_ids`, but callers that need co
 
 - Affected runtime code: `src/Infrastructure/Console/Command/SubmitCommand.php` and a focused CLI polling helper under `src/Infrastructure/Console/`.
 - Affected tests: `tests/Unit/Infrastructure/Console/Command/SubmitCommandTest.php` and fake CLI client support.
-- Affected docs: `README.md` CLI examples and option list.
+- Affected docs: `README.md` CLI examples and option list, plus `CHANGELOG.md`.
 - Public PHP SDK service APIs and existing non-wait CLI behavior remain backward-compatible.
