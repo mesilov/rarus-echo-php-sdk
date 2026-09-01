@@ -19,8 +19,13 @@ final class FakeEchoClient implements EchoClientInterface
     public ?FileItemTranscriptResult $transcript = null;
     public ?TranscriptSubmitResult $submitResult = null;
     public ?\Throwable $exception = null;
+    public ?\Throwable $transcriptException = null;
     public ?Uuid $lastStatusFileId = null;
     public ?Uuid $lastTranscriptFileId = null;
+    /** @var list<string> */
+    public array $transcriptCalls = [];
+    /** @var array<string, list<FileItemTranscriptResult>> */
+    public array $transcriptResults = [];
     /** @var list<string> */
     public array $lastSubmittedFiles = [];
     public ?TranscriptionOptions $lastTranscriptionOptions = null;
@@ -51,9 +56,24 @@ final class FakeEchoClient implements EchoClientInterface
     public function getTranscript(Uuid $fileId): FileItemTranscriptResult
     {
         $this->lastTranscriptFileId = $fileId;
+        $fileIdString = $fileId->toRfc4122();
+        $this->transcriptCalls[] = $fileIdString;
 
         if ($this->exception instanceof \Throwable) {
             throw $this->exception;
+        }
+
+        if ($this->transcriptException instanceof \Throwable) {
+            throw $this->transcriptException;
+        }
+
+        if (isset($this->transcriptResults[$fileIdString][0])) {
+            $result = array_shift($this->transcriptResults[$fileIdString]);
+            if (!$result instanceof FileItemTranscriptResult) {
+                throw new \LogicException('Transcript result was not configured.');
+            }
+
+            return $result;
         }
 
         return $this->transcript ?? throw new \LogicException('Transcript result was not configured.');
