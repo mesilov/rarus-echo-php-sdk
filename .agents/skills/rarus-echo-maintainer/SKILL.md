@@ -22,7 +22,14 @@ user-invocable: true
    ```
 3. Сохраняй несвязанные локальные изменения. Не сбрасывай, не удаляй, не добавляй в индекс и не форматируй файлы вне области issue.
 4. Используй `dev` как базовую ветку для работы по issue, если пользователь явно не указал другое.
-5. Создай ветку с именем:
+5. Перед созданием issue-worktree от `dev` обнови локальную ветку `dev` из `origin/dev` без потери локальных коммитов:
+   ```bash
+   git fetch origin dev
+   git merge-base --is-ancestor dev origin/dev
+   git branch -f dev origin/dev
+   ```
+   Если `dev` уже checkout в другом worktree, обнови его из того worktree через `git pull --ff-only origin dev`. Если fast-forward проверка не проходит, остановись и согласуй дальнейшие действия вместо принудительного сдвига `dev`.
+6. Создай ветку с именем:
    ```text
    feature/<issue-number>-<short-slug>
    bugfix/<issue-number>-<short-slug>
