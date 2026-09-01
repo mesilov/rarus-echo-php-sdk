@@ -1,0 +1,25 @@
+{
+  "name": "rarus-echo-plugins",
+  "description": "Repository-local RARUS Echo agent plugins.",
+  "interface": {
+    "displayName": "RARUS Echo Plugins"
+  },
+  "owner": {
+    "name": "RARUS Echo PHP SDK maintainers"
+  },
+  "plugins": [
+    {
+      "name": "rarus-echo-transcription",
+      "source": {
+        "source": "local",
+        "path": "./.agent-plugins/rarus-echo-transcription"
+      },
+      "description": "Operate the RARUS Echo transcription CLI from agent sessions.",
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

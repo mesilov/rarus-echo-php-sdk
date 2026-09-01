@@ -1,0 +1,35 @@
+{
+  "name": "rarus-echo-transcription",
+  "version": "0.1.0",
+  "description": "Operate the RARUS Echo transcription CLI from agent sessions.",
+  "author": {
+    "name": "RARUS Echo PHP SDK maintainers",
+    "url": "https://github.com/mesilov/rarus-echo-php-sdk"
+  },
+  "homepage": "https://github.com/mesilov/rarus-echo-php-sdk",
+  "repository": "https://github.com/mesilov/rarus-echo-php-sdk",
+  "license": "MIT",
+  "keywords": [
+    "rarus",
+    "echo",
+    "transcription",
+    "cli"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "RARUS Echo Transcription",
+    "shortDescription": "Use the RARUS Echo CLI for queue, submit, status, and transcript workflows.",
+    "longDescription": "A skills-only plugin that teaches agents to operate the existing RARUS Echo CLI safely through Docker or an installed local Composer binary.",
+    "developerName": "RARUS Echo PHP SDK maintainers",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/mesilov/rarus-echo-php-sdk",
+    "defaultPrompt": [
+      "Use RARUS Echo Transcription to inspect the current transcription queue.",
+      "Use RARUS Echo Transcription to submit a local audio file with diarization and fetch the transcript."
+    ]
+  }
+}
