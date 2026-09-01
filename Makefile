@@ -45,6 +45,7 @@ help:
 	@echo "test-integration-transcription - run transcription integration tests"
 	@echo "test-all                  - run unit and integration tests"
 	@echo "ci                        - run local CI checks"
+	@echo "lint-agent-plugins        - validate agent plugin manifests and CLI references"
 	@echo ""
 	@echo "show-env                  - show environment variables from .env files"
 	@echo ""
@@ -111,7 +112,11 @@ composer:
 # ============================================================================
 
 .PHONY: lint-all
-lint-all: lint-openspec lint-php ## Run all linters
+lint-all: lint-openspec lint-agent-plugins lint-php ## Run all linters
+
+.PHONY: lint-agent-plugins
+lint-agent-plugins: ## Validate agent plugin manifests, skills, and CLI references
+	.agent-plugins/rarus-echo-transcription/scripts/validate-agent-plugin.sh
 
 .PHONY: lint-php
 lint-php: lint-cs-fixer lint-phpstan lint-rector ## Run PHP linters

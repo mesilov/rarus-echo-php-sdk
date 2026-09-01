@@ -52,5 +52,8 @@ jobs:
       - name: Install dependencies
         run: make composer-install
 
+      - name: Validate agent plugins
+        run: make lint-agent-plugins
+
       - name: Run PHP linters
         run: make lint-php
