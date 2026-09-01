@@ -1,5 +1,7 @@
 # RARUS Echo PHP SDK
 
+[![Lint](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml)
+[![Tests](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 PHP SDK для сервиса транскрибации RARUS Echo с использованием стандартов PSR и компонентов Symfony.
