@@ -55,7 +55,16 @@ docker run --pull=always --rm \
     --language=ru \
     --speakers-correction \
     --timestamps-extended \
+    --wait \
     --json
+
+docker run --pull=always --rm \
+  --env-file .env.local \
+  -v "$PWD/audio.ogg:/audio.ogg:ro" \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
+    --language=ru \
+    --wait \
+    --raw-result > transcript.txt
 ```
 
 GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
@@ -164,6 +173,7 @@ vendor/bin/rarus-echo queue
 vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait
 ```
 
 Для автоматизации добавьте `--json`:
@@ -171,9 +181,27 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --langua
 ```bash
 vendor/bin/rarus-echo queue --json
 vendor/bin/rarus-echo submit /path/to/audio.ogg --json
+vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --json
 ```
 
-`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--timestamps-extended`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
+`submit --wait` после отправки файла опрашивает результат транскрибации до терминального статуса. Финальный JSON содержит `file_ids` и `results`, а прогресс вида `submitted: ...`, `polling: ...` и `completed: ...` пишется в stderr, поэтому stdout остается безопасным для `jq`, редиректа и пайпов.
+
+При `SIGINT` (`Ctrl+C`) или `SIGTERM` во время долгого ожидания команда пишет в stderr сообщение о завершении по сигналу и возвращает ненулевой signal-aware код выхода.
+
+Для сырого текста одного файла:
+
+```bash
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --raw-result > transcript.txt
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
+```
+
+Интервал и общий лимит ожидания задаются в секундах:
+
+```bash
+vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --timeout=3600 --json
+```
+
+`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--timestamps-extended`, `--no-store-file`, `--low-priority`, `--request-source`, `--wait`, `--poll-interval`, `--timeout`, `--raw-result` и `--output`. Основной результат пишется в stdout, прогресс и ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
 
 ## Примеры PHP SDK
 

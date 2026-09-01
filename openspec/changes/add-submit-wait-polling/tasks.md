@@ -1,0 +1,39 @@
+## 1. OpenSpec
+
+- [x] 1.1 Create proposal, design, spec delta, and task list for issue #24.
+- [x] 1.2 Validate OpenSpec with `make lint-openspec`.
+
+## 2. CLI polling tests
+
+- [x] 2.1 Add failing unit coverage for `submit --wait --json` success with progress on stderr and no progress on stdout.
+- [x] 2.2 Add failing unit coverage for `submit --wait --raw-result` single-file transcript-only stdout with raw output.
+- [x] 2.3 Add failing unit coverage for `submit --wait --output=<path>` writing transcript text to disk.
+- [x] 2.4 Add failing unit coverage for invalid wait option combinations before client creation.
+- [x] 2.5 Add failing unit coverage for timeout, terminal failure, and SDK exception behavior.
+- [x] 2.6 Add failing unit coverage for submit help documenting wait options.
+- [x] 2.7 Add failing unit coverage for `submit --wait` signal handling.
+- [x] 2.8 Add process-level unit coverage for signal handling during the real polling loop.
+
+## 3. CLI implementation
+
+- [x] 3.1 Add focused polling support under `src/Infrastructure/Console/` using existing `EchoClientInterface::getTranscript()`.
+- [x] 3.2 Wire `SubmitCommand` options, validation, stderr progress, and final wait output modes.
+- [x] 3.3 Preserve existing non-wait `submit` behavior.
+- [x] 3.4 Extend fake CLI client support for deterministic transcript polling tests.
+- [x] 3.5 Wire Symfony Console signal handling for interrupt and terminate signals.
+
+## 4. Documentation
+
+- [x] 4.1 Update README CLI examples for `submit --wait --json`, Docker one-shot usage, raw transcript redirection, timeout, and polling interval.
+- [x] 4.2 Update README option list to include the new wait options and stdout/stderr contract.
+- [x] 4.3 Document signal shutdown behavior for long-running `submit --wait` commands.
+- [x] 4.4 Add `CHANGELOG.md` Unreleased entries for `submit --wait` polling and signal shutdown behavior.
+
+## 5. Verification
+
+- [x] 5.1 Run focused submit command unit tests.
+- [x] 5.2 Run `make lint-openspec`.
+- [x] 5.3 Run `git diff --check`.
+- [x] 5.4 Run `make test-unit`.
+- [x] 5.5 Run `make lint-all`.
+- [x] 5.6 Run focused process-level signal test.

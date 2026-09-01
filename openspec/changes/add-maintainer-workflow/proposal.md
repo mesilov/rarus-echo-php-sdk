@@ -9,6 +9,7 @@ Maintainers need a repeatable issue-to-PR workflow that both humans and AI agent
 - Initialize OpenSpec and document how this repository uses OpenSpec changes, validation, and archive timing.
 - Document the maintainer development workflow in `README.md`.
 - Define a lightweight policy where OpenSpec is required for non-trivial public API, behavior, architecture, and support-process changes, but optional for trivial edits.
+- Require issue-driven maintenance work to update `CHANGELOG.md` under `Unreleased` with a concise description of the change.
 
 ## Capabilities
 
@@ -18,7 +19,7 @@ Maintainers need a repeatable issue-to-PR workflow that both humans and AI agent
 
 ### Modified Capabilities
 
-- None.
+- `maintainer-workflow`: Issue-driven maintenance now requires a `CHANGELOG.md` `Unreleased` entry that describes the change.
 
 ## Impact
 
