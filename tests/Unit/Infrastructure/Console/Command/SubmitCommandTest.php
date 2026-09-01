@@ -334,11 +334,11 @@ final class SubmitCommandTest extends TestCase
     {
         $client = $this->clientWithSubmitResult();
         $client->transcript = $this->transcriptResult(self::FILE_ID, TranscriptionStatus::PROCESSING);
-        $now = 0;
+        $timestamps = [0, 0, 1];
         $tester = new CommandTester($this->submitCommand(
             $client,
-            $this->noSleepPoller(static function () use (&$now): int {
-                return $now++;
+            $this->noSleepPoller(static function () use (&$timestamps): int {
+                return array_shift($timestamps) ?? 1;
             })
         ));
 
@@ -360,6 +360,40 @@ final class SubmitCommandTest extends TestCase
         $stderr = $tester->getErrorOutput(true);
         $this->assertStringContainsString('Error: Timeout after 1 seconds while waiting for transcript results.', $stderr);
         $this->assertStringContainsString('last_status: file_id=' . self::FILE_ID . ' status=processing', $stderr);
+    }
+
+    public function testWaitDoesNotAcceptSuccessReturnedAfterTimeout(): void
+    {
+        $client = $this->clientWithSubmitResult();
+        $client->transcript = $this->transcriptResult(self::FILE_ID, TranscriptionStatus::SUCCESS, 'Late transcript');
+        $timestamps = [0, 0, 2];
+        $tester = new CommandTester($this->submitCommand(
+            $client,
+            $this->noSleepPoller(static function () use (&$timestamps): int {
+                return array_shift($timestamps) ?? 2;
+            })
+        ));
+
+        $this->assertSame(
+            Command::FAILURE,
+            $tester->execute(
+                [
+                    'files' => ['audio.ogg'],
+                    '--wait' => true,
+                    '--json' => true,
+                    '--poll-interval' => '1',
+                    '--timeout' => '1',
+                ],
+                ['capture_stderr_separately' => true]
+            )
+        );
+
+        $this->assertSame('', $tester->getDisplay(true));
+        $this->assertStringContainsString(
+            'Error: Timeout after 1 seconds while waiting for transcript results.',
+            $tester->getErrorOutput(true)
+        );
+        $this->assertStringNotContainsString('completed: ' . self::FILE_ID, $tester->getErrorOutput(true));
     }
 
     public function testWaitTerminalFailureFailsWithFileStatus(): void

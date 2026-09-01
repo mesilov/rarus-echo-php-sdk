@@ -55,10 +55,14 @@ final readonly class TranscriptPoller
             ++$attempt;
 
             foreach ($pending as $fileIdString => $fileId) {
+                $this->throwIfTimedOut($deadline, $timeoutSeconds, $orderedFileIds, $lastStatuses);
+
                 $transcript = $client->getTranscript($fileId);
                 $status = $transcript->transcriptionStatus->value;
                 $lastStatuses[$fileIdString] = $status;
                 $progress(sprintf('polling: attempt=%d file_id=%s status=%s', $attempt, $fileIdString, $status));
+
+                $this->throwIfTimedOut($deadline, $timeoutSeconds, $orderedFileIds, $lastStatuses);
 
                 if ($transcript->isSuccessful()) {
                     $results[$fileIdString] = $transcript;
@@ -93,6 +97,19 @@ final readonly class TranscriptPoller
             static fn (string $fileId): FileItemTranscriptResult => $results[$fileId],
             $orderedFileIds
         );
+    }
+
+    /**
+     * @param list<string>          $orderedFileIds
+     * @param array<string, string> $lastStatuses
+     */
+    private function throwIfTimedOut(int $deadline, int $timeoutSeconds, array $orderedFileIds, array $lastStatuses): void
+    {
+        if (($this->time)() < $deadline) {
+            return;
+        }
+
+        throw new \RuntimeException($this->formatTimeoutMessage($timeoutSeconds, $orderedFileIds, $lastStatuses));
     }
 
     /**
