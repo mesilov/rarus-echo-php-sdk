@@ -69,6 +69,18 @@ The CLI SHALL use non-zero exit codes and stderr diagnostics for wait failures w
 - **WHEN** the SDK operation throws while submitting or polling
 - **THEN** stderr contains `Error: <message>`, stdout does not contain a partial result, and the command exits with a non-zero status
 
+#### Scenario: Interrupt signal during wait
+- **WHEN** a user interrupts `rarus-echo submit audio.ogg --wait` with `SIGINT`
+- **THEN** stderr explains that the command is shutting down because of `SIGINT`
+- **AND** stdout does not contain a final result payload
+- **AND** the command exits with a signal-aware non-zero status
+
+#### Scenario: Terminate signal during wait
+- **WHEN** `rarus-echo submit audio.ogg --wait` receives `SIGTERM`
+- **THEN** stderr explains that the command is shutting down because of `SIGTERM`
+- **AND** stdout does not contain a final result payload
+- **AND** the command exits with a signal-aware non-zero status
+
 ### Requirement: Submit Wait Help
 The CLI SHALL document the wait options in command help and README examples.
 

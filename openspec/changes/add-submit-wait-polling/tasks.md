@@ -11,6 +11,7 @@
 - [x] 2.4 Add failing unit coverage for invalid wait option combinations before client creation.
 - [x] 2.5 Add failing unit coverage for timeout, terminal failure, and SDK exception behavior.
 - [x] 2.6 Add failing unit coverage for submit help documenting wait options.
+- [x] 2.7 Add failing unit coverage for `submit --wait` signal handling.
 
 ## 3. CLI implementation
 
@@ -18,11 +19,13 @@
 - [x] 3.2 Wire `SubmitCommand` options, validation, stderr progress, and final wait output modes.
 - [x] 3.3 Preserve existing non-wait `submit` behavior.
 - [x] 3.4 Extend fake CLI client support for deterministic transcript polling tests.
+- [x] 3.5 Wire Symfony Console signal handling for interrupt and terminate signals.
 
 ## 4. Documentation
 
 - [x] 4.1 Update README CLI examples for `submit --wait --json`, Docker one-shot usage, raw transcript redirection, timeout, and polling interval.
 - [x] 4.2 Update README option list to include the new wait options and stdout/stderr contract.
+- [x] 4.3 Document signal shutdown behavior for long-running `submit --wait` commands.
 
 ## 5. Verification
 

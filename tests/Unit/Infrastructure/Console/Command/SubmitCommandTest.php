@@ -17,6 +17,7 @@ use Rarus\Echo\Services\Transcription\Result\TranscriptSubmitResult;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClient;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClientFactory;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Tester\ApplicationTester;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Uid\Uuid;
@@ -442,6 +443,25 @@ final class SubmitCommandTest extends TestCase
         );
         $this->assertSame('', $tester->getDisplay(true));
         $this->assertStringContainsString('Error: Transcript API unavailable', $tester->getErrorOutput(true));
+    }
+
+    public function testWaitSignalHandlerWritesShutdownMessageToStderr(): void
+    {
+        if (!\defined('SIGINT') || !\defined('SIGTERM')) {
+            self::markTestSkipped('PCNTL signal constants are unavailable.');
+        }
+
+        $command = $this->submitCommand($this->clientWithSubmitResult());
+        $errorOutput = new BufferedOutput();
+        $signalErrorOutput = new \ReflectionProperty($command, 'signalErrorOutput');
+        $signalErrorOutput->setValue($command, $errorOutput);
+
+        $this->assertContains(\SIGINT, $command->getSubscribedSignals());
+        $this->assertContains(\SIGTERM, $command->getSubscribedSignals());
+        $this->assertSame(128 + \SIGINT, $command->handleSignal(\SIGINT));
+        $this->assertSame("Signal SIGINT received, shutting down.\n", $errorOutput->fetch());
+        $this->assertSame(128 + \SIGTERM, $command->handleSignal(\SIGTERM));
+        $this->assertSame("Signal SIGTERM received, shutting down.\n", $errorOutput->fetch());
     }
 
     public function testInvalidTaskTypeWritesErrorWithoutCreatingClient(): void

@@ -8,9 +8,10 @@ The CLI currently submits files and returns `file_ids`, but callers that need co
 - Add `--poll-interval=<seconds>` and `--timeout=<seconds>` with conservative defaults.
 - Add `--raw-result` for single-file transcript-only stdout and `--output=<path>` for single-file transcript output to disk.
 - Keep progress and diagnostics on stderr while preserving deterministic stdout for JSON, raw transcript text, and shell redirection.
+- Handle interrupt and terminate signals during long-running waits by writing a shutdown message to stderr and returning a signal-aware exit code.
 - Validate incompatible option combinations before creating the SDK client or submitting files.
 - Document local and Docker CLI usage for the one-shot audio-to-transcript workflow.
-- Add unit coverage for success, progress separation, invalid options, timeout, service exceptions, terminal failures, raw output, output files, and help text.
+- Add unit coverage for success, progress separation, invalid options, timeout, service exceptions, terminal failures, signals, raw output, output files, and help text.
 
 ## Capabilities
 

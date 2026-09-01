@@ -12,14 +12,17 @@ use Rarus\Echo\Infrastructure\Console\TranscriptPoller;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\FileItemTranscriptResult;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 
-final class SubmitCommand extends AbstractEchoCommand
+final class SubmitCommand extends AbstractEchoCommand implements SignalableCommandInterface
 {
+    private ?OutputInterface $signalErrorOutput = null;
+
     public function __construct(
         EchoClientFactoryInterface $clientFactory,
         private readonly TranscriptPoller $poller = new TranscriptPoller(),
@@ -54,6 +57,51 @@ final class SubmitCommand extends AbstractEchoCommand
 
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $this->signalErrorOutput = $this->errorOutput($output);
+
+        try {
+            return $this->doExecute($input, $output);
+        } finally {
+            $this->signalErrorOutput = null;
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    #[\Override]
+    public function getSubscribedSignals(): array
+    {
+        if (!\function_exists('pcntl_signal')) {
+            return [];
+        }
+
+        $signals = [];
+
+        if (\defined('SIGINT')) {
+            $signals[] = \SIGINT;
+        }
+
+        if (\defined('SIGTERM')) {
+            $signals[] = \SIGTERM;
+        }
+
+        return $signals;
+    }
+
+    #[\Override]
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        $this->signalErrorOutput?->writeln(sprintf(
+            'Signal %s received, shutting down.',
+            $this->formatSignalName($signal)
+        ));
+
+        return 128 + $signal;
+    }
+
+    private function doExecute(InputInterface $input, OutputInterface $output): int
     {
         /** @var list<string> $files */
         $files = array_values((array) $input->getArgument('files'));
@@ -116,6 +164,19 @@ final class SubmitCommand extends AbstractEchoCommand
         }
 
         return Command::SUCCESS;
+    }
+
+    private function formatSignalName(int $signal): string
+    {
+        if (\defined('SIGINT') && $signal === \SIGINT) {
+            return 'SIGINT';
+        }
+
+        if (\defined('SIGTERM') && $signal === \SIGTERM) {
+            return 'SIGTERM';
+        }
+
+        return sprintf('signal %d', $signal);
     }
 
     private function parseWaitOptions(InputInterface $input, OutputInterface $output, int $fileCount): ?SubmitWaitOptions

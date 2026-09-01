@@ -9,6 +9,7 @@
 - Keep machine-readable stdout clean: JSON stdout contains only the final payload, raw stdout contains only transcript text, and progress goes to stderr.
 - Support multiple submitted files for JSON/human-readable wait output.
 - Restrict `--raw-result` and `--output` to single-file submissions.
+- Handle `SIGINT` and `SIGTERM` during long-running CLI execution with a clear stderr shutdown message and signal-aware exit code.
 
 ## Non-Goals
 
@@ -25,6 +26,8 @@ Add a small `TranscriptPoller` helper in `Rarus\Echo\Infrastructure\Console` tha
 - parse and validate wait/output options;
 - submit files with the existing transcription options builder;
 - write `submitted`, `polling`, and `completed` progress lines to stderr while waiting;
+- subscribe to interrupt and terminate signals with Symfony Console `SignalableCommandInterface`;
+- write `Signal <name> received, shutting down.` to stderr when a subscribed signal is received;
 - render final wait results as JSON, human-readable text, raw transcript text, or a single output file.
 
 The poller will use `sleep()` by default through an injectable callable. Tests will pass a no-op sleeper and a deterministic clock/elapsed-time callback so timeout behavior is covered without slowing the suite.
@@ -39,6 +42,7 @@ The poller will use `sleep()` by default through an injectable callable. Tests w
 - Timeout returns non-zero and writes last known file states to stderr.
 - A terminal non-success transcript result returns non-zero and identifies the file ID and status.
 - SDK exceptions keep the existing `Error: ...` stderr behavior and non-zero exit code.
+- `SIGINT` and `SIGTERM` return `128 + signal_number` and write the shutdown message to stderr without emitting a final stdout payload.
 
 ## Testing
 
@@ -51,4 +55,5 @@ Unit tests will drive the implementation first:
 - repeated non-terminal statuses time out without sleeping in tests.
 - terminal failure status fails explicitly.
 - service exceptions are still written through the common CLI error path.
+- signal handling writes the shutdown message to stderr and returns the expected signal exit code.
 - command help lists the new wait options.
