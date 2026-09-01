@@ -12,6 +12,7 @@
 - [x] 2.5 Add failing unit coverage for timeout, terminal failure, and SDK exception behavior.
 - [x] 2.6 Add failing unit coverage for submit help documenting wait options.
 - [x] 2.7 Add failing unit coverage for `submit --wait` signal handling.
+- [x] 2.8 Add process-level unit coverage for signal handling during the real polling loop.
 
 ## 3. CLI implementation
 
@@ -34,3 +35,4 @@
 - [x] 5.3 Run `git diff --check`.
 - [x] 5.4 Run `make test-unit`.
 - [x] 5.5 Run `make lint-all`.
+- [x] 5.6 Run focused process-level signal test.
