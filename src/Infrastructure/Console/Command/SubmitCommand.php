@@ -28,6 +28,7 @@ final class SubmitCommand extends AbstractEchoCommand
             ->addOption('language', null, InputOption::VALUE_REQUIRED, 'Language code: ' . implode(', ', Language::values()), Language::AUTO->value)
             ->addOption('censor', null, InputOption::VALUE_NONE, 'Enable censorship.')
             ->addOption('speakers-correction', null, InputOption::VALUE_NONE, 'Enable speaker correction.')
+            ->addOption('timestamps-extended', null, InputOption::VALUE_NONE, 'Enable extended timestamps for diarization.')
             ->addOption('no-store-file', null, InputOption::VALUE_NONE, 'Do not store submitted files after processing.')
             ->addOption('low-priority', null, InputOption::VALUE_NONE, 'Submit with low processing priority.')
             ->addOption('request-source', null, InputOption::VALUE_REQUIRED, 'Optional request source header.');
@@ -86,6 +87,7 @@ final class SubmitCommand extends AbstractEchoCommand
             ->withLanguage($language)
             ->withCensor((bool) $input->getOption('censor'))
             ->withSpeakersCorrection((bool) $input->getOption('speakers-correction'))
+            ->withTimestampsExtended((bool) $input->getOption('timestamps-extended'))
             ->withStoreFile(!((bool) $input->getOption('no-store-file')))
             ->withLowPriority((bool) $input->getOption('low-priority'));
 

@@ -19,6 +19,7 @@ final class TranscriptionOptionsBuilder
     private bool $storeFile = true;
     private bool $lowPriority = false;
     private ?string $requestSource = null;
+    private bool $timestampsExtended = false;
 
     public function withTaskType(TaskType $taskType): self
     {
@@ -69,6 +70,13 @@ final class TranscriptionOptionsBuilder
         return $this;
     }
 
+    public function withTimestampsExtended(bool $timestampsExtended = true): self
+    {
+        $this->timestampsExtended = $timestampsExtended;
+
+        return $this;
+    }
+
     public function build(): TranscriptionOptions
     {
         return new TranscriptionOptions(
@@ -78,7 +86,8 @@ final class TranscriptionOptionsBuilder
             $this->speakersCorrection,
             $this->storeFile,
             $this->lowPriority,
-            $this->requestSource
+            $this->requestSource,
+            $this->timestampsExtended
         );
     }
 }

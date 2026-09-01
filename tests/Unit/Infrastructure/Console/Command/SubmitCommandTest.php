@@ -7,12 +7,14 @@ namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Command;
 use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
+use Rarus\Echo\Infrastructure\Console\ApplicationFactory;
 use Rarus\Echo\Infrastructure\Console\Command\SubmitCommand;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
 use Rarus\Echo\Services\Transcription\Result\TranscriptSubmitResult;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClient;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClientFactory;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\ApplicationTester;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Uid\Uuid;
 
@@ -44,6 +46,7 @@ final class SubmitCommandTest extends TestCase
         $this->assertFalse($options->isSpeakersCorrection());
         $this->assertTrue($options->isStoreFile());
         $this->assertFalse($options->isLowPriority());
+        $this->assertFalse($options->isTimestampsExtended());
         $this->assertNull($options->getRequestSource());
     }
 
@@ -60,6 +63,7 @@ final class SubmitCommandTest extends TestCase
                 '--language' => 'ru',
                 '--censor' => true,
                 '--speakers-correction' => true,
+                '--timestamps-extended' => true,
                 '--no-store-file' => true,
                 '--low-priority' => true,
                 '--request-source' => 'cli',
@@ -75,7 +79,18 @@ final class SubmitCommandTest extends TestCase
         $this->assertTrue($options->isSpeakersCorrection());
         $this->assertFalse($options->isStoreFile());
         $this->assertTrue($options->isLowPriority());
+        $this->assertTrue($options->isTimestampsExtended());
         $this->assertSame('cli', $options->getRequestSource());
+    }
+
+    public function testHelpDocumentsTimestampsExtendedOption(): void
+    {
+        $application = ApplicationFactory::create(new FakeEchoClientFactory(new FakeEchoClient()));
+        $application->setAutoExit(false);
+        $tester = new ApplicationTester($application);
+
+        $this->assertSame(Command::SUCCESS, $tester->run(['command' => 'submit', '--help' => true]));
+        $this->assertStringContainsString('--timestamps-extended', $tester->getDisplay(true));
     }
 
     public function testOutputsSubmitResultAsJson(): void

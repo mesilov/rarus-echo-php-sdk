@@ -50,7 +50,12 @@ docker run --pull=always --rm \
   -e RARUS_ECHO_API_KEY=your-api-key-uuid \
   -e RARUS_ECHO_USER_ID=your-user-id-uuid \
   -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg --language=ru --json
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
+    --task-type=diarization \
+    --language=ru \
+    --speakers-correction \
+    --timestamps-extended \
+    --json
 ```
 
 GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
@@ -158,7 +163,7 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 vendor/bin/rarus-echo queue
 vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru
+vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
 ```
 
 Для автоматизации добавьте `--json`:
@@ -168,7 +173,7 @@ vendor/bin/rarus-echo queue --json
 vendor/bin/rarus-echo submit /path/to/audio.ogg --json
 ```
 
-`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
+`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--timestamps-extended`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
 
 ## Примеры PHP SDK
 
@@ -213,6 +218,8 @@ $factory = ServiceFactory::fromEnvironment();
 $options = TranscriptionOptions::create()
     ->withTaskType(TaskType::DIARIZATION)
     ->withLanguage(Language::RU)
+    ->withSpeakersCorrection()
+    ->withTimestampsExtended()
     ->build();
 
 $submitResult = $factory->getTranscriptionService()->submit(
@@ -299,6 +306,8 @@ if ($transcript->isSuccessful()) {
 - `timestamps` - с метками времени
 - `diarization` - с разбиением по говорящим
 - `raw_transcription` - сырой текст
+
+Для диаризации с расширенными таймкодами используйте `task-type=diarization` вместе с опцией `timestamps-extended=1`: в SDK это `withTimestampsExtended()`, в CLI - `--timestamps-extended`.
 
 ### Языки
 `ru`, `en`, `de`, `fr`, `es`, `pt`, `hy`, `ja`, `tr`, `ar`, `zh`, `he`, `vi`, `auto`
