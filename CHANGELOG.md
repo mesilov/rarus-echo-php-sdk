@@ -13,8 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI `submit --wait` can now submit audio and poll until terminal transcript results, including JSON, raw transcript, and output-file modes while keeping progress on stderr.
 - Long-running `submit --wait` commands now handle `SIGINT` and `SIGTERM` gracefully by writing a shutdown message to stderr and exiting with a signal-aware non-zero status.
 - GitHub issue templates for bug reports and release rollout requests.
+- Configurable HTTP client idle timeout: `ApiClientFactory::withHttpTimeout()` plus a `RARUS_ECHO_HTTP_TIMEOUT` environment variable (positive integer seconds) override the default when the HTTP client is auto-discovered.
 
 ### Fixed
+- Large file uploads no longer abort with `Idle timeout reached for "…"` from the auto-discovered Symfony HttpClient: the SDK now builds the default HTTP client with an explicit 600s idle timeout instead of PHP's ~60s `default_socket_timeout`, so submitting large audio/video files completes (#43).
 - Corrected the Claude Code plugin install instructions in `README.md` and the transcription skill's `distribution.md`: the repo-local marketplace source must be `./` (the CLI rejects a bare `.` with `Invalid marketplace source format`), so `claude plugin marketplace add .` is now `claude plugin marketplace add ./`.
 
 ### Changed
