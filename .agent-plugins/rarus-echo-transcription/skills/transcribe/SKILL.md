@@ -37,7 +37,7 @@ If the requested workflow lacks the required audio path or file id, ask one conc
 
 ## Command Selection
 
-Prefer the published Docker CLI for portable operation:
+Default to the published Docker CLI. Run it directly — do NOT probe for host PHP, an installed `vendor/`, or a local binary first:
 
 ```bash
 docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli <command> [args]
@@ -45,13 +45,13 @@ docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli <command> [args]
 
 Use `--pull=always` only when the user asks to refresh the image, when validating against the latest published image, or when diagnosing a suspected stale local tag.
 
-Use the local Composer binary only when dependencies are already installed and the host PHP version satisfies the SDK requirement:
+Use a local binary only as an explicit opt-in — when the user asks for local execution, or when Docker is unavailable. It requires installed dependencies and a host PHP that satisfies the SDK requirement:
 
 ```bash
 vendor/bin/rarus-echo <command> [args]
 ```
 
-If the repository checkout has dependencies, compatible host PHP, but no Composer bin proxy, `php bin/rarus-echo <command> [args]` is an acceptable local fallback. Otherwise use Docker.
+If the repository checkout has dependencies and compatible host PHP but no Composer bin proxy, `php bin/rarus-echo <command> [args]` is an acceptable local fallback.
 
 ## Docker Planning
 
