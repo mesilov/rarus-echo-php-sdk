@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Long-running `submit --wait` commands now handle `SIGINT` and `SIGTERM` gracefully by writing a shutdown message to stderr and exiting with a signal-aware non-zero status.
 - GitHub issue templates for bug reports and release rollout requests.
 
+### Fixed
+- Corrected the Claude Code plugin install instructions in `README.md` and the transcription skill's `distribution.md`: the repo-local marketplace source must be `./` (the CLI rejects a bare `.` with `Invalid marketplace source format`), so `claude plugin marketplace add .` is now `claude plugin marketplace add ./`.
+
 ### Changed
 - CLI Docker image now builds on the official `php:8.4-cli-alpine` runtime base instead of `php:8.4-cli-bookworm`, reducing published image size while preserving `rarus-echo` behavior, the `curl`/`fileinfo`/`mbstring` extensions, PSR-17/PSR-18 discovery smoke checks, and multi-arch `linux/amd64`/`linux/arm64` publication.
 - Renamed the local development/CI container from `php-cli` to `dev-php` (directory `docker/dev-php/`, Compose service `dev-php`) so its name reflects its purpose and is distinct from the published `rarus-echo-cli` image; the shell helpers are now `make dev-php-bash` and `make dev-php-root`.
