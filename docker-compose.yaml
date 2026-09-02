@@ -1,7 +1,7 @@
 services:
-  php-cli:
+  dev-php:
     build:
-      context: ./docker/php-cli
+      context: ./docker/dev-php
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}

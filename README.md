@@ -71,6 +71,8 @@ docker run --rm \
 
 GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
 
+Image собирается на официальной runtime-базе `php:8.4-cli-alpine`. По сравнению с прежней базой `php:8.4-cli-bookworm` это уменьшает опубликованный image примерно с `769MB` до `~179MB` по `docker images` и примерно со `~180MB` до `~46MB` по сжатому pull size. Поведение `rarus-echo`, расширения `curl`/`fileinfo`/`mbstring`, PHP-лимиты для локальных аудио-smoke и multi-arch публикация сохранены.
+
 ### PHP SDK
 
 ```php
@@ -424,7 +426,7 @@ if ($transcript->isSuccessful()) {
 ```bash
 make docker-init      # Инициализация Docker окружения и установка зависимостей
 make docker-up        # Запуск контейнеров
-make php-cli-bash     # Войти в контейнер
+make dev-php-bash     # Войти в контейнер
 ```
 
 ### Основные команды

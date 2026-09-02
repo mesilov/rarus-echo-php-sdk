@@ -30,7 +30,7 @@ use Symfony\Component\Uid\Uuid;
  * Required test files:
  * - tests/Assets/ru/examp-1.ogg
  *
- * Run with: docker compose run --rm php-cli vendor/bin/phpunit tests/Integration/Services/Status/
+ * Run with: docker compose run --rm dev-php vendor/bin/phpunit tests/Integration/Services/Status/
  */
 #[CoversClass(Status::class)]
 #[CoversMethod(Status::class, 'getByFileId')]

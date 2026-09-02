@@ -41,7 +41,7 @@ run_cli() {
   fi
 
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    (cd "${REPO_ROOT}" && COMPOSE_IGNORE_ORPHANS=True docker compose run --rm -T php-cli php bin/rarus-echo "$@")
+    (cd "${REPO_ROOT}" && COMPOSE_IGNORE_ORPHANS=True docker compose run --rm -T dev-php php bin/rarus-echo "$@")
     return
   fi
 
