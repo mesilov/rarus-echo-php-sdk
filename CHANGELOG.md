@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Maintainer workflow now creates issue worktrees with `make worktree-new`, branching directly off `origin/<base>` instead of first updating local `dev`.
 - Maintainer workflow now documents release changelog rollover and README installation example updates.
 - Distributed Composer package is now lean: `.gitattributes` `export-ignore` excludes development, CI, tooling, docs-process, and agent/maintainer files, leaving consumers only the runtime SDK.
+- `rarus-echo-transcription` transcription skill now makes the published Docker CLI the unconditional default execution path; agents run it directly instead of probing for host PHP or a local binary, and local `vendor/bin/rarus-echo` / `php bin/rarus-echo` execution is documented as an explicit opt-in for when the user asks or Docker is unavailable.
 
 ## [0.3.0] - 2026-08-27
 
