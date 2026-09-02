@@ -70,6 +70,20 @@ OpenSpec можно пропустить для исправления опеч�
 - Для каждой issue-работы обязательно обновляй `CHANGELOG.md`: добавляй запись в раздел `Unreleased` с кратким описанием изменения.
 - Не добавляй правила, специфичные для Bitrix24, generated result-item contracts, OpenAPI refresh steps или выбор веток v1/v3. Это относится к другим SDK, не к этому репозиторию.
 
+## Выкатка релиза
+
+Для release issue. Milestone версии используй только как источник целевой версии, если сама issue является release issue:
+
+1. Определи целевую SemVer-версию из issue body, title или milestone.
+2. Если issue и milestone указывают разные версии, остановись и согласуй целевую версию.
+3. Обнови `CHANGELOG.md`: перенеси текущие записи из `Unreleased` в секцию `## [<version>] - YYYY-MM-DD`.
+4. Сохрани новый пустой раздел `## [Unreleased]` выше релизной секции.
+5. Обнови пример установки в `README.md` под текущую release line, например:
+   ```bash
+   composer require mesilov/rarus-echo-php-sdk:^0.4
+   ```
+6. После merge release PR создай tag/GitHub release/Packagist-публикацию только если это требуется конкретной issue.
+
 ## Проверка
 
 Для OpenSpec или изменений только процесса запускай:
