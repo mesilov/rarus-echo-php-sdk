@@ -8,7 +8,7 @@ Maintainers run several issues in parallel, but preparing an isolated git worktr
 - Add `make worktree-new`, `make worktree-remove`, and `make worktree-list` targets and list them in `make help`.
 - Store every per-issue worktree under a git-ignored `.worktree/<issue>-<slug>` directory inside the repository, named with the issue-number prefix.
 - Base a new worktree branch on `origin/<base>` (default `dev`) so the local `dev` branch is never moved.
-- Provision a new worktree with a symlinked `.env.local` (single shared source of secrets) and a clone-copied `vendor/` (APFS clone, then hardlink, then plain copy), falling back to `make composer-install` when the primary has no `vendor/`.
+- Provision a new worktree with a symlinked `.env.local` (single shared source of secrets) and an independent clone-copy of `vendor/` (APFS clone, then reflink, then plain copy — never a hard link), falling back to `make composer-install` when the primary has no `vendor/`.
 - Remove a worktree and prune metadata while keeping the branch.
 - Update the maintainer skill to create and clean up worktrees with the tooling, and document the workflow in `CONTRIBUTING.md`.
 

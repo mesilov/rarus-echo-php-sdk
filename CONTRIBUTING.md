@@ -109,7 +109,7 @@ cd .worktree/29-parallel-worktree-tooling
 The tooling branches off `origin/<BASE>` (so it never moves your local `dev`), then provisions the worktree:
 
 - **Secrets:** symlinks `.env.local` from the primary checkout — a single source of secrets shared by every worktree. `make` and Docker Compose read it on the host, so the symlink resolves.
-- **Dependencies:** clone-copies `vendor/` from the primary checkout (APFS clone → hardlink → plain copy). A host symlink is intentionally not used: it would not resolve inside the `.:/var/www/html` Docker mount. If the primary has no `vendor/`, `make composer-install` runs in the worktree instead.
+- **Dependencies:** clone-copies `vendor/` from the primary checkout as an independent copy (APFS clone → reflink → plain copy — never a hard link, which would let an in-place write leak into the primary checkout). A host symlink is intentionally not used: it would not resolve inside the `.:/var/www/html` Docker mount. If the primary has no `vendor/`, `make composer-install` runs in the worktree instead.
 
 **List active worktrees:**
 

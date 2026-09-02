@@ -14,5 +14,5 @@
 
 - [x] 2.1 `bash -n bin/worktree.sh` and a create/remove smoke test pass.
 - [x] 2.2 `make lint-openspec` passes.
-- [ ] 2.3 `git diff --check` is clean.
-- [ ] 2.4 Open a pull request against `dev` and confirm CI is green.
+- [x] 2.3 `git diff --check` is clean.
+- [x] 2.4 Open a pull request against `dev` and confirm CI is green.

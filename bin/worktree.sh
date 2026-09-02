@@ -65,16 +65,37 @@ provision_vendor() {
         ( cd "$dir" && make composer-install )
         return
     fi
-    # Prefer an APFS clone (instant, copy-on-write), fall back to a hardlink
-    # copy, then to a plain recursive copy. Each yields real files inside the
-    # Docker mount, unlike a host symlink.
+    # Independent copies only. Prefer an APFS clone (instant, copy-on-write),
+    # then a reflink copy (Linux CoW filesystems), then a plain recursive copy.
+    # A hard-link copy (cp -al) is intentionally NOT used: it would share inodes
+    # with the primary vendor/, so an in-place write in the worktree (e.g.
+    # `composer dumpautoload`) would corrupt the primary and other worktrees.
+    # Each option yields real files inside the Docker mount, unlike a host symlink.
     if cp -c -R "$primary/vendor" "$dir/vendor" 2>/dev/null; then
-        printf 'vendor: cloned from primary (cp -c)\n'
-    elif cp -al "$primary/vendor" "$dir/vendor" 2>/dev/null; then
-        printf 'vendor: hardlinked from primary (cp -al)\n'
+        printf 'vendor: cloned from primary (APFS clonefile)\n'
+    elif { rm -rf "$dir/vendor"; cp -R --reflink=auto "$primary/vendor" "$dir/vendor" 2>/dev/null; }; then
+        printf 'vendor: reflink-copied from primary\n'
     else
+        rm -rf "$dir/vendor"
         cp -a "$primary/vendor" "$dir/vendor"
-        printf 'vendor: copied from primary (cp -a)\n'
+        printf 'vendor: copied from primary\n'
+    fi
+}
+
+# Rollback state for a partially created worktree (see cmd_new).
+_NEW_DIR=''
+_NEW_BRANCH=''
+_NEW_CREATED_BRANCH=0
+
+rollback_new() {
+    local rc=$?
+    [ "$rc" -eq 0 ] && return 0
+    [ -n "$_NEW_DIR" ] || return 0
+    printf 'worktree: provisioning failed (exit %d); rolling back %s\n' "$rc" "$_NEW_DIR" >&2
+    git worktree remove --force "$_NEW_DIR" 2>/dev/null || rm -rf "$_NEW_DIR"
+    git worktree prune 2>/dev/null || true
+    if [ "$_NEW_CREATED_BRANCH" -eq 1 ] && [ -n "$_NEW_BRANCH" ]; then
+        git branch -D "$_NEW_BRANCH" 2>/dev/null || true
     fi
 }
 
@@ -113,15 +134,22 @@ cmd_new() {
     printf 'fetching origin/%s ...\n' "$base"
     git fetch origin "$base"
 
+    _NEW_DIR="$dir"
+    _NEW_BRANCH="$branch"
+    _NEW_CREATED_BRANCH=0
     if git show-ref --verify --quiet "refs/heads/${branch}"; then
         printf 'branch %s exists; attaching worktree to it\n' "$branch"
         git worktree add "$dir" "$branch"
     else
         git worktree add -b "$branch" "$dir" "origin/${base}"
+        _NEW_CREATED_BRANCH=1
     fi
 
+    # From here the worktree exists; roll it back if provisioning fails.
+    trap rollback_new EXIT
     provision_secrets "$primary" "$dir"
     provision_vendor "$primary" "$dir"
+    trap - EXIT
 
     printf '\nworktree ready:\n  cd %s\n  branch: %s (base origin/%s)\n' "$dir" "$branch" "$base"
 }
@@ -142,6 +170,8 @@ cmd_remove() {
     local dir=''
 
     if [ -n "$name" ]; then
+        printf '%s' "$name" | grep -Eq '^[0-9]+-[a-z0-9][a-z0-9-]*$' \
+            || die "name must match <issue>-<slug> (kebab-case), got: $name"
         dir="${root}/${name}"
     elif [ -n "$issue" ]; then
         printf '%s' "$issue" | grep -Eq '^[0-9]+$' || die "issue must be numeric: $issue"
@@ -158,6 +188,15 @@ cmd_remove() {
     fi
 
     [ -e "$dir" ] || die "worktree not found: $dir"
+
+    # Defense in depth: never operate on a path outside the managed root.
+    local canon_root canon_dir
+    canon_root="$(cd "$root" && pwd -P)"
+    canon_dir="$(cd "$dir" 2>/dev/null && pwd -P || true)"
+    case "$canon_dir" in
+        "$canon_root"/*) ;;
+        *) die "refusing to remove a worktree outside ${root}: $dir" ;;
+    esac
 
     printf 'removing worktree: %s\n' "$dir"
     if [ -n "$force" ]; then
