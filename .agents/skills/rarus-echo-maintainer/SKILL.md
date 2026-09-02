@@ -22,19 +22,23 @@ user-invocable: true
    ```
 3. Сохраняй несвязанные локальные изменения. Не сбрасывай, не удаляй, не добавляй в индекс и не форматируй файлы вне области issue.
 4. Используй `dev` как базовую ветку для работы по issue, если пользователь явно не указал другое.
-5. Перед созданием issue-worktree от `dev` обнови локальную ветку `dev` из `origin/dev` без потери локальных коммитов:
+5. Создай подготовленный per-issue worktree обвязкой. Она базирует ветку на `origin/<base>` (по умолчанию `dev`), поэтому локальную `dev` двигать не нужно:
    ```bash
-   git fetch origin dev
-   git merge-base --is-ancestor dev origin/dev
-   git branch -f dev origin/dev
+   make worktree-new ISSUE=<issue-number> SLUG=<short-slug> [TYPE=feature|bugfix|docs] [BASE=dev]
+   cd .worktree/<issue-number>-<short-slug>
    ```
-   Если `dev` уже checkout в другом worktree, обнови его из того worktree через `git pull --ff-only origin dev`. Если fast-forward проверка не проходит, остановись и согласуй дальнейшие действия вместо принудительного сдвига `dev`.
-6. Создай ветку с именем:
+   Обвязка создаёт worktree в `.worktree/<issue-number>-<short-slug>` (папка в `.gitignore`) и сама:
+   - делает `git fetch origin <base>` и создаёт ветку `<type>/<issue-number>-<short-slug>` от `origin/<base>`;
+   - симлинкует `.env.local` из основного worktree (единый источник секретов);
+   - клон-копирует `vendor/` из основного worktree (или делает `make composer-install`, если vendor отсутствует).
+
+   Соглашение об именах ветки по типу issue:
    ```text
    feature/<issue-number>-<short-slug>
    bugfix/<issue-number>-<short-slug>
    docs/<issue-number>-<short-slug>
    ```
+   Активные worktree смотри через `make worktree-list`. Если создаёшь worktree вручную без обвязки, базируй ветку на `origin/dev` и не двигай локальную `dev` без ff-проверки (`git fetch origin dev` + `git merge-base --is-ancestor dev origin/dev`).
 
 ## Политика OpenSpec
 
@@ -104,3 +108,13 @@ make test-integration
 - Для каждого agent comment проверь обратную связь по текущему коду, внеси корректную правку или ответь технической причиной, если комментарий устарел или неприменим.
 - Резолвь review thread только после правки, устаревания комментария или ответа с причиной, почему изменение не требуется.
 - Не сообщай, что issue завершена, пока обязательные CI checks не стали зелеными и agent review threads не обработаны.
+
+## Очистка worktree
+
+После merge pull request удали per-issue worktree обвязкой из основного worktree:
+
+```bash
+make worktree-remove ISSUE=<issue-number>
+```
+
+Worktree и его скопированный `vendor/` со ссылкой на `.env.local` удаляются, локальная ветка сохраняется (удали её вручную, когда она больше не нужна). При незакоммиченных изменениях, которые точно можно потерять, используй `FORCE=1`. Целевой worktree можно указать явно через `NAME=<issue-number>-<short-slug>`.
