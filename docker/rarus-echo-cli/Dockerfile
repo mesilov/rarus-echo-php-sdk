@@ -6,15 +6,14 @@ ARG PHP_EXTENSION_INSTALLER_PLATFORM=linux/amd64
 FROM --platform=${PHP_EXTENSION_INSTALLER_PLATFORM} mlocati/php-extension-installer:2.4 AS php-extension-installer
 FROM composer:2.8 AS composer
 
-FROM php:8.4-cli-bookworm AS vendor
+FROM php:8.4-cli-alpine AS vendor
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     git \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
+    unzip
 
 RUN set -eux; \
     php -m | grep -q '^curl$' || install-php-extensions curl; \
@@ -40,13 +39,12 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
 
 RUN php -r 'require "/app/vendor/autoload.php"; \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory(); \Http\Discovery\Psr17FactoryDiscovery::findResponseFactory(); \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory(); \Http\Discovery\Psr18ClientDiscovery::find();'
 
-FROM php:8.4-cli-bookworm AS cli
+FROM php:8.4-cli-alpine AS cli
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    ca-certificates
 
 RUN set -eux; \
     php -m | grep -q '^curl$' || install-php-extensions curl; \

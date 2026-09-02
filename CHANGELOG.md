@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub issue templates for bug reports and release rollout requests.
 
 ### Changed
+- CLI Docker image now builds on the official `php:8.4-cli-alpine` runtime base instead of `php:8.4-cli-bookworm`, reducing published image size while preserving `rarus-echo` behavior, the `curl`/`fileinfo`/`mbstring` extensions, PSR-17/PSR-18 discovery smoke checks, and multi-arch `linux/amd64`/`linux/arm64` publication.
 - README now displays CI status badges for the Lint and Tests GitHub Actions workflows.
 - README Docker CLI examples no longer use `--pull=always` by default; the pull flag remains documented as an opt-in image refresh.
 - Maintainer workflow now creates issue worktrees with `make worktree-new`, branching directly off `origin/<base>` instead of first updating local `dev`.
