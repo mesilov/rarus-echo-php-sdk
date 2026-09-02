@@ -315,7 +315,7 @@ make test-integration-status
 make test-integration-transcription
 
 # Run specific test file
-make php-cli-bash
+make dev-php-bash
 ./vendor/bin/phpunit tests/Unit/Core/CredentialsTest.php
 ```
 

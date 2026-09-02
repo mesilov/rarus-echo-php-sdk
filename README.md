@@ -426,7 +426,7 @@ if ($transcript->isSuccessful()) {
 ```bash
 make docker-init      # Инициализация Docker окружения и установка зависимостей
 make docker-up        # Запуск контейнеров
-make php-cli-bash     # Войти в контейнер
+make dev-php-bash     # Войти в контейнер
 ```
 
 ### Основные команды

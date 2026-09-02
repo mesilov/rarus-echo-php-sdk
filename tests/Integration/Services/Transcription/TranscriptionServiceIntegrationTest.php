@@ -47,7 +47,7 @@ use Symfony\Component\Uid\Uuid;
  * - tests/Assets/ru/examp-3.ogg
  *
  * Run with: make test-integration-transcription
- * Or: docker compose run php-cli vendor/bin/phpunit tests/Integration/Services/Transcription/
+ * Or: docker compose run dev-php vendor/bin/phpunit tests/Integration/Services/Transcription/
  */
 #[CoversClass(Transcription::class)]
 #[CoversMethod(Transcription::class, 'submit')]

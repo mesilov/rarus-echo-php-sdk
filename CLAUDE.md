@@ -15,7 +15,7 @@ RARUS Echo PHP SDK is a PHP library for the RARUS Echo transcription service. It
 make docker-init          # First-time setup: build, start, install dependencies
 make docker-up            # Start containers
 make docker-down          # Stop containers
-make php-cli-bash         # Enter PHP container shell
+make dev-php-bash         # Enter the development PHP container shell
 ```
 
 ### Dependencies
