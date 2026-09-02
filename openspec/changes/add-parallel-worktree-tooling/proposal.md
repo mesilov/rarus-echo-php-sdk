@@ -4,7 +4,7 @@ Maintainers run several issues in parallel, but preparing an isolated git worktr
 
 ## What Changes
 
-- Add `bin/worktree.sh` with `new`, `remove`, and `list` subcommands.
+- Add `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh` with `new`, `remove`, and `list` subcommands (maintainer-only tooling, kept with the maintainer skill rather than in the published `bin/`).
 - Add `make worktree-new`, `make worktree-remove`, and `make worktree-list` targets and list them in `make help`.
 - Store every per-issue worktree under a git-ignored `.worktree/<issue>-<slug>` directory inside the repository, named with the issue-number prefix.
 - Base a new worktree branch on `origin/<base>` (default `dev`) so the local `dev` branch is never moved.
@@ -20,6 +20,6 @@ Maintainers run several issues in parallel, but preparing an isolated git worktr
 
 ## Impact
 
-- Affected tooling: `bin/worktree.sh`, `Makefile`, `.gitignore`.
+- Affected tooling: `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh`, `Makefile`, `.gitignore`.
 - Affected process docs: `.agents/skills/rarus-echo-maintainer/SKILL.md` (shared by Claude Code and Codex), `CONTRIBUTING.md`, `CHANGELOG.md`.
 - This change does not affect runtime PHP code or the public SDK API.

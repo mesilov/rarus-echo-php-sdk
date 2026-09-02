@@ -5,7 +5,10 @@
 #  For the full copyright and license information, please view the LICENSE.txt
 #  file that was distributed with this source code.
 #
-# Manage per-issue git worktrees for parallel task work.
+# Maintainer-only tooling: manage per-issue git worktrees for parallel task
+# work. Invoked through the Makefile targets `make worktree-new`,
+# `make worktree-remove`, and `make worktree-list`; kept here with the
+# maintainer skill rather than in bin/ (which holds the published SDK CLI).
 #
 # Worktrees live in <repo>/.worktree/<issue>-<slug> (git-ignored) and are
 # provisioned so `make` targets work immediately:
@@ -14,10 +17,15 @@
 #   - a clone-copy of the primary worktree vendor/ (fast and Docker-safe; a
 #     host symlink would not resolve inside the .:/var/www/html container mount)
 #
-# Usage:
-#   bin/worktree.sh new    --issue <n> --slug <slug> [--type feature|bugfix|docs] [--base dev]
-#   bin/worktree.sh remove (--issue <n> | --name <n>-<slug>) [--force]
-#   bin/worktree.sh list
+# Usage (preferred, via make):
+#   make worktree-new ISSUE=<n> SLUG=<slug> [TYPE=feature|bugfix|docs] [BASE=dev]
+#   make worktree-remove (ISSUE=<n> | NAME=<n>-<slug>) [FORCE=1]
+#   make worktree-list
+#
+# Direct usage:
+#   worktree.sh new    --issue <n> --slug <slug> [--type feature|bugfix|docs] [--base dev]
+#   worktree.sh remove (--issue <n> | --name <n>-<slug>) [--force]
+#   worktree.sh list
 
 set -euo pipefail
 
@@ -29,11 +37,12 @@ die() {
 usage() {
     cat >&2 <<'EOF'
 Manage per-issue git worktrees for parallel task work.
+Preferred entry point: make worktree-new | worktree-remove | worktree-list
 
-Usage:
-  bin/worktree.sh new    --issue <n> --slug <slug> [--type feature|bugfix|docs] [--base dev]
-  bin/worktree.sh remove (--issue <n> | --name <n>-<slug>) [--force]
-  bin/worktree.sh list
+Direct usage:
+  worktree.sh new    --issue <n> --slug <slug> [--type feature|bugfix|docs] [--base dev]
+  worktree.sh remove (--issue <n> | --name <n>-<slug>) [--force]
+  worktree.sh list
 EOF
     exit "${1:-0}"
 }

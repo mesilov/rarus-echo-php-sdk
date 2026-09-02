@@ -1,6 +1,6 @@
 ## 1. Implementation
 
-- [x] 1.1 Add `bin/worktree.sh` with `new`, `remove`, and `list` subcommands.
+- [x] 1.1 Add `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh` with `new`, `remove`, and `list` subcommands (maintainer-only tooling, not in the published `bin/`).
 - [x] 1.2 Add `make worktree-new`, `worktree-remove`, and `worktree-list` targets and document them in `make help`.
 - [x] 1.3 Ignore the `.worktree/` directory in `.gitignore`.
 - [x] 1.4 Provision new worktrees with a symlinked `.env.local` and a clone-copied `vendor/` (composer install fallback).
@@ -12,7 +12,7 @@
 
 ## 2. Validation
 
-- [x] 2.1 `bash -n bin/worktree.sh` and a create/remove smoke test pass.
+- [x] 2.1 `bash -n .agents/skills/rarus-echo-maintainer/scripts/worktree.sh` and a create/remove smoke test pass.
 - [x] 2.2 `make lint-openspec` passes.
 - [x] 2.3 `git diff --check` is clean.
 - [x] 2.4 Open a pull request against `dev` and confirm CI is green.
