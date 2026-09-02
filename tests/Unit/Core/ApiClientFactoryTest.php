@@ -228,6 +228,17 @@ final class ApiClientFactoryTest extends TestCase
         $this->assertInstanceOf(ApiClient::class, $apiClient);
     }
 
+    public function testBuildTreatsEmptyEnvironmentTimeoutAsDefault(): void
+    {
+        // An explicitly empty variable (e.g. `RARUS_ECHO_HTTP_TIMEOUT=` in .env)
+        // is treated as "not configured" and must not throw.
+        $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV] = '';
+
+        $apiClient = (new ApiClientFactory($this->credentials))->build();
+
+        $this->assertInstanceOf(ApiClient::class, $apiClient);
+    }
+
     #[DataProvider('invalidEnvironmentTimeoutProvider')]
     public function testBuildRejectsInvalidHttpTimeoutFromEnvironment(string $value): void
     {

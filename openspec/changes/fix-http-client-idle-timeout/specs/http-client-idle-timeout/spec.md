@@ -24,6 +24,11 @@ The SDK SHALL allow the idle timeout of the auto-discovered HTTP client to be ov
 - **WHEN** `RARUS_ECHO_HTTP_TIMEOUT` is set to a positive integer and no explicit timeout is configured
 - **THEN** the auto-discovered HTTP client uses that number of seconds as the idle timeout
 
+#### Scenario: Empty environment value falls back to the default
+- **WHEN** `RARUS_ECHO_HTTP_TIMEOUT` is unset or set to an empty string and no explicit timeout is configured
+- **THEN** the auto-discovered HTTP client uses the built-in default idle timeout
+- **AND** building the client does not throw
+
 #### Scenario: Explicit value takes precedence over environment
 - **WHEN** both `withHttpTimeout()` is called and `RARUS_ECHO_HTTP_TIMEOUT` is set
 - **THEN** the explicit `withHttpTimeout()` value is used
@@ -33,5 +38,5 @@ The SDK SHALL allow the idle timeout of the auto-discovered HTTP client to be ov
 - **THEN** an `InvalidArgumentException` is thrown
 
 #### Scenario: Reject invalid environment value
-- **WHEN** `RARUS_ECHO_HTTP_TIMEOUT` is set but is not a positive integer (empty, non-numeric, zero, negative, or fractional)
+- **WHEN** `RARUS_ECHO_HTTP_TIMEOUT` is set to a non-empty value that is not a positive integer (non-numeric, zero, negative, or fractional)
 - **THEN** building the client throws an `InvalidArgumentException` naming the variable

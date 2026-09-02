@@ -216,12 +216,17 @@ final class ApiClientFactory
     /**
      * Read and validate the HTTP idle timeout from the environment.
      *
-     * @throws \InvalidArgumentException when the variable is set but not a positive integer
+     * An unset variable and an explicitly empty value (e.g. `RARUS_ECHO_HTTP_TIMEOUT=`
+     * in a `.env` file) are both treated as "not configured" and fall back to the
+     * default; a non-empty but non-positive-integer value is rejected.
+     *
+     * @throws \InvalidArgumentException when the variable holds a non-empty, non-positive-integer value
      */
     private function readHttpTimeoutFromEnvironment(): ?int
     {
         $raw = $_ENV[self::HTTP_TIMEOUT_ENV] ?? $_SERVER[self::HTTP_TIMEOUT_ENV] ?? null;
 
+        // Unset or explicitly empty: not configured, use the default.
         if (!is_string($raw) || $raw === '') {
             return null;
         }
