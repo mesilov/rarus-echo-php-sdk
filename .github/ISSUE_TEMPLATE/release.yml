@@ -1,0 +1,20 @@
+name: Выкатка релиза
+description: Запланировать выпуск версии SDK или CLI
+title: "release: "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: SemVer-версия релиза
+      description: SemVer-версия, которую нужно выпустить.
+      placeholder: 0.4.0
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Краткое описание
+      description: Коротко опишите, что нужно выпустить.
+      placeholder: Например, подготовить 0.4.0 с новыми CLI возможностями и обновленной документацией.
+    validations:
+      required: true
