@@ -49,6 +49,12 @@ help:
 	@echo ""
 	@echo "show-env                  - show environment variables from .env files"
 	@echo ""
+	@echo "worktree-new              - create a prepared per-issue worktree in .worktree/"
+	@echo "                            (ISSUE=<n> SLUG=<slug> [TYPE=feature|bugfix|docs] [BASE=dev])"
+	@echo "worktree-remove           - remove a per-issue worktree, keep the branch"
+	@echo "                            (ISSUE=<n> | NAME=<n>-<slug>) [FORCE=1]"
+	@echo "worktree-list             - list active per-issue worktrees"
+	@echo ""
 
 .PHONY: docker-init
 docker-init: ## Initial Docker setup (build, start, install dependencies)
@@ -179,6 +185,32 @@ test-all: test-unit test-integration
 
 .PHONY: ci
 ci: lint-all test-unit
+
+# ============================================================================
+# Worktree Management (parallel per-issue task work)
+# ============================================================================
+
+# Maintainer-only tooling: lives with the maintainer skill, not in bin/
+# (bin/ holds the published SDK CLI declared in composer.json).
+WORKTREE_SH := .agents/skills/rarus-echo-maintainer/scripts/worktree.sh
+
+# Default branch type and base for a new worktree; override on the command line.
+TYPE ?= feature
+BASE ?= dev
+
+.PHONY: worktree-new
+# make worktree-new ISSUE=29 SLUG=parallel-worktree-tooling [TYPE=feature|bugfix|docs] [BASE=dev]
+worktree-new: ## Create a prepared per-issue worktree in .worktree/
+	$(WORKTREE_SH) new --issue "$(ISSUE)" --slug "$(SLUG)" --type "$(TYPE)" --base "$(BASE)"
+
+.PHONY: worktree-remove
+# make worktree-remove ISSUE=29    (or NAME=29-slug) [FORCE=1]
+worktree-remove: ## Remove a per-issue worktree (keeps the branch)
+	$(WORKTREE_SH) remove $(if $(NAME),--name "$(NAME)") $(if $(ISSUE),--issue "$(ISSUE)") $(if $(FORCE),--force)
+
+.PHONY: worktree-list
+worktree-list: ## List active per-issue worktrees
+	$(WORKTREE_SH) list
 
 # ============================================================================
 # Development Tools

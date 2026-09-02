@@ -1,0 +1,32 @@
+# Keep the distributed Composer/Packagist package lean: exclude development,
+# CI, build tooling, docs process, and agent/maintainer files from the dist
+# archive (`git archive`, which Packagist uses for dist zipballs). Consumers
+# receive only the runtime SDK: src/, composer.json, LICENSE, README, CHANGELOG
+# and the published CLI in bin/.
+
+# Always check out shell scripts with LF endings.
+*.sh text eol=lf
+
+# Development-only paths excluded from the distributed package.
+/.agent-plugins        export-ignore
+/.agents               export-ignore
+/.claude               export-ignore
+/.claude-plugin        export-ignore
+/.codex                export-ignore
+/.github               export-ignore
+/docker                export-ignore
+/openspec              export-ignore
+/tests                 export-ignore
+/.dockerignore         export-ignore
+/.env                  export-ignore
+/.gitattributes        export-ignore
+/.gitignore            export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/AGENTS.md             export-ignore
+/CLAUDE.md             export-ignore
+/CONTRIBUTING.md       export-ignore
+/Makefile              export-ignore
+/docker-compose.yaml   export-ignore
+/phpstan.neon.dist     export-ignore
+/phpunit.xml.dist      export-ignore
+/rector.php            export-ignore

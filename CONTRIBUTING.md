@@ -7,6 +7,7 @@ Thank you for your interest in contributing to the RARUS Echo PHP SDK! This docu
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
+- [Parallel Task Work (Git Worktrees)](#parallel-task-work-git-worktrees)
 - [Development Workflow](#development-workflow)
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
@@ -92,6 +93,37 @@ Before contributing, ensure you have:
 ```
 
 **Примечание:** Это влияет только на сессии Claude Code. Для ручной разработки запускайте тесты командой `make test-unit` как обычно.
+
+## Parallel Task Work (Git Worktrees)
+
+Work on several issues in parallel without switching branches in one checkout. Each task gets its own git worktree under `.worktree/<issue>-<slug>` (the directory is git-ignored), pre-provisioned so `make` targets work immediately.
+
+**Create a prepared worktree:**
+
+```bash
+make worktree-new ISSUE=29 SLUG=parallel-worktree-tooling
+# optional: TYPE=feature|bugfix|docs (default feature), BASE=dev (default dev)
+cd .worktree/29-parallel-worktree-tooling
+```
+
+The tooling branches off `origin/<BASE>` (so it never moves your local `dev`), then provisions the worktree:
+
+- **Secrets:** symlinks `.env.local` from the primary checkout — a single source of secrets shared by every worktree. `make` and Docker Compose read it on the host, so the symlink resolves.
+- **Dependencies:** clone-copies `vendor/` from the primary checkout as an independent copy (APFS clone → reflink → plain copy — never a hard link, which would let an in-place write leak into the primary checkout). A host symlink is intentionally not used: it would not resolve inside the `.:/var/www/html` Docker mount. If the primary has no `vendor/`, `make composer-install` runs in the worktree instead.
+
+**List active worktrees:**
+
+```bash
+make worktree-list
+```
+
+**Remove a worktree when the task is done** (after the PR is merged):
+
+```bash
+make worktree-remove ISSUE=29        # or NAME=29-parallel-worktree-tooling
+```
+
+The worktree directory, its copied `vendor/`, and the `.env.local` symlink are removed; the branch is kept (delete it manually once it is no longer needed). Add `FORCE=1` only when discardable uncommitted changes block removal.
 
 ## Development Workflow
 
