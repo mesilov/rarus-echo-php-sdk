@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README Docker CLI examples no longer use `--pull=always` by default; the pull flag remains documented as an opt-in image refresh.
 - Maintainer workflow now creates issue worktrees with `make worktree-new`, branching directly off `origin/<base>` instead of first updating local `dev`.
 - Maintainer workflow now documents release changelog rollover and README installation example updates.
+- Distributed Composer package is now lean: `.gitattributes` `export-ignore` excludes development, CI, tooling, docs-process, and agent/maintainer files, leaving consumers only the runtime SDK.
 
 ## [0.3.0] - 2026-08-27
 

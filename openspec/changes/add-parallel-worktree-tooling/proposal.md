@@ -10,6 +10,7 @@ Maintainers run several issues in parallel, but preparing an isolated git worktr
 - Base a new worktree branch on `origin/<base>` (default `dev`) so the local `dev` branch is never moved.
 - Provision a new worktree with a symlinked `.env.local` (single shared source of secrets) and an independent clone-copy of `vendor/` (APFS clone, then reflink, then plain copy — never a hard link), falling back to `make composer-install` when the primary has no `vendor/`.
 - Remove a worktree and prune metadata while keeping the branch.
+- Add `.gitattributes` `export-ignore` rules so the maintainer tooling and other development-only paths are excluded from the distributed Composer package, leaving consumers only the runtime SDK.
 - Update the maintainer skill to create and clean up worktrees with the tooling, and document the workflow in `CONTRIBUTING.md`.
 
 ## Capabilities
@@ -20,6 +21,7 @@ Maintainers run several issues in parallel, but preparing an isolated git worktr
 
 ## Impact
 
-- Affected tooling: `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh`, `Makefile`, `.gitignore`.
+- Affected tooling: `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh`, `Makefile`, `.gitignore`, `.gitattributes`.
+- Affected distribution: the Composer dist archive no longer ships development-only paths (tests, tooling, docker, OpenSpec, agent skills/plugins, CI config).
 - Affected process docs: `.agents/skills/rarus-echo-maintainer/SKILL.md` (shared by Claude Code and Codex), `CONTRIBUTING.md`, `CHANGELOG.md`.
 - This change does not affect runtime PHP code or the public SDK API.

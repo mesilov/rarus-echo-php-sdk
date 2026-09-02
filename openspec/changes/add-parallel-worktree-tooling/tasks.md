@@ -9,6 +9,7 @@
 - [x] 1.7 Update the maintainer skill to create and clean up worktrees with the tooling.
 - [x] 1.8 Document the parallel worktree workflow in `CONTRIBUTING.md`.
 - [x] 1.9 Add a `CHANGELOG.md` `Unreleased` entry.
+- [x] 1.10 Add `.gitattributes` `export-ignore` rules excluding development and tooling paths from the distributed package.
 
 ## 2. Validation
 
@@ -16,3 +17,4 @@
 - [x] 2.2 `make lint-openspec` passes.
 - [x] 2.3 `git diff --check` is clean.
 - [x] 2.4 Open a pull request against `dev` and confirm CI is green.
+- [x] 2.5 `git archive --worktree-attributes HEAD | tar t` confirms runtime paths are kept and development paths are excluded.

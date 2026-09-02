@@ -73,3 +73,14 @@ The maintainer process documentation SHALL instruct maintainers to create and cl
 #### Scenario: Contributor documentation describes the workflow
 - **WHEN** a contributor reads `CONTRIBUTING.md`
 - **THEN** the parallel worktree create, list, and remove workflow is documented
+
+### Requirement: Maintainer tooling excluded from the published package
+The repository SHALL exclude the maintainer tooling and other development-only paths from the distributed Composer package via `.gitattributes` `export-ignore`, so consumers receive only the runtime SDK.
+
+#### Scenario: Worktree tooling is not distributed
+- **WHEN** the Composer dist archive is produced with `git archive`
+- **THEN** the maintainer worktree tooling under `.agents/` and other development paths (such as `tests/`, `docker/`, `openspec/`, and `Makefile`) are excluded
+
+#### Scenario: Runtime files remain distributed
+- **WHEN** the Composer dist archive is produced with `git archive`
+- **THEN** the runtime SDK files (`src/`, `composer.json`, `LICENSE`, `README.md`, and the published `bin/` CLI) are included
