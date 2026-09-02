@@ -30,7 +30,7 @@ claude --plugin-dir ./.agent-plugins/rarus-echo-transcription
 To install from the repository-local marketplace, run these commands from the repository root:
 
 ```bash
-claude plugin marketplace add . --scope user
+claude plugin marketplace add ./ --scope user
 claude plugin install rarus-echo-transcription@rarus-echo-plugins
 ```
 

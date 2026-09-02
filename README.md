@@ -226,7 +226,7 @@ claude --plugin-dir ./.agent-plugins/rarus-echo-transcription
 Или поставить через repo-local marketplace из корня репозитория:
 
 ```bash
-claude plugin marketplace add . --scope user
+claude plugin marketplace add ./ --scope user
 claude plugin install rarus-echo-transcription@rarus-echo-plugins
 ```
 
