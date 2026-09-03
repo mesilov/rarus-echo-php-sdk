@@ -6,7 +6,9 @@ The README `## CLI` section describes usage but does not list every command key 
 
 - Add a complete "Справочник команд и опций" reference to the README `## CLI` section: global options plus per-command arguments and options (`queue`, `submit`, `status`, `transcript`) with value requirements and defaults.
 - Add a maintainer-workflow rule: when CLI commands or options change, align documentation in both places — the transcription skill CLI reference (regenerated via `update-cli-reference.sh`, drift-checked by `make lint-agent-plugins`) and the README `## CLI` section.
-- Verify documentation and standard project checks, including the CLI reference drift check.
+- Qualify the README global-options table by scope and version: `--json` is an Echo-command option (not available on Symfony's built-in `list`/`help`), and `--silent` requires Symfony Console ≥ 7.2 while `composer.json` still allows older Console versions.
+- Harden `update-cli-reference.sh` so the maintainer process is not fragile: single-source the command list from the shell `PROJECT_COMMANDS` array (the Node generator receives it as arguments instead of duplicating it), and fail with a clear message when a command has no `optionAllowlist` entry instead of crashing.
+- Verify documentation and standard project checks, including the CLI reference drift check (regenerated `cli.md` must stay byte-identical).
 
 ## Capabilities
 
@@ -17,6 +19,6 @@ The README `## CLI` section describes usage but does not list every command key 
 
 ## Impact
 
-- Affected files: `README.md`, `.agents/skills/rarus-echo-maintainer/SKILL.md` (mirrored via symlinks to `.claude/` and `.codex/`).
-- Runtime SDK impact: none (documentation and maintainer process only).
-- No CLI behavior changes; the generated `cli.md` already matches the current command definitions and is left untouched.
+- Affected files: `README.md`, `.agents/skills/rarus-echo-maintainer/SKILL.md` (mirrored via symlinks to `.claude/` and `.codex/`), `.agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh`.
+- Runtime SDK impact: none (documentation, maintainer process, and reference-generation tooling only).
+- No CLI behavior changes; the generated `cli.md` stays byte-identical to the current command definitions.

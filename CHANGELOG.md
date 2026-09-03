@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CLI reference generator (`update-cli-reference.sh`) now single-sources the command list from the shell `PROJECT_COMMANDS` array (the Node generator receives it as arguments, with no duplicate hardcoded list) and fails with a clear, actionable message when a command has no `optionAllowlist` entry instead of crashing; the maintainer "Изменения CLI" note is simplified to match.
+
+### Fixed
+- README CLI reference: scoped `--json` to the RARUS Echo commands (it is not available on Symfony's built-in `list`/`help`), added the `--silent` global option, and qualified `--silent` as requiring Symfony Console ≥ 7.2 given the `symfony/console: ^6.4 || ^7.0 || 8.0.*` constraint.
+
 ## [0.4.0] - 2026-09-03
 
 ### Added
