@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/php-cli/Dockerfile') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/dev-php/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 

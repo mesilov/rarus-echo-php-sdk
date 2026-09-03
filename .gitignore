@@ -38,3 +38,6 @@ rector.log
 # Claude Code
 .claude/settings.local.json
 .claude-local/
+
+# Parallel per-issue worktrees
+/.worktree/

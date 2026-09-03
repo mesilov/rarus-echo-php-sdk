@@ -1,0 +1,18 @@
+{
+  "name": "rarus-echo-transcription",
+  "description": "Operate the RARUS Echo transcription CLI from agent sessions.",
+  "version": "0.1.0",
+  "author": {
+    "name": "RARUS Echo PHP SDK maintainers"
+  },
+  "homepage": "https://github.com/mesilov/rarus-echo-php-sdk",
+  "repository": "https://github.com/mesilov/rarus-echo-php-sdk",
+  "license": "MIT",
+  "keywords": [
+    "rarus",
+    "echo",
+    "transcription",
+    "cli"
+  ],
+  "skills": "./skills/"
+}

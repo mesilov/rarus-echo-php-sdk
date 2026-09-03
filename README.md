@@ -1,5 +1,7 @@
 # RARUS Echo PHP SDK
 
+[![Lint](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml)
+[![Tests](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 PHP SDK для сервиса транскрибации RARUS Echo с использованием стандартов PSR и компонентов Symfony.
@@ -25,35 +27,51 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk
+composer require mesilov/rarus-echo-php-sdk:^0.4
 ```
 
 ## Быстрый старт
 
 ### CLI через Docker image
 
-Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image. Используйте `--pull=always`, если нужен актуальный опубликованный image, а не локально закешированный tag.
+Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image. Docker использует локально закешированный tag, если он уже загружен; добавьте `--pull=always` к `docker run`, если нужно принудительно получить актуальный опубликованный image.
 
 ```bash
-docker run --pull=always --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
+docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
 ```
 
 Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
 
 ```bash
-docker run --pull=always --rm \
+docker run --rm \
   -e RARUS_ECHO_API_KEY=your-api-key-uuid \
   -e RARUS_ECHO_USER_ID=your-user-id-uuid \
   ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
 
-docker run --pull=always --rm \
+docker run --rm \
   -e RARUS_ECHO_API_KEY=your-api-key-uuid \
   -e RARUS_ECHO_USER_ID=your-user-id-uuid \
   -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg --language=ru --json
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
+    --task-type=diarization \
+    --language=ru \
+    --speakers-correction \
+    --timestamps-extended \
+    --wait \
+    --json
+
+docker run --rm \
+  --env-file .env.local \
+  -v "$PWD/audio.ogg:/audio.ogg:ro" \
+  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
+    --language=ru \
+    --wait \
+    --raw-result > transcript.txt
 ```
 
 GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
+
+Image собирается на официальной runtime-базе `php:8.4-cli-alpine`. По сравнению с прежней базой `php:8.4-cli-bookworm` это уменьшает опубликованный image примерно с `769MB` до `~179MB` по `docker images` и примерно со `~180MB` до `~46MB` по сжатому pull size. Поведение `rarus-echo`, расширения `curl`/`fileinfo`/`mbstring`, PHP-лимиты для локальных аудио-smoke и multi-arch публикация сохранены.
 
 ### PHP SDK
 
@@ -152,13 +170,24 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 
 Если в текущей рабочей директории есть `.env`, CLI загрузит значения из него перед выполнением сервисной команды.
 
+#### Таймаут HTTP-клиента для больших файлов
+
+При отправке больших файлов автоматически подобранный HTTP-клиент раньше обрывал загрузку с ошибкой `Idle timeout reached ...` (по умолчанию PHP `default_socket_timeout` ~60 с). Теперь SDK создаёт HTTP-клиент с idle timeout `600` секунд. Значение можно переопределить переменной окружения (положительное целое число секунд):
+
+```bash
+export RARUS_ECHO_HTTP_TIMEOUT=1200 # опционально, по умолчанию 600
+```
+
+В коде SDK то же самое задаётся через `ApiClientFactory::withHttpTimeout()`; при передаче собственного PSR-18 клиента через `withHttpClient()` таймаут становится ответственностью вызывающего.
+
 ### Команды
 
 ```bash
 vendor/bin/rarus-echo queue
 vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru
+vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait
 ```
 
 Для автоматизации добавьте `--json`:
@@ -166,9 +195,172 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --langua
 ```bash
 vendor/bin/rarus-echo queue --json
 vendor/bin/rarus-echo submit /path/to/audio.ogg --json
+vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --json
 ```
 
-`submit` поддерживает опции `--task-type`, `--language`, `--censor`, `--speakers-correction`, `--no-store-file`, `--low-priority` и `--request-source`. Основной результат пишется в stdout, ошибки пишутся в stderr, успешные команды завершаются с кодом `0`.
+`submit --wait` после отправки файла опрашивает результат транскрибации до терминального статуса. Финальный JSON содержит `file_ids` и `results`, а прогресс вида `submitted: ...`, `polling: ...` и `completed: ...` пишется в stderr, поэтому stdout остается безопасным для `jq`, редиректа и пайпов.
+
+При `SIGINT` (`Ctrl+C`) или `SIGTERM` во время долгого ожидания команда пишет в stderr сообщение о завершении по сигналу и возвращает ненулевой signal-aware код выхода.
+
+Для сырого текста одного файла:
+
+```bash
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --raw-result > transcript.txt
+vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
+```
+
+Интервал и общий лимит ожидания задаются в секундах:
+
+```bash
+vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --timeout=3600 --json
+```
+
+Полный список ключей всех команд — в разделе [Справочник команд и опций](#справочник-команд-и-опций). Основной результат пишется в stdout, прогресс и ошибки — в stderr, успешные команды завершаются с кодом `0`.
+
+### Справочник команд и опций
+
+Ниже перечислены все ключи CLI. Каноническим источником является структура команд в `src/Infrastructure/Console/Command/`.
+
+#### Глобальные опции
+
+Доступны для всех команд RARUS Echo (`queue`, `submit`, `status`, `transcript`):
+
+| Опция | Значение | Описание |
+| --- | --- | --- |
+| `--json` | флаг | Вывести результат команды в формате JSON. |
+| `-h`, `--help` | флаг | Показать справку по команде. |
+| `--silent` | флаг | Полностью подавить вывод (никаких сообщений). Доступна только с Symfony Console ≥ 7.2. |
+| `-q`, `--quiet` | флаг | Выводить только ошибки, остальной вывод подавляется. |
+| `-v`, `-vv`, `-vvv`, `--verbose` | флаг | Уровень детализации вывода (1 — обычный, 2 — подробный, 3 — отладка). |
+| `-V`, `--version` | флаг | Показать версию приложения. |
+| `--ansi`, `--no-ansi` | флаг | Принудительно включить/выключить ANSI-раскраску. |
+| `-n`, `--no-interaction` | флаг | Не задавать интерактивных вопросов. |
+
+`--json` добавляется командами RARUS Echo и недоступна во встроенных командах Symfony (`list`, `help`). Остальные ключи — глобальные опции Symfony Console и доступны во всех командах приложения. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
+
+#### `queue`
+
+Показать агрегированную информацию по очереди транскрибации. Аргументов и собственных опций, кроме глобальных, нет.
+
+```text
+vendor/bin/rarus-echo queue [--json]
+```
+
+#### `submit`
+
+Отправить один или несколько файлов на транскрибацию.
+
+```text
+vendor/bin/rarus-echo submit [опции] [--] <files>...
+```
+
+Аргумент:
+
+| Аргумент | Обязательный | Несколько | Описание |
+| --- | --- | --- | --- |
+| `files` | да | да | Пути к файлам для отправки. |
+
+Опции (помимо глобальных):
+
+| Опция | Значение | По умолчанию | Описание |
+| --- | --- | --- | --- |
+| `--task-type` | обязательно | `transcription` | Тип задачи: `transcription`, `timestamps`, `diarization`, `raw_transcription`. |
+| `--language` | обязательно | `auto` | Код языка: `auto`, `ru`, `en`, `de`, `fr`, `es`, `pt`, `hy`, `ja`, `tr`, `ar`, `zh`, `he`, `vi`. |
+| `--censor` | флаг | — | Включить цензуру. |
+| `--speakers-correction` | флаг | — | Включить коррекцию говорящих. |
+| `--timestamps-extended` | флаг | — | Включить расширенные таймкоды для диаризации. |
+| `--no-store-file` | флаг | — | Не хранить отправленные файлы после обработки. |
+| `--low-priority` | флаг | — | Отправить с низким приоритетом обработки. |
+| `--request-source` | обязательно | — | Необязательный заголовок источника запроса. |
+| `--wait` | флаг | — | Опрашивать результат до терминального статуса. |
+| `--poll-interval` | обязательно | `30` | Интервал опроса в секундах при `--wait`. |
+| `--timeout` | обязательно | `7200` | Максимальное время ожидания в секундах при `--wait`. |
+| `--raw-result` | флаг | — | С `--wait`: писать в stdout только сам transcript (ровно один файл). |
+| `--output` | обязательно | — | С `--wait`: записать transcript в файл (ровно один файл). |
+
+`--raw-result` и `--output` требуют `--wait` и поддерживают только один отправляемый файл.
+
+#### `status`
+
+Показать статус транскрибации одного файла.
+
+```text
+vendor/bin/rarus-echo status [--json] [--] <file-id>
+```
+
+Аргумент:
+
+| Аргумент | Обязательный | Несколько | Описание |
+| --- | --- | --- | --- |
+| `file-id` | да | нет | UUID файла RARUS Echo. |
+
+#### `transcript`
+
+Показать результат транскрибации одного файла.
+
+```text
+vendor/bin/rarus-echo transcript [--json] [--] <file-id>
+```
+
+Аргумент:
+
+| Аргумент | Обязательный | Несколько | Описание |
+| --- | --- | --- | --- |
+| `file-id` | да | нет | UUID файла RARUS Echo. |
+
+## Agent skill для транскрибации
+
+В репозитории есть skills-only plugin `rarus-echo-transcription` для Claude Code и Codex-compatible hosts. Он описывает безопасный workflow поверх существующего CLI: проверить очередь, отправить один или несколько локальных аудиофайлов, получить `file_id`, проверить статус, дождаться результата через `submit --wait` и забрать transcript без вывода credentials.
+
+Исходники plugin:
+
+```text
+.agent-plugins/rarus-echo-transcription/
+```
+
+Claude Code может загрузить plugin напрямую из checkout на одну сессию:
+
+```bash
+claude --plugin-dir ./.agent-plugins/rarus-echo-transcription
+```
+
+Или поставить через repo-local marketplace из корня репозитория:
+
+```bash
+claude plugin marketplace add ./ --scope user
+claude plugin install rarus-echo-transcription@rarus-echo-plugins
+```
+
+После установки в Claude Code namespaced invocation выглядит так:
+
+```text
+/rarus-echo-transcription:transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
+```
+
+Repo-local marketplace files:
+
+```text
+.claude-plugin/marketplace.json
+.agents/plugins/marketplace.json
+```
+
+Codex-compatible hosts читают общий skill из `skills/transcribe/SKILL.md`; точный синтаксис invocation зависит от host и использует имя skill, например:
+
+```bash
+codex plugin marketplace add .
+codex plugin add rarus-echo-transcription@rarus-echo-plugins
+```
+
+```text
+$transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
+```
+
+CLI reference для skill генерируется из structured metadata текущего CLI и проверяется на drift. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
+
+```bash
+.agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
+make lint-agent-plugins
+```
 
 ## Примеры PHP SDK
 
@@ -213,6 +405,8 @@ $factory = ServiceFactory::fromEnvironment();
 $options = TranscriptionOptions::create()
     ->withTaskType(TaskType::DIARIZATION)
     ->withLanguage(Language::RU)
+    ->withSpeakersCorrection()
+    ->withTimestampsExtended()
     ->build();
 
 $submitResult = $factory->getTranscriptionService()->submit(
@@ -300,6 +494,8 @@ if ($transcript->isSuccessful()) {
 - `diarization` - с разбиением по говорящим
 - `raw_transcription` - сырой текст
 
+Для диаризации с расширенными таймкодами используйте `task-type=diarization` вместе с опцией `timestamps-extended=1`: в SDK это `withTimestampsExtended()`, в CLI - `--timestamps-extended`.
+
 ### Языки
 `ru`, `en`, `de`, `fr`, `es`, `pt`, `hy`, `ja`, `tr`, `ar`, `zh`, `he`, `vi`, `auto`
 
@@ -331,7 +527,7 @@ if ($transcript->isSuccessful()) {
 ```bash
 make docker-init      # Инициализация Docker окружения и установка зависимостей
 make docker-up        # Запуск контейнеров
-make php-cli-bash     # Войти в контейнер
+make dev-php-bash     # Войти в контейнер
 ```
 
 ### Основные команды
@@ -339,6 +535,7 @@ make php-cli-bash     # Войти в контейнер
 ```bash
 make lint-all         # Запуск всех линтеров
 make lint-openspec    # Проверка OpenSpec артефактов
+make lint-agent-plugins # Проверка agent plugin и CLI reference
 make lint-php         # Запуск PHP-линтеров
 make lint-cs-fixer-fix # Исправление стиля кода
 make lint-phpstan     # Статический анализ

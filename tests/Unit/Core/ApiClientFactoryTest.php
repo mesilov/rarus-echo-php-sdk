@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Unit\Core;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -36,9 +37,11 @@ final class ApiClientFactoryTest extends TestCase
             $_ENV['RARUS_ECHO_API_KEY'],
             $_ENV['RARUS_ECHO_USER_ID'],
             $_ENV['RARUS_ECHO_BASE_URL'],
+            $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV],
             $_SERVER['RARUS_ECHO_API_KEY'],
             $_SERVER['RARUS_ECHO_USER_ID'],
-            $_SERVER['RARUS_ECHO_BASE_URL']
+            $_SERVER['RARUS_ECHO_BASE_URL'],
+            $_SERVER[ApiClientFactory::HTTP_TIMEOUT_ENV]
         );
     }
 
@@ -174,6 +177,101 @@ final class ApiClientFactoryTest extends TestCase
     {
         $apiClientFactory = new ApiClientFactory($this->credentials);
         $apiClient = $apiClientFactory->build();
+
+        $this->assertInstanceOf(ApiClient::class, $apiClient);
+    }
+
+    public function testWithHttpTimeoutReturnsSelf(): void
+    {
+        $apiClientFactory = new ApiClientFactory($this->credentials);
+
+        $this->assertSame($apiClientFactory, $apiClientFactory->withHttpTimeout(120));
+    }
+
+    public function testBuildWithCustomHttpTimeout(): void
+    {
+        $apiClient = (new ApiClientFactory($this->credentials))
+            ->withHttpTimeout(300)
+            ->build();
+
+        $this->assertInstanceOf(ApiClient::class, $apiClient);
+    }
+
+    #[DataProvider('nonPositiveTimeoutProvider')]
+    public function testWithHttpTimeoutRejectsNonPositiveValues(int $seconds): void
+    {
+        $apiClientFactory = new ApiClientFactory($this->credentials);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('HTTP timeout must be a positive number of seconds');
+
+        $apiClientFactory->withHttpTimeout($seconds);
+    }
+
+    /**
+     * @return array<string, array{int}>
+     */
+    public static function nonPositiveTimeoutProvider(): array
+    {
+        return [
+            'zero' => [0],
+            'negative' => [-1],
+        ];
+    }
+
+    public function testBuildAcceptsHttpTimeoutFromEnvironment(): void
+    {
+        $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV] = '900';
+
+        $apiClient = (new ApiClientFactory($this->credentials))->build();
+
+        $this->assertInstanceOf(ApiClient::class, $apiClient);
+    }
+
+    public function testBuildTreatsEmptyEnvironmentTimeoutAsDefault(): void
+    {
+        // An explicitly empty variable (e.g. `RARUS_ECHO_HTTP_TIMEOUT=` in .env)
+        // is treated as "not configured" and must not throw.
+        $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV] = '';
+
+        $apiClient = (new ApiClientFactory($this->credentials))->build();
+
+        $this->assertInstanceOf(ApiClient::class, $apiClient);
+    }
+
+    #[DataProvider('invalidEnvironmentTimeoutProvider')]
+    public function testBuildRejectsInvalidHttpTimeoutFromEnvironment(string $value): void
+    {
+        $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV] = $value;
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(ApiClientFactory::HTTP_TIMEOUT_ENV);
+
+        (new ApiClientFactory($this->credentials))->build();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidEnvironmentTimeoutProvider(): array
+    {
+        return [
+            'zero' => ['0'],
+            'non-numeric' => ['abc'],
+            'float' => ['12.5'],
+            'negative' => ['-30'],
+        ];
+    }
+
+    public function testExplicitHttpTimeoutOverridesEnvironment(): void
+    {
+        // An invalid env value must be ignored when an explicit timeout is set,
+        // proving the explicit value takes precedence over the environment.
+        $_ENV[ApiClientFactory::HTTP_TIMEOUT_ENV] = 'not-a-number';
+
+        $apiClient = (new ApiClientFactory($this->credentials))
+            ->withHttpTimeout(300)
+            ->build();
 
         $this->assertInstanceOf(ApiClient::class, $apiClient);
     }

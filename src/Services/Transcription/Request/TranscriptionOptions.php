@@ -19,7 +19,8 @@ final readonly class TranscriptionOptions
         private bool $speakersCorrection = false,
         private bool $storeFile = true,
         private bool $lowPriority = false,
-        private ?string $requestSource = null
+        private ?string $requestSource = null,
+        private bool $timestampsExtended = false
     ) {
     }
 
@@ -74,6 +75,11 @@ final readonly class TranscriptionOptions
         return $this->requestSource;
     }
 
+    public function isTimestampsExtended(): bool
+    {
+        return $this->timestampsExtended;
+    }
+
     /**
      * Convert options to HTTP headers
      *
@@ -88,6 +94,7 @@ final readonly class TranscriptionOptions
             'speakers-correction' => $this->speakersCorrection ? '1' : '0',
             'store-file' => $this->storeFile ? '1' : '0',
             'low-priority' => $this->lowPriority ? '1' : '0',
+            'timestamps-extended' => $this->timestampsExtended ? '1' : '0',
         ];
 
         if ($this->requestSource !== null) {

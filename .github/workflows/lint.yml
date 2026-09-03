@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/php-cli/Dockerfile') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('docker-compose.yaml', 'docker/dev-php/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -51,6 +51,9 @@ jobs:
 
       - name: Install dependencies
         run: make composer-install
+
+      - name: Validate agent plugins
+        run: make lint-agent-plugins
 
       - name: Run PHP linters
         run: make lint-php

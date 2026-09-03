@@ -13,6 +13,7 @@ use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
 use Rarus\Echo\Exception\ApiException;
 use Rarus\Echo\Exception\AuthenticationException;
+use Rarus\Echo\Exception\AuthorizationException;
 use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Exception\NetworkException;
 use Rarus\Echo\Exception\ValidationException;
@@ -46,7 +47,7 @@ use Symfony\Component\Uid\Uuid;
  * - tests/Assets/ru/examp-3.ogg
  *
  * Run with: make test-integration-transcription
- * Or: docker compose run php-cli vendor/bin/phpunit tests/Integration/Services/Transcription/
+ * Or: docker compose run dev-php vendor/bin/phpunit tests/Integration/Services/Transcription/
  */
 #[CoversClass(Transcription::class)]
 #[CoversMethod(Transcription::class, 'submit')]
@@ -103,6 +104,30 @@ final class TranscriptionServiceIntegrationTest extends IntegrationTestCase
         $transcriptSubmitResult = $this->transcription->submit([$this->testAudioPath('examp-1.ogg')], $transcriptionOptions);
         $this->assertInstanceOf(TranscriptSubmitResult::class, $transcriptSubmitResult);
         $this->assertNotEmpty($transcriptSubmitResult->getFileIds());
+    }
+
+    #[TestDox('отправка файла на диаризацию с расширенными таймкодами')]
+    public function testSubmitDiarizationWithExtendedTimestamps(): void
+    {
+        $transcriptionOptions = TranscriptionOptions::create()
+            ->withTaskType(TaskType::DIARIZATION)
+            ->withLanguage(Language::RU)
+            ->withSpeakersCorrection()
+            ->withTimestampsExtended()
+            ->build();
+
+        try {
+            $transcriptSubmitResult = $this->transcription->submit([$this->testAudioPath('examp-1.ogg')], $transcriptionOptions);
+        } catch (AuthorizationException $exception) {
+            if (str_contains($exception->getMessage(), 'Недостаточно средств')) {
+                $this->markTestSkipped('Live API rejected the paid submit request: insufficient funds.');
+            }
+
+            throw $exception;
+        }
+
+        $this->assertInstanceOf(TranscriptSubmitResult::class, $transcriptSubmitResult);
+        $this->assertCount(1, $transcriptSubmitResult->getFileIds());
     }
 
     #[TestDox('получение транскрипций за период')]

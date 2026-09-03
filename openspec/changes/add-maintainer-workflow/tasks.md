@@ -17,3 +17,4 @@
 - [x] 1.15 Document OpenSpec CLI installation and generated instruction update flow.
 - [x] 1.16 Require maintainer workflow to handle and resolve agent review comments.
 - [x] 1.17 Guard OpenSpec apply instructions from suggesting archive before PR merge.
+- [x] 1.18 Require issue-driven maintainer work to update `CHANGELOG.md` under `Unreleased`.
