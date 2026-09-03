@@ -27,7 +27,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk
+composer require mesilov/rarus-echo-php-sdk:^0.4
 ```
 
 ## Быстрый старт
