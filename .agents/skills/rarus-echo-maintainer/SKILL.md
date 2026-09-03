@@ -72,7 +72,21 @@ OpenSpec можно пропустить для исправления опеч�
 - Добавляй или обновляй тесты, когда меняется runtime-поведение PHP-кода.
 - Обновляй `README.md`, `CONTRIBUTING.md` или артефакты OpenSpec, когда меняется процесс или публичное использование.
 - Для каждой issue-работы обязательно обновляй `CHANGELOG.md`: добавляй запись в раздел `Unreleased` с кратким описанием изменения.
+- При изменении CLI (команды или опции в `src/Infrastructure/Console/Command/`) выравнивай документацию в двух местах — CLI reference transcription-скилла и `README.md`. Подробности в разделе «Изменения CLI».
 - Не добавляй правила, специфичные для Bitrix24, generated result-item contracts, OpenAPI refresh steps или выбор веток v1/v3. Это относится к другим SDK, не к этому репозиторию.
+
+## Изменения CLI
+
+Когда меняются CLI-команды или их опции (`src/Infrastructure/Console/Command/`), обязательно выровняй документацию в двух местах, иначе она разойдётся с фактическим контрактом команд:
+
+1. Сгенерированный CLI reference transcription-скилла. Перегенерируй его из текущего чекаута:
+   ```bash
+   .agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
+   ```
+   Дрейф этого файла (`.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`) проверяется `make lint-agent-plugins` (входит в `make lint-all` и `make ci`): если reference устарел, проверка падает.
+2. `README.md`, раздел `## CLI` (включая «Справочник команд и опций»). Он правится вручную и не покрыт дрейф-валидацией, поэтому актуализируй список команд, аргументов, опций, значений по умолчанию и примеры сам.
+
+Перед PR убедись, что оба места согласованы с определениями команд.
 
 ## Выкатка релиза
 

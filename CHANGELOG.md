@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Complete CLI key reference in the README `## CLI` section ("Справочник команд и опций"): global options plus per-command arguments and options for `queue`, `submit`, `status`, and `transcript`, with value requirements and defaults.
 - Parallel per-issue worktree tooling (`make worktree-new`, `worktree-remove`, `worktree-list` backed by a maintainer-skill script `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh`): creates a git-ignored `.worktree/<issue>-<slug>` checkout branched off `origin/<base>`, provisioned with a symlinked `.env.local` and an independent clone-copied `vendor/`, and removes it while keeping the branch.
 - Cross-agent `rarus-echo-transcription` plugin with a shared transcription skill, marketplace entries, and CLI reference drift validation for agent sessions.
 - CLI `submit --wait` can now submit audio and poll until terminal transcript results, including JSON, raw transcript, and output-file modes while keeping progress on stderr.
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected the Claude Code plugin install instructions in `README.md` and the transcription skill's `distribution.md`: the repo-local marketplace source must be `./` (the CLI rejects a bare `.` with `Invalid marketplace source format`), so `claude plugin marketplace add .` is now `claude plugin marketplace add ./`.
 
 ### Changed
+- Maintainer workflow now requires aligning CLI documentation in both places on any CLI change: the generated transcription-skill CLI reference (`update-cli-reference.sh`, drift-checked by `make lint-agent-plugins`) and the README `## CLI` section.
 - CLI Docker image now builds on the official `php:8.4-cli-alpine` runtime base instead of `php:8.4-cli-bookworm`, reducing published image size while preserving `rarus-echo` behavior, the `curl`/`fileinfo`/`mbstring` extensions, PSR-17/PSR-18 discovery smoke checks, and multi-arch `linux/amd64`/`linux/arm64` publication.
 - Renamed the local development/CI container from `php-cli` to `dev-php` (directory `docker/dev-php/`, Compose service `dev-php`) so its name reflects its purpose and is distinct from the published `rarus-echo-cli` image; the shell helpers are now `make dev-php-bash` and `make dev-php-root`.
 - README now displays CI status badges for the Lint and Tests GitHub Actions workflows.
