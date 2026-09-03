@@ -68,12 +68,18 @@ for command in "${PROJECT_COMMANDS[@]}"; do
   run_cli help "${command}" --format=json > "${TMP_DIR}/${command}.json"
 done
 
-node - "${TMP_DIR}" > "${TMP_OUTPUT}" <<'NODE'
+node - "${TMP_DIR}" "${PROJECT_COMMANDS[@]}" > "${TMP_OUTPUT}" <<'NODE'
 const fs = require("fs");
 const path = require("path");
 
 const tmpDir = process.argv[2];
-const projectCommands = ["queue", "submit", "status", "transcript"];
+// Single source of truth for the command list: the shell PROJECT_COMMANDS array,
+// passed in as arguments. Keeping only one list avoids the bash/node arrays drifting apart.
+const projectCommands = process.argv.slice(3);
+if (projectCommands.length === 0) {
+  console.error("No project commands passed to the CLI reference generator");
+  process.exit(1);
+}
 const optionAllowlist = {
   queue: ["json"],
   submit: [
@@ -226,7 +232,11 @@ for (const name of projectCommands) {
   lines.push("| --- | --- | --- | --- | --- | --- |");
 
   const options = definition.options || {};
-  for (const optionName of optionAllowlist[name]) {
+  const allowedOptions = optionAllowlist[name];
+  if (!allowedOptions) {
+    fail(`Command ${name} has no optionAllowlist entry in update-cli-reference.sh; add one (at least ["json"])`);
+  }
+  for (const optionName of allowedOptions) {
     const option = options[optionName];
     if (!option) {
       fail(`Command ${name} is missing expected option --${optionName}`);
