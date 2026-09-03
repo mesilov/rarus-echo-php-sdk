@@ -84,6 +84,8 @@ OpenSpec можно пропустить для исправления опеч�
    .agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
    ```
    Дрейф этого файла (`.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`) проверяется `make lint-agent-plugins` (входит в `make lint-all` и `make ci`): если reference устарел, проверка падает.
+
+   Важно: если добавляешь новую команду или опцию, сначала внеси её в массивы `PROJECT_COMMANDS`/`optionAllowlist` в `update-cli-reference.sh`. Генератор и валидатор работают только по этим спискам, поэтому новый ключ, не добавленный туда, не попадёт в reference, а `make lint-agent-plugins` всё равно пройдёт — ключ останется недокументированным без ошибки.
 2. `README.md`, раздел `## CLI` (включая «Справочник команд и опций»). Он правится вручную и не покрыт дрейф-валидацией, поэтому актуализируй список команд, аргументов, опций, значений по умолчанию и примеры сам.
 
 Перед PR убедись, что оба места согласованы с определениями команд.
