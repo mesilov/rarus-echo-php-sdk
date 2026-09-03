@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: README Documents the Complete CLI Option Reference
-The README `## CLI` section SHALL contain a structured reference listing every CLI key: the global options available on all commands, and the arguments and options of each command (`queue`, `submit`, `status`, `transcript`) with their value requirements and defaults.
+The README `## CLI` section SHALL contain a structured reference listing every CLI key: the global options available on the RARUS Echo commands (the Echo-added `--json` plus the Symfony Console globals), and the arguments and options of each command (`queue`, `submit`, `status`, `transcript`) with their value requirements and defaults.
 
 #### Scenario: User looks up a CLI key
 - **WHEN** a user reads the README CLI reference
-- **THEN** it SHALL list the global options (including `--json`)
+- **THEN** it SHALL list the global options, including `--json` scoped to the Echo commands (not Symfony's built-in `list`/`help`) and the Symfony Console globals
 - **AND** it SHALL list, per command, each argument and option with whether the option takes a value and its default where one exists
 
 ### Requirement: Maintainer Workflow Aligns CLI Documentation on CLI Changes

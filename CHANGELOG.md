@@ -7,16 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- CLI reference generator (`update-cli-reference.sh`) now single-sources the command list from the shell `PROJECT_COMMANDS` array (the Node generator receives it as arguments, with no duplicate hardcoded list) and fails with a clear, actionable message when a command has no `optionAllowlist` entry instead of crashing; the maintainer "Изменения CLI" note is simplified to match.
-
-### Fixed
-- README CLI reference: scoped `--json` to the RARUS Echo commands (it is not available on Symfony's built-in `list`/`help`), added the `--silent` global option, and qualified `--silent` as requiring Symfony Console ≥ 7.2 given the `symfony/console: ^6.4 || ^7.0 || 8.0.*` constraint.
-
 ## [0.4.0] - 2026-09-03
 
 ### Added
-- Complete CLI key reference in the README `## CLI` section ("Справочник команд и опций"): global options plus per-command arguments and options for `queue`, `submit`, `status`, and `transcript`, with value requirements and defaults.
+- Complete CLI key reference in the README `## CLI` section ("Справочник команд и опций"): global options (with `--json` scoped to the Echo commands and `--silent` noted as requiring Symfony Console ≥ 7.2) plus per-command arguments and options for `queue`, `submit`, `status`, and `transcript`, with value requirements and defaults.
 - Parallel per-issue worktree tooling (`make worktree-new`, `worktree-remove`, `worktree-list` backed by a maintainer-skill script `.agents/skills/rarus-echo-maintainer/scripts/worktree.sh`): creates a git-ignored `.worktree/<issue>-<slug>` checkout branched off `origin/<base>`, provisioned with a symlinked `.env.local` and an independent clone-copied `vendor/`, and removes it while keeping the branch.
 - Cross-agent `rarus-echo-transcription` plugin with a shared transcription skill, marketplace entries, and CLI reference drift validation for agent sessions.
 - CLI `submit --wait` can now submit audio and poll until terminal transcript results, including JSON, raw transcript, and output-file modes while keeping progress on stderr.
@@ -30,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Maintainer workflow now requires aligning CLI documentation in both places on any CLI change: the generated transcription-skill CLI reference (`update-cli-reference.sh`, drift-checked by `make lint-agent-plugins`) and the README `## CLI` section.
+- CLI reference generator (`update-cli-reference.sh`) single-sources the command list from the shell `PROJECT_COMMANDS` array (the Node generator receives it as arguments, with no duplicate hardcoded list) and fails with a clear, actionable message when a command has no `optionAllowlist` entry instead of crashing.
 - CLI Docker image now builds on the official `php:8.4-cli-alpine` runtime base instead of `php:8.4-cli-bookworm`, reducing published image size while preserving `rarus-echo` behavior, the `curl`/`fileinfo`/`mbstring` extensions, PSR-17/PSR-18 discovery smoke checks, and multi-arch `linux/amd64`/`linux/arm64` publication.
 - Renamed the local development/CI container from `php-cli` to `dev-php` (directory `docker/dev-php/`, Compose service `dev-php`) so its name reflects its purpose and is distinct from the published `rarus-echo-cli` image; the shell helpers are now `make dev-php-bash` and `make dev-php-root`.
 - README now displays CI status badges for the Lint and Tests GitHub Actions workflows.
