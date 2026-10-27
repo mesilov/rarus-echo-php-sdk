@@ -14,6 +14,7 @@ Refresh it after CLI command or option changes:
 | Command | Description |
 | --- | --- |
 | `install` | Configure and save a private RARUS Echo connection interactively. |
+| `doctor` | Check configuration, authenticated Echo access and ffmpeg readiness. |
 | `queue` | Show aggregated transcription queue information. |
 | `submit` | Submit one or more files for transcription. |
 | `status` | Show transcription status for one file. |
@@ -37,6 +38,27 @@ None.
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
+
+## doctor
+
+Check configuration, authenticated Echo access and ffmpeg readiness.
+
+### Usage
+
+```text
+doctor [--json]
+```
+
+### Arguments
+
+None.
+
+### Options
+
+| Option | Accepts Value | Value Required | Multiple | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--json` | no | no | no | `false` | Write diagnostic report as JSON. |
 | `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 
 ## queue
