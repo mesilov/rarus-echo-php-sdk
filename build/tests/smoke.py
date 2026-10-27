@@ -82,10 +82,16 @@ def smoke(directory, version, sha, probe=None, php=None):
         result = command(binary, ["--version", "--no-ansi"], workspace, env, php=php)
         check(version in result.stdout and sha in result.stdout, "Embedded identity mismatch")
         command(binary, ["--help", "--no-ansi"], workspace, env, php=php)
-        for name in ["install", "queue", "submit", "status", "transcript"]:
+        for name in ["install", "doctor", "queue", "submit", "status", "transcript"]:
             command(binary, [name, "--help", "--no-ansi"], workspace, env, php=php)
         missing = command(binary, ["queue", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
         check("RARUS_ECHO_API_KEY" in missing.stderr, "Missing credential handling failed")
+        diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
+        report = json.loads(diagnosis.stdout)
+        check(report["schema_version"] == 1 and report["status"] == "error", "Doctor report contract failed")
+        check(set(report["checks"]) == {"config", "connection", "ffmpeg"}, "Doctor omitted a check")
+        check(report["checks"]["connection"]["status"] == "skipped", "Doctor requested Echo without credentials")
+        check(report["checks"]["ffmpeg"]["code"] == "ffmpeg_missing", "Doctor ignored isolated PATH")
         invalid = command(binary, ["status", "invalid-id", "--json", "--no-ansi"],
                           workspace, env, expected=1, php=php)
         check("valid UUID" in invalid.stderr, "Invalid input handling failed")
@@ -116,6 +122,13 @@ def smoke(directory, version, sha, probe=None, php=None):
                            "RARUS_ECHO_BASE_URL": url}
             queue = command(binary, ["queue", "--json", "--no-ansi"], workspace, env | credentials, php=php)
             check(json.loads(queue.stdout)["files_count"] == 3, "Queue or environment credentials failed")
+            diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace,
+                                env | credentials, expected=1, php=php)
+            report = json.loads(diagnosis.stdout)
+            check(report["checks"]["connection"]["status"] == "ok", "Doctor authenticated queue request failed")
+            check(report["checks"]["config"]["details"]["source"] == "environment", "Doctor source selection failed")
+            check(API_KEY not in diagnosis.stdout + diagnosis.stderr
+                  and USER_ID not in diagnosis.stdout + diagnosis.stderr, "Doctor leaked credentials")
             config = workspace / "параметры доступа" / "connection.json"
             command(binary, ["--config", str(config), "--help"], workspace, env, php=php)
             command(binary, ["--config", str(config), "--version"], workspace, env, php=php)
