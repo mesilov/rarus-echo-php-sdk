@@ -11,8 +11,14 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from media.console import configure_build_console
+
+configure_build_console()
 
 
 FILE_IDS = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444']

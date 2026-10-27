@@ -92,6 +92,18 @@ else:
         self.assertIn(r'bad\xe9', result.stdout)
         self.assertIn('verified native failure 7', result.stdout)
 
+    def test_installed_media_acceptance_logs_unicode_under_cp1252(self):
+        code = f'''import runpy, sys
+assert sys.stdout.encoding.lower() == 'cp1252'
+runpy.run_path({str(BUILD / 'tests/installed-media-check.py')!r}, run_name='installed_media_fixture')
+print('Installed native toolkit lookup/audio-only upload accepted: ' + {TEXT!r})
+print({TEXT!r}, file=sys.stderr)
+'''
+        result = self.script(code)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(TEXT, result.stdout)
+        self.assertIn(TEXT, result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
