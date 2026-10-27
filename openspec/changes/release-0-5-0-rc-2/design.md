@@ -15,6 +15,7 @@ Publish the exact requested rc-2 from main through the existing native gates and
 - Archive merged doctor first, then media: the latter modifies the former diagnostic requirement. Preserve the two existing scenario titles while applying their approved bundled-toolkit semantics so OpenSpec does not silently discard coverage.
 - Update the explicit prerelease documentation requirement to follow the selected RC, preserving its existing scenario identity. Runtime and CI requirements do not change; tag builds and public acceptance remain mandatory on all four targets.
 - After publication/acceptance, archive this change and synchronize release documentation/evidence back into dev using a closeout PR.
+- PR #70 review reproduced an audio-only WebM regression: fileinfo reports video/webm, so a MIME-only fast path incorrectly requires media tools. Add structural proof of audio-only WebM before toolkit resolution with at most 1 MiB metadata reads and 4096 element headers; only an unknown-size root Segment may use regular-file EOF as its bound; malformed, video, unknown and over-budget containers retain the existing verified-tool path. Manual stream selection on proven audio-only input remains invalid. This implements the already approved media requirement rather than changing it.
 
 ## Risks / Trade-offs
 
@@ -25,3 +26,9 @@ Publish the exact requested rc-2 from main through the existing native gates and
 ## Migration Plan
 
 Merge the checked release source, tag the exact main SHA, wait for native publication, accept public assets, and hand off the macOS archive. On failure, repair the source through a new reviewed commit before selecting a new immutable version; never move or overwrite a published tag.
+
+## Container references
+
+- [RFC 8794: EBML](https://www.rfc-editor.org/rfc/rfc8794.html)
+- [RFC 9559: Matroska Segment](https://www.rfc-editor.org/rfc/rfc9559.html#section-5.1)
+- [W3C WebM byte-stream format](https://www.w3.org/TR/mse-byte-stream-format-webm/)

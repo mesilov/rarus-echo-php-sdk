@@ -10,6 +10,7 @@ Issue #69 and the maintainer request authorize publishing 0.5.0-rc-2 from main. 
 - Archive the merged doctor and media changes in dependency order and synchronize their canonical specs, retaining existing scenario identities.
 - Promote the dev-based release source to main through a reviewed, green PR, then tag that exact main commit.
 - Use the existing four-platform tag publication and public-release acceptance workflows; download and verify the public macOS arm64 archive for handoff.
+- Fix the confirmed toolkit-free audio-only WebM regression with bounded structural container inspection; retain the approved audio/video and failure contracts.
 - Synchronize release documentation back to dev. Stable 0.5.0 and the separate README restructuring in #68 retain their own lifecycle.
 
 ## Capabilities
@@ -24,4 +25,4 @@ None.
 
 ## Impact
 
-CHANGELOG, explicit README version examples and OpenSpec lifecycle files. No PHP runtime, SDK API, dependencies or CI behavior changes. The user has authorized main promotion and the exact 0.5.0-rc-2 tag/publication. Prerelease metadata preserves Latest stable.
+CHANGELOG, explicit README version examples, OpenSpec lifecycle files and a focused internal CLI audio-only WebM classification fix with regression tests. The public SDK API, dependencies, media profile and CI behavior remain unchanged. The user has authorized main promotion and the exact 0.5.0-rc-2 tag/publication. Prerelease metadata preserves Latest stable.

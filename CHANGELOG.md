@@ -17,6 +17,7 @@ Second release candidate for 0.5.0, adding automatic video audio preparation, bu
 - CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
 
 ### Fixed
+- Preserve toolkit-free submission of audio-only WebM when fileinfo reports the shared video/webm MIME; bounded container inspection keeps actual video on the preparation path (#60, #69).
 - Bootstrap the Windows installer with Unicode temporary paths without invoking the PowerShell 5.1 CodeDOM compiler (#59).
 - Select historical release smoke commands from the verified tagged source, keeping doctor mandatory for new builds while accepting the earlier RC (#59).
 

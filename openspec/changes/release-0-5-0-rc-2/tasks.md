@@ -4,7 +4,8 @@
 
 - [x] 1.1 Merge verified PR #67 into dev; verify expected head 5400887, green CI, no unresolved agent threads and merge commit e46d969.
 - [x] 1.2 Archive merged doctor then media, add the selected-RC documentation delta and update CHANGELOG/explicit README examples; verify canonical diagnostic/media specs, preserved rc-1 history and exact rc-2 version.
-- [x] 1.3 Run make lint-openspec, make test-unit, make lint-all, Python build contracts and git diff --check; record the successful commands.
+- [x] 1.3 Preserve toolkit-free audio-only WebM submission; verify the actual committed fixture, video/manual-selection rejection and bounded malformed-container cases before rerunning all local gates.
+- [x] 1.4 Run make lint-openspec, make test-unit, make lint-all, Python build contracts and git diff --check; record the successful commands.
 
 ## 2. Promote to main
 
