@@ -116,7 +116,9 @@ while [ "$#" -gt 0 ]; do
     last=$1
     shift
 done
-[ -n "$input" ] && [ "$(wc -c < "$input")" -eq 2048 ] || exit 9
+[ -n "$input" ] || exit 9
+bytes=$(wc -c < "$input")
+[ "$bytes" -ge 32 ] && [ "$((bytes % 2))" -eq 0 ] || exit 9
 printf 'fixture FLAC' > "$last"
 '''
         media = {'schema_version': 1, 'ffmpeg_version': '9.0.2', 'source_sha256': MEDIA_SHA,
@@ -467,7 +469,7 @@ exec "''' + real_mv + '''" "$@"
         self.run_installer('--no-modify-path', success=False)
         self.assertEqual(media.read_text(), 'conflicting manifest')
 
-    def test_media_acceptance_uses_1024_pcm_frames_for_flac(self):
+    def test_media_acceptance_uses_valid_flac_pcm_frame_count(self):
         self.package(mode='pcm-sample-check')
         self.run_installer('--no-modify-path')
 

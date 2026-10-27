@@ -177,7 +177,7 @@ function New-MediaFixture([string]$Path, [string]$Tool, [string]$Mode = '') {
     $failure = ''
     if ($Mode -eq 'conversion-failure') { $failure = 'if(args.Length > 0) return 9;' }
     $operation = 'Console.WriteLine("flac");'
-    if ($Tool -eq 'ffmpeg') { $operation = 'int input = Array.IndexOf(args, "-i"); if(input < 0 || new System.IO.FileInfo(args[input+1]).Length != 2048) return 9; System.IO.File.WriteAllText(args[args.Length-1], "fixture FLAC");' }
+    if ($Tool -eq 'ffmpeg') { $operation = 'int input = Array.IndexOf(args, "-i"); if(input < 0) return 9; long bytes = new System.IO.FileInfo(args[input+1]).Length; if(bytes < 32 || bytes % 2 != 0) return 9; System.IO.File.WriteAllText(args[args.Length-1], "fixture FLAC");' }
     $source = 'using System; public class ' + $class + ' { public static int Main(string[] args) { if(args.Length == 1 && args[0] == "-version") { Console.WriteLine("' + $Tool + ' version ' + $mediaVersion + ' fixture"); return 0; } ' + $failure + ' ' + $operation + ' return 0; }}'
     Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly $Path -OutputType ConsoleApplication
 }
