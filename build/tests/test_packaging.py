@@ -11,6 +11,7 @@ import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release_assets
+from smoke import extract_archive
 from source import verify_checkout
 
 SHA = "a" * 40
@@ -60,6 +61,15 @@ class ArchiveTests(unittest.TestCase):
             self.assertNotIn(".env", names)
             self.assertNotIn("runtime-probe", names)
             self.assertIn("runtime-licenses/PHP.txt", names)
+
+    def test_extracts_tar_and_zip_without_tarfile_filter_support(self):
+        output = self.archives()
+        for target in release_assets.TARGETS:
+            extracted = self.root / ("extracted-" + target)
+            extracted.mkdir()
+            extract_archive(output / release_assets.archive_name(target), extracted, "v0.5.0", SHA)
+            self.assertTrue((extracted / release_assets.executable(target)).is_file())
+            self.assertEqual("license", (extracted / "runtime-licenses/PHP.txt").read_text())
 
     def test_manifest_covers_four_archives_and_rejects_tampering(self):
         output = self.archives()

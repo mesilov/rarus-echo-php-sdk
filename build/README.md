@@ -32,7 +32,7 @@ The PHAR itself is an intermediate build artifact.
 
 ## Native executables
 
-All targets require Python >=3.12, PHP 8.5.11, Composer 2.10.3, Git, network
+All targets require Python >=3.11, PHP 8.5.11, Composer 2.10.3, Git, network
 access to the pinned toolchain/source archives, and a native C/C++ compiler.
 The GitHub Actions workflow supplies the platform-specific prerequisites.
 

@@ -131,6 +131,30 @@ def smoke(directory, version, sha, probe=None, php=None):
         print("Accepted standalone CLI: " + version + " " + sha)
 
 
+def extract_archive(path, destination, version, sha):
+    if path.suffix == ".zip":
+        with zipfile.ZipFile(path) as archive:
+            info = json.loads(archive.read("build-info.json"))
+        inspect_archive(path, info["target"], version, sha)
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                output = destination / name
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(name) as source, output.open("xb") as target:
+                    shutil.copyfileobj(source, target)
+    else:
+        with tarfile.open(path) as archive:
+            info = json.load(archive.extractfile("build-info.json"))
+        inspect_archive(path, info["target"], version, sha)
+        with tarfile.open(path) as archive:
+            for member in archive:
+                output = destination / member.name
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with archive.extractfile(member) as source, output.open("xb") as target:
+                    shutil.copyfileobj(source, target)
+                output.chmod(member.mode)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifact", type=Path)
@@ -144,19 +168,7 @@ def main():
         return
     with tempfile.TemporaryDirectory(prefix="echo-extract-") as temp:
         destination = Path(temp)
-        # Inspect the same allowlisted, regular-file archive before extracting.
-        if args.artifact.suffix == ".zip":
-            with zipfile.ZipFile(args.artifact) as archive:
-                info = json.loads(archive.read("build-info.json"))
-            inspect_archive(args.artifact, info["target"], args.version, args.source_sha)
-            with zipfile.ZipFile(args.artifact) as archive:
-                archive.extractall(destination)
-        else:
-            with tarfile.open(args.artifact) as archive:
-                info = json.load(archive.extractfile("build-info.json"))
-            inspect_archive(args.artifact, info["target"], args.version, args.source_sha)
-            with tarfile.open(args.artifact) as archive:
-                archive.extractall(destination, filter="data")
+        extract_archive(args.artifact, destination, args.version, args.source_sha)
         smoke(destination, args.version, args.source_sha, args.probe, args.php)
 
 
