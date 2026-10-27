@@ -518,9 +518,9 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
         Assert-True (Test-Path -LiteralPath (Join-Path $custom 'package/runtime-licenses/PHP.txt')) 'Custom package notices missing.'
         Assert-Fails { Install-RarusEcho -InstallDir 'relative/bin' -NoModifyPath } 'absolute'
     }
+    $next = Join-Path $root 'next.exe'
     Test-Case 'explicit prerelease updates executable and notices' {
         $script:tag = 'v1.3.0-rc.1'
-        $next = Join-Path $root 'next.exe'
         New-ConsoleFixture $next ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')
         $script:asset = Join-Path $root 'next.zip'
         New-TestArchive $script:asset $next
