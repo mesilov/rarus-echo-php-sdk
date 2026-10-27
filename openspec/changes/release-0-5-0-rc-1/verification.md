@@ -16,4 +16,8 @@ Issue: https://github.com/mesilov/rarus-echo-php-sdk/issues/59
 
 ## Publication receipts
 
+The immutable tag points to main commit `e359975527bd483707dc39d23599545a77c1620d`. [Build/publication run](https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40522031696) succeeded with four native archives and SHA256SUMS; the prerelease leaves Latest stable at 0.4.0. [Initial public acceptance](https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40525546547) passed both Linux targets and macOS. Windows failed before starting the binary, in PowerShell 5.1 CodeDOM under Unicode TEMP.
+
+[Native diagnostic](https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40528017127/job/122272789088) confirms ANSI CodeDOM temp-directory creation fails while managed Unicode file creation succeeds; changing only TEMP to ASCII succeeds. [Tests-only regression RED](https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40528487241/job/122274478738) at `1cdaf07` reproduces the installer failure in a fresh Unicode TEMP/cwd process. The bootstrap fix replaces C# compilation with two fixed, in-memory Reflection.Emit P/Invoke definitions, preserving the published tag and binaries.
+
 The release tag, exact main commit, native build run and public-asset acceptance results are recorded in issue #59 after publication. Real acceptance uses anonymous public release assets, not PR workflow artifacts. No release success is implied by the local offline checks above.

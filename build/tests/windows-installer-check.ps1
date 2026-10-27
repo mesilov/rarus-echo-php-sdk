@@ -153,6 +153,13 @@ public static class RarusEchoInstallerTestEnvironment {
 }
 
 try {
+    Test-Case 'native interop definitions are available without compiler output' {
+        Initialize-RarusEchoNativeMethods
+        $native = 'RarusEchoInstallerNativeMethods' -as [type]
+        Assert-True ($native.Assembly.IsDynamic) 'Native interop must stay in memory.'
+        Assert-True ($null -ne $native.GetMethod('IsWow64Process2')) 'Missing architecture P/Invoke.'
+        Assert-True ($null -ne $native.GetMethod('SendMessageTimeout')) 'Missing environment broadcast P/Invoke.'
+    }
     Test-Case 'unsupported platform fails before any download' {
         function Get-RarusEchoPlatform { return 'linux-arm64' }
         Assert-Fails { Install-RarusEcho -NoModifyPath } 'Windows.*amd64|unsupported'

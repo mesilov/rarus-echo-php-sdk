@@ -16,6 +16,8 @@ The acceptance helper receives version and source SHA as process arguments, not 
 
 Release review found that .NET user environment access expands REG_EXPAND_SZ and writes REG_SZ. Windows installation will instead read the raw HKCU Environment Path value with its kind/existence, preserve references and kind on prepend, and restore the exact prior state on rollback. The final registry update broadcasts the Environment setting change so future shells reload it. A native regression seeds expandable references before installation.
 
+Published acceptance exposed a PowerShell 5.1 CodeDOM failure before the CLI starts: an elevated process creates compiler temporary directories through an ANSI Windows API, so Unicode TEMP fails. Native diagnostic run 40528017127 reproduces this with TempFileCollection.BasePath and Add-Type; changing only TEMP to ASCII succeeds. Explicit CodeDOM TempFiles also fails writing the Unicode output assembly. Keep Unicode paths and existing permissions intact; define the two fixed native API signatures with Reflection.Emit and AssemblyBuilderAccess.Run instead. This writes no compiler files and does not change TEMP. A fresh-process regression exercises native architecture detection and bounded Unicode WM_SETTINGCHANGE twice, with Unicode TEMP/cwd, unchanged environment, and no leftover files.
+
 ## Risks / Trade-offs
 
 - First prerelease does not replace stable Latest, whose archives are missing → README uses an explicit RC version and retains stable guidance.
