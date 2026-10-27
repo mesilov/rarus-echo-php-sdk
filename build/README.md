@@ -119,6 +119,11 @@ installer in isolated user directories. Fresh and repeat installs are followed
 by CLI/configuration smoke tests using a local HTTP server and synthetic data.
 No production API credentials or workflow artifact fallback are used.
 
+Smoke commands follow the verified tag's source, rather than the current checkout:
+the earlier 0.5.0-rc-1 has no doctor command. The helper selects the historical
+`--without-doctor` smoke mode only when DoctorCommand.php is absent from that
+source commit. New package builds retain mandatory doctor help and diagnostics.
+
 To repeat acceptance on one supported native machine, fetch main and tags, then:
 
 ```bash

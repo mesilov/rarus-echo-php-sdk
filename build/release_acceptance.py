@@ -67,6 +67,15 @@ def file_hash(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def release_smoke_options(root, sha):
+    # Historical binaries must match their tagged command set. New package builds
+    # still require doctor by default in smoke.py, including registration checks.
+    doctor = 'src/Infrastructure/Console/Command/DoctorCommand.php'
+    result = subprocess.run(['git', 'ls-tree', '--name-only', sha, '--', doctor],
+                            cwd=root, check=True, capture_output=True, text=True, timeout=30)
+    return [] if result.stdout.strip() == doctor else ['--without-doctor']
+
+
 def verify_archive(archive, manifest, target, version, sha):
     records = {}
     for line in Path(manifest).read_text(encoding="utf-8").splitlines():
@@ -262,6 +271,7 @@ def preserved_user_state(env, target):
 
 def accept_release(version, sha, target):
     resolve_main_tag(ROOT, version, sha)
+    smoke_options = release_smoke_options(ROOT, sha)
     if target != native_target():
         raise ValueError("Requested target differs from the native runner")
     with tempfile.TemporaryDirectory(prefix="echo-public-release-") as temporary:
@@ -302,7 +312,8 @@ def accept_release(version, sha, target):
                 verify_installation(install, notices, verified, target)
                 check_configuration(install / executable(target), cwd, env, configs)
                 subprocess.run([sys.executable, str(BUILD / "tests/smoke.py"), str(install),
-                                "--version", version, "--source-sha", sha],
+                                "--version", version, "--source-sha", sha,
+                                *smoke_options],
                                cwd=cwd, env=env, check=True, timeout=180)
                 verify_files_unchanged(configs, "Configuration")
                 check_user_state()

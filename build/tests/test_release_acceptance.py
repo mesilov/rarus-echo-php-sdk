@@ -132,6 +132,23 @@ class AcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "installer differs"):
             release_acceptance.verify_installer(public, source)
 
+    def test_smoke_commands_follow_tagged_source_instead_of_current_checkout(self):
+        self.git('init', '-b', 'main')
+        (self.root / 'source').write_text('before doctor\n', encoding='utf-8')
+        self.git('add', 'source')
+        self.git('commit', '-m', 'historical CLI')
+        historical = self.git('rev-parse', 'HEAD')
+        doctor = self.root / 'src/Infrastructure/Console/Command/DoctorCommand.php'
+        doctor.parent.mkdir(parents=True)
+        doctor.write_text('<?php // doctor introduced\n', encoding='utf-8')
+        self.git('add', 'src')
+        self.git('commit', '-m', 'current CLI with doctor')
+        current = self.git('rev-parse', 'HEAD')
+        self.assertEqual(['--without-doctor'], release_acceptance.release_smoke_options(self.root, historical))
+        self.assertEqual([], release_acceptance.release_smoke_options(self.root, current))
+        with self.assertRaises(subprocess.CalledProcessError):
+            release_acceptance.release_smoke_options(self.root, 'f' * 40)
+
     def test_isolates_user_directories_and_removes_ambient_api_credentials(self):
         env = release_acceptance.isolated_environment(self.root, {
             "PATH": os.defpath, "HOME": "/real/home", "APPDATA": "/real/config",

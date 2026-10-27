@@ -62,7 +62,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.answer({"results": [{"file_id": FILE_ID}]})
 
 
-def smoke(directory, version, sha, probe=None, php=None):
+def smoke(directory, version, sha, probe=None, php=None, doctor=True):
     with tempfile.TemporaryDirectory(prefix="echo-acceptance-") as temp:
         workspace = Path(temp) / "изолированный каталог"
         workspace.mkdir()
@@ -82,16 +82,17 @@ def smoke(directory, version, sha, probe=None, php=None):
         result = command(binary, ["--version", "--no-ansi"], workspace, env, php=php)
         check(version in result.stdout and sha in result.stdout, "Embedded identity mismatch")
         command(binary, ["--help", "--no-ansi"], workspace, env, php=php)
-        for name in ["install", "doctor", "queue", "submit", "status", "transcript"]:
+        for name in ["install", "queue", "submit", "status", "transcript"] + (["doctor"] if doctor else []):
             command(binary, [name, "--help", "--no-ansi"], workspace, env, php=php)
         missing = command(binary, ["queue", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
         check("RARUS_ECHO_API_KEY" in missing.stderr, "Missing credential handling failed")
-        diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
-        report = json.loads(diagnosis.stdout)
-        check(report["schema_version"] == 1 and report["status"] == "error", "Doctor report contract failed")
-        check(set(report["checks"]) == {"config", "connection", "ffmpeg"}, "Doctor omitted a check")
-        check(report["checks"]["connection"]["status"] == "skipped", "Doctor requested Echo without credentials")
-        check(report["checks"]["ffmpeg"]["code"] == "ffmpeg_missing", "Doctor ignored isolated PATH")
+        if doctor:
+            diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
+            report = json.loads(diagnosis.stdout)
+            check(report["schema_version"] == 1 and report["status"] == "error", "Doctor report contract failed")
+            check(set(report["checks"]) == {"config", "connection", "ffmpeg"}, "Doctor omitted a check")
+            check(report["checks"]["connection"]["status"] == "skipped", "Doctor requested Echo without credentials")
+            check(report["checks"]["ffmpeg"]["code"] == "ffmpeg_missing", "Doctor ignored isolated PATH")
         invalid = command(binary, ["status", "invalid-id", "--json", "--no-ansi"],
                           workspace, env, expected=1, php=php)
         check("valid UUID" in invalid.stderr, "Invalid input handling failed")
@@ -122,13 +123,14 @@ def smoke(directory, version, sha, probe=None, php=None):
                            "RARUS_ECHO_BASE_URL": url}
             queue = command(binary, ["queue", "--json", "--no-ansi"], workspace, env | credentials, php=php)
             check(json.loads(queue.stdout)["files_count"] == 3, "Queue or environment credentials failed")
-            diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace,
-                                env | credentials, expected=1, php=php)
-            report = json.loads(diagnosis.stdout)
-            check(report["checks"]["connection"]["status"] == "ok", "Doctor authenticated queue request failed")
-            check(report["checks"]["config"]["details"]["source"] == "environment", "Doctor source selection failed")
-            check(API_KEY not in diagnosis.stdout + diagnosis.stderr
-                  and USER_ID not in diagnosis.stdout + diagnosis.stderr, "Doctor leaked credentials")
+            if doctor:
+                diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace,
+                                    env | credentials, expected=1, php=php)
+                report = json.loads(diagnosis.stdout)
+                check(report["checks"]["connection"]["status"] == "ok", "Doctor authenticated queue request failed")
+                check(report["checks"]["config"]["details"]["source"] == "environment", "Doctor source selection failed")
+                check(API_KEY not in diagnosis.stdout + diagnosis.stderr
+                      and USER_ID not in diagnosis.stdout + diagnosis.stderr, "Doctor leaked credentials")
             config = workspace / "параметры доступа" / "connection.json"
             command(binary, ["--config", str(config), "--help"], workspace, env, php=php)
             command(binary, ["--config", str(config), "--version"], workspace, env, php=php)
@@ -208,14 +210,16 @@ def main():
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--probe", type=Path)
     parser.add_argument("--php", type=Path)
+    parser.add_argument("--without-doctor", action="store_true",
+                        help="Accept a historical release whose tagged source predates doctor")
     args = parser.parse_args()
     if args.artifact.is_dir():
-        smoke(args.artifact, args.version, args.source_sha, args.probe, args.php)
+        smoke(args.artifact, args.version, args.source_sha, args.probe, args.php, not args.without_doctor)
         return
     with tempfile.TemporaryDirectory(prefix="echo-extract-") as temp:
         destination = Path(temp)
         extract_archive(args.artifact, destination, args.version, args.source_sha)
-        smoke(destination, args.version, args.source_sha, args.probe, args.php)
+        smoke(destination, args.version, args.source_sha, args.probe, args.php, not args.without_doctor)
 
 
 if __name__ == "__main__":
