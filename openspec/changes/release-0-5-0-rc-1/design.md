@@ -14,6 +14,8 @@ Reuse build/release_assets.py archive inspection and build/tests/smoke.py. A sma
 
 The acceptance helper receives version and source SHA as process arguments, not interpolated shell source. Windows invokes PowerShell 5.1; all configuration/environment directories are isolated. Tests use the local HTTP stub and generated WAV, with no remote transcription charge.
 
+Release review found that .NET user environment access expands REG_EXPAND_SZ and writes REG_SZ. Windows installation will instead read the raw HKCU Environment Path value with its kind/existence, preserve references and kind on prepend, and restore the exact prior state on rollback. The final registry update broadcasts the Environment setting change so future shells reload it. A native regression seeds expandable references before installation.
+
 ## Risks / Trade-offs
 
 - First prerelease does not replace stable Latest, whose archives are missing → README uses an explicit RC version and retains stable guidance.

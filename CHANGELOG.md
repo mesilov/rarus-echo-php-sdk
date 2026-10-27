@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 First release candidate for 0.5.0. Standalone archives are built from the tagged main commit; prerelease publication does not replace Latest stable.
 
 ### Fixed
+- Preserve raw expandable Windows user PATH entries and registry value type when installing or rolling back the CLI (#59).
 - Disable automatic Git maintenance in temporary packaging-test repositories to prevent cleanup races on CI runners (#55).
 
 ### Added

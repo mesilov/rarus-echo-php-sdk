@@ -9,6 +9,7 @@ Issue #59 requests prerelease 0.5.0-rc-1 with standalone binaries built from mai
 - Roll Unreleased into a dated 0.5.0-rc-1 changelog section and document explicit RC installation.
 - Archive the installer change after merged PR #58.
 - Add a native four-platform workflow that downloads public release assets, checks the tag/source identity, installs through the public main installer and runs CLI smoke tests.
+- Preserve existing expandable Windows user PATH references and registry type during installation and rollback, addressing the release review finding.
 - Promote the prepared dev-based release branch into main, tag that main commit and let the existing tag workflow publish a prerelease without changing Latest stable.
 
 ## Capabilities
@@ -19,7 +20,7 @@ Issue #59 requests prerelease 0.5.0-rc-1 with standalone binaries built from mai
 
 ### Modified Capabilities
 
-None. Runtime PHP behavior and the standalone packaging contract are unchanged.
+- `cli-installation`: preserve raw Windows user PATH values and their type. Runtime PHP behavior and the standalone packaging contract are unchanged.
 
 ## Impact
 

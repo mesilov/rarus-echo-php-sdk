@@ -205,6 +205,27 @@ function Get-RarusEchoIdentity([string]$Executable, [string]$Tag) {
     } finally { $process.Dispose() }
 }
 
+function Send-RarusEchoEnvironmentChange {
+    # Keep this separate from the platform type: an earlier one-line invocation
+    # may already have loaded a version of that type without this helper.
+    if (-not ('RarusEchoInstallerEnvironment' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class RarusEchoInstallerEnvironment {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
+    public static void Notify() {
+        UIntPtr result;
+        // Best effort: do not wait indefinitely for unresponsive top-level windows.
+        SendMessageTimeout(new IntPtr(0xffff), 0x001a, UIntPtr.Zero, "Environment", 2, 1000, out result);
+    }
+}
+'@
+    }
+    [RarusEchoInstallerEnvironment]::Notify()
+}
+
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
     if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Unsupported platform. This installer supports Windows amd64; Linux amd64/arm64 and macOS arm64 use install.sh.' }
     if ($Version -and $Version -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw 'Invalid release version tag.' }
@@ -240,7 +261,24 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
     $newPackageMoved = $false
     $pathChanged = $false
     $committed = $false
-    $oldUserPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $userPathExisted = $false
+    $oldUserPath = ''
+    $oldUserPathKind = [Microsoft.Win32.RegistryValueKind]::String
+    if (-not $NoModifyPath) {
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+        if ($null -ne $key) {
+            try {
+                if ($key.GetValueNames() -contains 'Path') {
+                    $userPathExisted = $true
+                    $oldUserPathKind = $key.GetValueKind('Path')
+                    if ($oldUserPathKind -notin @([Microsoft.Win32.RegistryValueKind]::String, [Microsoft.Win32.RegistryValueKind]::ExpandString)) {
+                        throw 'User PATH must be a registry string or expandable string.'
+                    }
+                    $oldUserPath = [string]$key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                }
+            } finally { $key.Dispose() }
+        }
+    }
     [void][IO.Directory]::CreateDirectory($temporary)
     try {
         $tag = $Version
@@ -287,8 +325,12 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
             if (-not $alreadyPresent) {
                 $newPath = $InstallDir
                 if ($oldUserPath) { $newPath += ';' + $oldUserPath }
-                [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-                $pathChanged = $true
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    $pathChanged = $true
+                    $key.SetValue('Path', $newPath, $oldUserPathKind)
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
             }
         }
         $committed = $true
@@ -298,13 +340,27 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         Write-Host ('For this PowerShell session, run: $env:PATH = ''' + $InstallDir.Replace("'", "''") + ';'' + $env:PATH')
     } catch {
         $failure = $_.Exception.Message
+        $committed = $false
+        $rollbackErrors = New-Object 'System.Collections.Generic.List[string]'
+        if ($pathChanged) {
+            try {
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    if ($userPathExisted) { $key.SetValue('Path', $oldUserPath, $oldUserPathKind) }
+                    else { $key.DeleteValue('Path', $false) }
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
+            } catch { $rollbackErrors.Add('User PATH: ' + $_.Exception.Message) }
+        }
         try {
-            if ($pathChanged) { [Environment]::SetEnvironmentVariable('PATH', $oldUserPath, 'User') }
             if ($newPackageMoved) { Remove-Item -LiteralPath $packageDirectory -Recurse -Force }
             if ($newExecutableMoved) { [IO.File]::Delete($executable) }
             if ($oldPackageMoved) { [IO.Directory]::Move($backupPackage, $packageDirectory) }
             if ($oldExecutableMoved) { [IO.File]::Move($backupExecutable, $executable) }
-        } catch { throw ('Installation failed: ' + $failure + ' Rollback could not finish. Previous files are retained at ' + $backupExecutable + ' and ' + $backupPackage + '.') }
+        } catch { $rollbackErrors.Add('Installed files: ' + $_.Exception.Message) }
+        if ($rollbackErrors.Count -ne 0) {
+            throw ('Installation failed: ' + $failure + ' Rollback could not finish. ' + ($rollbackErrors -join ' ') + ' Installer backup paths: ' + $backupExecutable + ' and ' + $backupPackage + '.')
+        }
         throw ('Installation failed; any previous executable and notices were preserved. ' + $failure)
     } finally {
         foreach ($path in @($temporary, $stageExecutableDirectory, $stagePackage)) {

@@ -12,6 +12,7 @@ Issue: https://github.com/mesilov/rarus-echo-php-sdk/issues/59
 - `python3 -m unittest discover -s build/tests -v`: 21 packaging/acceptance tests passed. Network-dependent offline contracts bind only a local loopback server and use synthetic data.
 - Helper `--help`, Python compilation and `git diff --check` passed.
 - Release plan/doc review passed. Acceptance review identified missing successful JSON-config and persistent PATH checks; those checks now execute the installed binary, assert actual loopback requests and preserve configuration/profile/registry state.
+- Codex PR review found REG_EXPAND_SZ loss in the Windows installer. Tests-only commit `ecbb80edaa024442ba22169d395b9337ffdb52e0` reproduced `registry value kind changed` in [native Windows PowerShell 5.1](https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40517296985/job/122234169600). The subsequent fix reads/writes raw registry state, preserves kind/existence and broadcasts the Environment change; independent spec/code review and 22 portable PowerShell checks passed. Native green evidence is recorded in PR #62 before merge.
 
 ## Publication receipts
 
