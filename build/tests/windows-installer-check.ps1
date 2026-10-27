@@ -1,6 +1,6 @@
 # Offline contract checks. Windows PowerShell 5.1 runs the native executable tests.
 [CmdletBinding()]
-param()
+param([switch]$BootstrapOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -153,6 +153,13 @@ public static class RarusEchoInstallerTestEnvironment {
 }
 
 try {
+    Test-Case 'native interop definitions are available without compiler output' {
+        Initialize-RarusEchoNativeMethods
+        $native = 'RarusEchoInstallerNativeMethods' -as [type]
+        Assert-True ($native.Assembly.IsDynamic) 'Native interop must stay in memory.'
+        Assert-True ($null -ne $native.GetMethod('IsWow64Process2')) 'Missing architecture P/Invoke.'
+        Assert-True ($null -ne $native.GetMethod('SendMessageTimeout')) 'Missing environment broadcast P/Invoke.'
+    }
     Test-Case 'unsupported platform fails before any download' {
         function Get-RarusEchoPlatform { return 'linux-arm64' }
         Assert-Fails { Install-RarusEcho -NoModifyPath } 'Windows.*amd64|unsupported'
@@ -245,6 +252,49 @@ try {
     }
     if (-not $script:isNativeWindows) {
         Write-Host ('PASS ' + $script:checks + ' portable checks; native Windows executable/PATH checks require Windows PowerShell 5.1.')
+        return
+    }
+    Test-Case 'native helpers work in a fresh process with Unicode TEMP and cwd' {
+        $temporary = Join-Path $root (([string][char]0x044F) + ' compiler files')
+        [void][IO.Directory]::CreateDirectory($temporary)
+        $probe = @'
+$ErrorActionPreference = 'Stop'
+$errors = $null
+$tokens = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:ECHO_TEST_INSTALLER, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+foreach ($definition in $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$before = @($env:TMP, $env:TEMP, $env:TMPDIR)
+foreach ($attempt in 1..2) {
+    if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Wrong native architecture in Unicode environment.' }
+    Send-RarusEchoEnvironmentChange
+}
+if (($before -join '|') -cne (@($env:TMP, $env:TEMP, $env:TMPDIR) -join '|')) { throw 'Bootstrap changed caller TEMP variables.' }
+if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Bootstrap left compiler files behind.' }
+'@
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = Join-Path $PSHOME $(if ($PSVersionTable.PSVersion.Major -le 5) { 'powershell.exe' } else { 'pwsh.exe' })
+        $start.Arguments = '-NoProfile -NonInteractive -EncodedCommand ' + [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($probe))
+        $start.UseShellExecute = $false
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.WorkingDirectory = $temporary
+        foreach ($name in @('TMP', 'TEMP', 'TMPDIR')) { $start.EnvironmentVariables[$name] = $temporary }
+        $start.EnvironmentVariables['ECHO_TEST_INSTALLER'] = $installer
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo = $start
+        try {
+            [void]$process.Start()
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Unicode bootstrap probe timed out.' }
+            Assert-True ($process.ExitCode -eq 0) ('Unicode bootstrap probe failed: ' + $stdout.Result + $stderr.Result)
+        } finally { $process.Dispose() }
+    }
+    if ($BootstrapOnly) {
+        Write-Host ('PASS ' + $script:checks + ' Windows bootstrap checks.')
         return
     }
     Test-Case 'native OS architecture is independent of process architecture variables' {

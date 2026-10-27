@@ -15,31 +15,48 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
+function Initialize-RarusEchoNativeMethods {
+    if ('RarusEchoInstallerNativeMethods' -as [type]) { return }
+    # PowerShell 5.1's CodeDOM compiler uses ANSI paths for its temporary files.
+    # Define these two fixed P/Invokes in memory so Unicode TEMP needs no compiler,
+    # environment changes, temporary assemblies or weaker directory permissions.
+    $name = [Reflection.AssemblyName]::new('RarusEchoInstallerNativeMethods')
+    if ($PSVersionTable.PSVersion.Major -le 5) {
+        $assembly = [AppDomain]::CurrentDomain.DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    } else {
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    }
+    $module = $assembly.DefineDynamicModule($name.Name)
+    $type = $module.DefineType($name.Name, [Reflection.TypeAttributes]'Public,Abstract,Sealed')
+    $attributes = [Reflection.MethodAttributes]'Public,Static,PinvokeImpl'
+    $calling = [Reflection.CallingConventions]::Standard
+    $nativeCalling = [Runtime.InteropServices.CallingConvention]::Winapi
+    $charset = [Runtime.InteropServices.CharSet]::Unicode
+    $machineParameters = [type[]]@([IntPtr], [UInt16].MakeByRefType(), [UInt16].MakeByRefType())
+    $machine = $type.DefinePInvokeMethod('IsWow64Process2', 'kernel32.dll', 'IsWow64Process2',
+        $attributes, $calling, [bool], $machineParameters, $nativeCalling, $charset)
+    $machine.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    $notifyParameters = [type[]]@([IntPtr], [UInt32], [UIntPtr], [string], [UInt32], [UInt32], [UIntPtr].MakeByRefType())
+    $notify = $type.DefinePInvokeMethod('SendMessageTimeout', 'user32.dll', 'SendMessageTimeoutW',
+        $attributes, $calling, [IntPtr], $notifyParameters, $nativeCalling, $charset)
+    $notify.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    [void]$type.CreateType()
+}
+
 function Get-RarusEchoPlatform {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return 'unsupported' }
     # Process environment and GetNativeSystemInfo can report emulated x64 on ARM64.
     # IsWow64Process2 exposes the native host architecture on modern Windows.
-    if (-not ('RarusEchoInstallerPlatform' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-public static class RarusEchoInstallerPlatform {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);
-    public static ushort NativeMachine() {
-        try {
-            ushort processMachine, nativeMachine;
-            if (!IsWow64Process2(new IntPtr(-1), out processMachine, out nativeMachine))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-            return nativeMachine;
-        } catch (EntryPointNotFoundException) { return 0; }
+    Initialize-RarusEchoNativeMethods
+    $processMachine = [UInt16]0
+    $nativeMachine = [UInt16]0
+    try {
+        if (-not [RarusEchoInstallerNativeMethods]::IsWow64Process2([IntPtr](-1), [ref]$processMachine, [ref]$nativeMachine)) {
+            throw 'Windows could not determine the native OS architecture.'
+        }
+    } catch {
+        if ($_.Exception.InnerException -isnot [EntryPointNotFoundException]) { throw }
     }
-}
-'@
-    }
-    $nativeMachine = [RarusEchoInstallerPlatform]::NativeMachine()
     if ($nativeMachine -ne 0) {
         if ($nativeMachine -eq 0x8664) { return 'windows-amd64' }
         return 'unsupported'
@@ -206,24 +223,10 @@ function Get-RarusEchoIdentity([string]$Executable, [string]$Tag) {
 }
 
 function Send-RarusEchoEnvironmentChange {
-    # Keep this separate from the platform type: an earlier one-line invocation
-    # may already have loaded a version of that type without this helper.
-    if (-not ('RarusEchoInstallerEnvironment' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class RarusEchoInstallerEnvironment {
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
-    public static void Notify() {
-        UIntPtr result;
-        // Best effort: do not wait indefinitely for unresponsive top-level windows.
-        SendMessageTimeout(new IntPtr(0xffff), 0x001a, UIntPtr.Zero, "Environment", 2, 1000, out result);
-    }
-}
-'@
-    }
-    [RarusEchoInstallerEnvironment]::Notify()
+    Initialize-RarusEchoNativeMethods
+    $result = [UIntPtr]::Zero
+    # Best effort: do not wait indefinitely for unresponsive top-level windows.
+    [void][RarusEchoInstallerNativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
 }
 
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
