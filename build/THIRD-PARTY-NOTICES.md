@@ -1,6 +1,6 @@
 # Packaging attribution
 
-Packaging helpers and PHP micro patches are adapted from mesilov/bitrix24-cli,
+Packaging helpers, the POSIX installer and its fixture tests, and PHP micro patches are adapted from mesilov/bitrix24-cli,
 commit f23ca85fe45b003cedd0b6fd0340da6ac850ba00:
 https://github.com/mesilov/bitrix24-cli
 

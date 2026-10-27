@@ -162,6 +162,51 @@ vendor/bin/rarus-echo --help
 
 ### Standalone: без PHP, Composer и Docker
 
+#### Однострочная установка
+
+Linux x86-64/ARM64 и macOS Apple Silicon:
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh
+```
+
+Windows x86-64, PowerShell 5.1 или новее:
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content))
+```
+
+**Доступность:** эти команды требуют публикации скриптов в `main` и релиза со standalone-архивами. На 27 октября 2026 года последний стабильный релиз `0.4.0` ещё не содержит таких архивов. Если нужный архив отсутствует, установщик завершится с ошибкой. PR в `dev` сам по себе не включает публичную установку.
+
+Скрипт определяет платформу, выбирает последний стабильный релиз, проверяет SHA-256 и версию бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
+
+| Параметр | POSIX sh | PowerShell |
+| --- | --- | --- |
+| Конкретный tag, включая prerelease | `--version TAG` | `-Version TAG` |
+| Абсолютный каталог бинарника | `--install-dir PATH` | `-InstallDir PATH` |
+| Не менять постоянный PATH | `--no-modify-path` | `-NoModifyPath` |
+
+Параметры передаются скрипту так (замените `TAG` существующим tag с архивами):
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version TAG --install-dir "$HOME/.local/bin" --no-modify-path
+```
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
+```
+
+На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
+
+```bash
+. "$HOME/.local/share/rarus-echo/env"
+rarus-echo --version
+```
+
+На Windows бинарник по умолчанию находится в `%LOCALAPPDATA%\rarus-echo\bin`, лицензии — в `%LOCALAPPDATA%\rarus-echo\package`; с `-InstallDir` лицензии сохраняются в подкаталоге `package` выбранного каталога. Установщик обновляет пользовательский PATH и печатает команду активации для текущей сессии; уже открытые терминалы могут требовать перезапуска. Повторный запуск обновляет бинарник и лицензии; конфигурация подключения сохраняется. Установка бинарника и команда `rarus-echo install` для настройки подключения — отдельные шаги.
+
+#### Ручная установка
+
 В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Артефакты появятся начиная с первого релиза, собранного новым standalone workflow.
 
 | Платформа | Архив | Исполняемый файл |

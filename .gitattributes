@@ -33,6 +33,8 @@
 /CONTRIBUTING.md       export-ignore
 /Makefile              export-ignore
 /docker-compose.yaml   export-ignore
+/install.sh            export-ignore
+/install.ps1           export-ignore
 /phpstan.neon.dist     export-ignore
 /phpunit.xml.dist      export-ignore
 /rector.php            export-ignore
