@@ -71,7 +71,7 @@ The default CLI Docker image SHALL include the toolkit for linux/amd64 and linux
 
 ### Requirement: Complete standalone media archives
 
-Each existing platform archive SHALL contain the CLI, both media executables, media provenance/source materials and existing runtime notices. Unix executable permissions MUST be preserved. The existing four platform archive names and selected-platform SHA256SUMS verification MUST remain usable.
+Each newly built platform archive SHALL contain the CLI, both media executables, media provenance/source materials and existing runtime notices. Unix executable permissions MUST be preserved. The existing four platform archive names and selected-platform SHA256SUMS verification MUST remain usable.
 
 #### Scenario: Verify a complete archive
 
@@ -133,3 +133,16 @@ Installing the PHP library through Composer SHALL NOT install FFmpeg, require an
 
 - **WHEN** a Composer consumer uses the SDK or submits an existing supported audio file
 - **THEN** no FFmpeg dependency is resolved or required and current SDK behavior remains available
+
+### Requirement: Frozen published legacy contract
+
+Installers MAY accept only the frozen published pre-media version/source pair in the design. It MUST retain checksum, exact legacy shape and native identity checks. Unknown identities or any partial media payload MUST fail.
+
+#### Scenario: Install the existing published release candidate
+- **WHEN** the user selects `0.5.0-rc-1` with source `e359975527bd483707dc39d23599545a77c1620d` and its verified complete legacy archive
+- **THEN** installation and repeat installation preserve the original non-media CLI contract
+- **AND** public acceptance retains the public main installers and checks either their authentic old layout or the matching immutable package layout
+
+#### Scenario: Unknown or partial media archive
+- **WHEN** an unknown version/source lacks media or any media members appear in the frozen legacy shape
+- **THEN** validation fails before activation without selecting a legacy fallback

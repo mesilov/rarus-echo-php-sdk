@@ -19,6 +19,16 @@ REQUIRED = ['build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
             'runtime-licenses', 'libexec', 'media-build-info.json', 'media-SHA256SUMS',
             'media-source.tar.xz', 'media-licenses']
 DIRECTORIES = {'runtime-licenses', 'media-licenses'}
+LEGACY_REQUIRED = ['build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
+                   'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt',
+                   'runtime-licenses']
+# Frozen, actually published pre-media payload. No missing-file detection selects this exception.
+LEGACY_MEDIALESS_RELEASES = {'0.5.0-rc-1': 'e359975527bd483707dc39d23599545a77c1620d'}
+
+
+def validate_legacy_identity(version, sha):
+    if LEGACY_MEDIALESS_RELEASES.get(version) != sha:
+        raise ValueError('No approved published legacy media contract for this version/source identity')
 
 
 def archive_name(target):
@@ -29,18 +39,20 @@ def executable(target):
     return 'rarus-echo.exe' if target.startswith('windows') else 'rarus-echo'
 
 
-def executables(target):
-    return {executable(target), *toolkit.manifest_paths(target)[2:]}
+def executables(target, require_media=True):
+    return {executable(target), *toolkit.manifest_paths(target)[2:]} if require_media else {executable(target)}
 
 
-def allowed_name(name, target):
+def allowed_name(name, target, require_media=True):
     if (not name or name.startswith('/') or '\\' in name or ':' in name
             or any(part in {'', '.', '..'} for part in name.split('/'))
             or any(ord(char) < 32 for char in name)):
         return False
-    if name in executables(target) or name in set(REQUIRED) - DIRECTORIES - {'libexec'}:
+    required = REQUIRED if require_media else LEGACY_REQUIRED
+    directories = DIRECTORIES if require_media else {'runtime-licenses'}
+    if name in executables(target, require_media) or name in set(required) - directories - {'libexec'}:
         return True
-    return len(name.split('/')) > 1 and name.split('/')[0] in DIRECTORIES
+    return len(name.split('/')) > 1 and name.split('/')[0] in directories
 
 
 def _pack_files(files, root, output, target):
@@ -108,7 +120,9 @@ def pack(root, target, destination):
     return output
 
 
-def inspect_archive(path, target, version, sha):
+def inspect_archive(path, target, version, sha, *, require_media=True):
+    if not require_media:
+        validate_legacy_identity(version, sha)
     records, directories, components = {}, set(), {}
     archive = zipfile.ZipFile(path) if target.startswith('windows') else tarfile.open(path)
     with archive:
@@ -129,19 +143,24 @@ def inspect_archive(path, target, version, sha):
                     directories.add(folded)
                 elif folded in directories:
                     raise ValueError('Archive parent-file collision: ' + name)
-            if not allowed_name(name, target) or key in records:
+            if not allowed_name(name, target, require_media) or key in records:
                 raise ValueError('Unsafe, unexpected or duplicate archive contents: ' + name)
             if target.startswith('windows'):
                 mode = member.external_attr >> 16
                 if member.is_dir() or (stat.S_IFMT(mode) not in {0, stat.S_IFREG}):
                     raise ValueError('Archive must contain regular files')
-                if mode and stat.S_IMODE(mode) != (0o755 if name in executables(target) else 0o644):
+                permissions = {0o755 if name in executables(target, require_media) else 0o644}
+                if not require_media and member.create_system == 0:
+                    # The frozen Windows release used ZipFile.write over NTFS:
+                    # its signed-off payload has regular 0666 data / 0777 executable modes.
+                    permissions.add(0o777 if name == executable(target) else 0o666)
+                if mode and stat.S_IMODE(mode) not in permissions:
                     raise ValueError('Invalid archive permission: ' + name)
                 stream = archive.open(member)
             else:
                 if not member.isfile():
                     raise ValueError('Archive must contain regular files')
-                if member.mode != (0o755 if name in executables(target) else 0o644):
+                if member.mode != (0o755 if name in executables(target, require_media) else 0o644):
                     raise ValueError('Invalid archive executable/data permission: ' + name)
                 stream = archive.extractfile(member)
             with stream:
@@ -149,12 +168,17 @@ def inspect_archive(path, target, version, sha):
             records[key] = (name, hashlib.sha256(data).hexdigest(), data if name.endswith('.json')
                             or name == 'media-SHA256SUMS' else None)
     names = {row[0] for row in records.values()}
-    required = (set(REQUIRED) - DIRECTORIES - {'libexec'}) | executables(target)
-    if not required.issubset(names) or any(not any(n.startswith(d + '/') for n in names) for d in DIRECTORIES):
+    directories = DIRECTORIES if require_media else {'runtime-licenses'}
+    required = (set(REQUIRED if require_media else LEGACY_REQUIRED) - directories - {'libexec'}) | executables(target, require_media)
+    if not required.issubset(names) or any(not any(n.startswith(d + '/') for n in names) for d in directories):
         raise ValueError('Incomplete archive contents')
     info = json.loads(records['build-info.json'][2])
     if (info.get('version'), info.get('source_sha'), info.get('target')) != (version, sha, target):
         raise ValueError('Archive build identity differs')
+    if not require_media:
+        if 'media' in info:
+            raise ValueError('Legacy archive cannot declare a media build identity')
+        return info
     media = json.loads(records['media-build-info.json'][2])
     common = toolkit.identity()
     if (media.get('target') != target or media.get('schema_version') != 1

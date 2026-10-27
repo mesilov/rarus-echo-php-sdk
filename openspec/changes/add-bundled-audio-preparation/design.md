@@ -146,3 +146,9 @@ Rollback restores the previous native entrypoint and its retained versioned payl
 ### Verified fallback precision
 
 The pinned non-experimental FFmpeg FLAC encoder preserves integer precision up to 24 bits. Fallback selects explicit 16-bit or 24-bit output and validates the resulting precision as well as channels/rate. Source floating-point PCM and lossless integer audio above 24 bits or with unknown effective depth are rejected before upload when conversion is required. Encoded copy routes preserve their packets without this conversion. Floating-point decoder output from a lossy codec is distinguished from source floating-point PCM and uses the service-verified 24-bit fallback.
+
+### Integration with merged doctor and published releases
+
+The merged doctor command uses the same strict toolkit resolution as submit, including the matching complete bundle or an explicit absolute override pair, within its existing five-second media-check deadline. Its independent configuration/connection checks, JSON schema and safe diagnostic code family remain intact. The #60 diagnostic delta supersedes the earlier PATH-only requirement in the already merged #61 change; that separate change is not archived here.
+
+The only published standalone archive predating media is tag `0.5.0-rc-1`, source `e359975527bd483707dc39d23599545a77c1620d`. A frozen exception preserves installation and public-main-installer acceptance for precisely that version/source pair and the exact old archive shape, without any media members. Its old CLI has no automatic media preparation. Unknown versions/sources and all new builds retain mandatory complete media validation; absence of a media file never triggers legacy fallback. The exception retains whole-archive checksums, native executable identity, modes, notices, rollback and repeat-install checks. Historical acceptance continues through the public main installers.

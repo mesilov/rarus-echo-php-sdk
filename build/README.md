@@ -53,7 +53,7 @@ python3 build/package.py macos-arm64 --source-sha "$(git rev-parse HEAD)"
 bash build/package-linux.sh
 ```
 
-For release builds pass --version v0.5.0 (or ECHO_RELEASE_VERSION); the workflow
+For release builds pass --version 0.5.0-rc-1 (or ECHO_RELEASE_VERSION); the workflow
 takes it from the pushed tag. Untagged builds use dev-<full SHA>.
 Docker's context omits Git, so the workflow validates the real checkout first
 and forwards that exact SHA to the build. Runtime compilation is intentionally
@@ -176,10 +176,45 @@ the matching executable remains at the chosen install directory's root. Prior
 immutable packages are retained so running commands keep their matching tools;
 remove an old package manually only after all commands using it have exited.
 Connection configuration, custom install directories and PATH opt-out behavior
-are retained. Video preparation needs writable private temporary storage (up to
+are retained. The exact published `0.5.0-rc-1` /
+`e359975527bd483707dc39d23599545a77c1620d` pair retains its frozen pre-media
+archive contract so the public installers can still install that release.
+No other missing/partial media package enters this legacy path, and new package
+builds always require the complete toolkit. Video preparation needs writable private temporary storage (up to
 1 GiB per invocation); original input mounts can stay read-only.
 
 To update FFmpeg, verify a new official release signature with the reviewed key,
 review the source/profile and notices, update the source pin, and rerun source,
 archive, all native toolkit/package/installer/Docker gates and the live Echo
 matrix. A local pass never substitutes for another platform's native acceptance.
+
+## Published release acceptance
+
+After all release assets are published, run the public acceptance workflow from
+main with the exact tag. For the first 0.5 release candidate:
+
+```bash
+gh workflow run release-acceptance.yml --ref main -f version=0.5.0-rc-1
+```
+
+The workflow runs on Linux amd64/arm64, macOS arm64 and Windows amd64. It checks
+that the tag is in main history, anonymously downloads the matching archive and
+SHA256SUMS, checks the embedded version/source SHA, and invokes the public main
+installer in isolated user directories. Fresh and repeat installs are followed
+by CLI/configuration smoke tests using a local HTTP server and synthetic data.
+No production API credentials or workflow artifact fallback are used.
+
+Smoke commands follow the verified tag's source, rather than the current checkout:
+the earlier 0.5.0-rc-1 has no doctor command. The helper selects the historical
+`--without-doctor` smoke mode only when DoctorCommand.php is absent from that
+source commit. New package builds retain mandatory doctor help and diagnostics.
+
+To repeat acceptance on one supported native machine, fetch main and tags, then:
+
+```bash
+python3 build/release_acceptance.py --version 0.5.0-rc-1 --resolve-source-sha
+python3 build/release_acceptance.py --version 0.5.0-rc-1 --source-sha FULL_TAG_COMMIT_SHA --target macos-arm64
+```
+
+Use the full SHA printed by the first command and the current machine's target.
+On Windows, run the helper with `python`; it invokes native Windows PowerShell 5.1.

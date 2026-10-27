@@ -53,7 +53,7 @@ final readonly class ToolkitLocator
             return $tools;
         }
 
-        throw new \RuntimeException('Media toolkit unavailable. Keep the complete portable/installed package, or set both absolute RARUS_ECHO_FFMPEG_PATH and RARUS_ECHO_FFPROBE_PATH values for Composer.');
+        throw new ToolkitUnavailableException('Media toolkit unavailable. Keep the complete portable/installed package, or set both absolute RARUS_ECHO_FFMPEG_PATH and RARUS_ECHO_FFPROBE_PATH values for Composer.');
     }
 
     /** @param null|array<string, mixed> $identity */

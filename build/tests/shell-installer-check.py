@@ -29,6 +29,8 @@ NATIVE_TARGET = ('macos-arm64' if platform.system() == 'Darwin' else
 SHA = 'a' * 40
 MEDIA_SHA = 'b' * 64
 PROFILE_SHA = 'c' * 64
+LEGACY_VERSION = '0.5.0-rc-1'
+LEGACY_SHA = 'e359975527bd483707dc39d23599545a77c1620d'
 
 
 def identity(version):
@@ -81,11 +83,13 @@ esac
         path.write_text(text)
         path.chmod(0o755)
 
-    def package(self, version='0.2.0', target='linux-amd64', mode=None):
+    def package(self, version='0.2.0', target='linux-amd64', mode=None, source_sha=None):
+        source_sha = source_sha or SHA
         name = 'rarus-echo-' + target + '.tar.gz'
         archive = self.assets / name
-        files = {'rarus-echo': '#!/bin/sh\nprintf "' + identity(version) + '\\n"\n',
-                 'build-info.json': json.dumps({'version': version, 'source_sha': SHA,
+        files = {'rarus-echo': '#!/bin/sh\nprintf "' + identity(version).replace(SHA, source_sha) + '\\n"\n',
+                 'build-info.json': json.dumps({'version': version, 'source_sha': source_sha, 'target': target,
+                     'toolchain_patches': {'build/patches/native.json': 'd' * 64},
                      'media': {'ffmpeg_version': '9.0.2', 'source_sha256': MEDIA_SHA,
                                'profile_sha256': PROFILE_SHA}}),
                  'runtime-sources.json': '{}',
@@ -151,6 +155,15 @@ printf 'flac\\n'
             files['rarus-echo'] = '#!/bin/sh\nprintf "RARUS Echo CLI 0.2.0 (source nope)\\n"\n'
         if mode == 'empty-license':
             files['RARUS-ECHO-LICENSE.txt'] = ''
+        if mode and mode.startswith('legacy'):
+            files = {name: data for name, data in files.items()
+                     if not name.startswith(('libexec/', 'media-'))}
+            metadata = json.loads(files['build-info.json'])
+            del metadata['media']
+            files['build-info.json'] = json.dumps(metadata)
+            if mode == 'legacy-media-entry': files['media-build-info.json'] = '{}'
+            if mode == 'legacy-wrong-native': files['rarus-echo'] = '#!/bin/sh\nprintf "' + identity(version) + '\\n"\n'
+            if mode == 'legacy-missing-license': del files['runtime-licenses/runtime.txt']
         with tarfile.open(archive, 'w:gz') as tar:
             for filename, value in files.items():
                 data = value.encode()
@@ -159,6 +172,7 @@ printf 'flac\\n'
                 item.mode = 0o755 if filename in ('rarus-echo', 'libexec/ffmpeg', 'libexec/ffprobe') else 0o644
                 if mode == 'wrong-mode' and filename == 'libexec/ffmpeg': item.mode = 0o644
                 if mode == 'special-mode' and filename == 'media-build-info.json': item.mode = 0o4644
+                if mode == 'legacy-wrong-mode' and filename == 'rarus-echo': item.mode = 0o644
                 tar.addfile(item, io.BytesIO(data))
             if mode in ('symlink', 'hardlink'):
                 item = tarfile.TarInfo('runtime-licenses/link')
@@ -439,6 +453,29 @@ exec "''' + real_mv + '''" "$@"
         self.run_installer('--no-modify-path', success=False)
         self.assertEqual(media.read_text(), 'conflicting manifest')
 
+    def test_frozen_legacy_release_installs_repeats_and_keeps_native_identity(self):
+        self.env['FIXTURE_TAG'] = LEGACY_VERSION
+        self.package(LEGACY_VERSION, mode='legacy', source_sha=LEGACY_SHA)
+        install = self.root / 'legacy каталог'
+        for _ in range(2): self.run_installer('--version', LEGACY_VERSION, '--install-dir', str(install), '--no-modify-path')
+        output = subprocess.check_output([str(install / 'rarus-echo'), '--version'], text=True)
+        self.assertEqual(output.strip(), 'RARUS Echo CLI ' + LEGACY_VERSION + ' (source ' + LEGACY_SHA + ')')
+        package = install / ('.rarus-echo/packages/' + LEGACY_VERSION + '-' + LEGACY_SHA)
+        self.assertTrue((package / 'runtime-licenses/runtime.txt').is_file())
+        self.assertFalse((package / 'libexec').exists())
+
+    def test_frozen_legacy_exception_never_accepts_unknown_or_partial_media_payloads(self):
+        for scenario in ['wrong-source', 'unknown-release', 'legacy-wrong-native', 'legacy-media-entry',
+                         'legacy-missing-license', 'legacy-wrong-mode']:
+            with self.subTest(scenario=scenario):
+                before = self.sentinel()
+                version = '0.5.0-rc-2' if scenario == 'unknown-release' else LEGACY_VERSION
+                self.env['FIXTURE_TAG'] = version
+                self.package(version, mode=scenario if scenario.startswith('legacy') else 'legacy',
+                             source_sha=SHA if scenario == 'wrong-source' else LEGACY_SHA)
+                self.run_installer('--version', version, '--no-modify-path', success=False)
+                self.unchanged(before)
+
     def test_immutable_package_child_links_are_rejected(self):
         self.run_installer('--no-modify-path')
         package = self.home / ('.local/bin/.rarus-echo/packages/0.2.0-' + SHA)
@@ -503,6 +540,10 @@ exec "''' + real_mv + '''" "$@"
         SHA = metadata['source_sha']
         self.addCleanup(lambda: globals().update(SHA='a' * 40))
         self.env.update(FIXTURE_OS=platform.system(), FIXTURE_ARCH=platform.machine(), FIXTURE_TAG=version)
+        config = self.home / '.config/rarus-echo/config.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text('{"api_key":"11111111-1111-4111-8111-111111111111","user_id":"22222222-2222-4222-8222-222222222222"}\n')
+        original_config = config.read_bytes()
         self.run_installer('--version', version)
         self.run_installer('--version', version)
         self.shells(version, self.home / '.local/bin')
@@ -512,11 +553,16 @@ exec "''' + real_mv + '''" "$@"
         self.run_installer('--version', version, '--install-dir', str(custom), '--no-modify-path')
         native_installs.append(custom / 'rarus-echo')
         for binary in native_installs:
+            reported = subprocess.check_output([str(binary), '--version', '--no-ansi'], env=self.env, cwd='/', text=True)
+            self.assertEqual(reported.strip(), identity(version))
+            if (version, SHA) == (LEGACY_VERSION, LEGACY_SHA):
+                continue
             result = subprocess.run([sys.executable, str(ROOT / 'build/tests/installed-media-check.py'),
                                      '--binary', str(binary)], env=self.env, cwd=self.root,
                                     text=True, capture_output=True, timeout=180)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             print(result.stdout.strip())
+        self.assertEqual(config.read_bytes(), original_config)
         print('Native installer archive verified:', NATIVE_TARGET, version,
               hashlib.sha256((self.assets / ('rarus-echo-' + NATIVE_TARGET + '.tar.gz')).read_bytes()).hexdigest())
 

@@ -15,31 +15,48 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
+function Initialize-RarusEchoNativeMethods {
+    if ('RarusEchoInstallerNativeMethods' -as [type]) { return }
+    # PowerShell 5.1's CodeDOM compiler uses ANSI paths for its temporary files.
+    # Define these two fixed P/Invokes in memory so Unicode TEMP needs no compiler,
+    # environment changes, temporary assemblies or weaker directory permissions.
+    $name = [Reflection.AssemblyName]::new('RarusEchoInstallerNativeMethods')
+    if ($PSVersionTable.PSVersion.Major -le 5) {
+        $assembly = [AppDomain]::CurrentDomain.DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    } else {
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    }
+    $module = $assembly.DefineDynamicModule($name.Name)
+    $type = $module.DefineType($name.Name, [Reflection.TypeAttributes]'Public,Abstract,Sealed')
+    $attributes = [Reflection.MethodAttributes]'Public,Static,PinvokeImpl'
+    $calling = [Reflection.CallingConventions]::Standard
+    $nativeCalling = [Runtime.InteropServices.CallingConvention]::Winapi
+    $charset = [Runtime.InteropServices.CharSet]::Unicode
+    $machineParameters = [type[]]@([IntPtr], [UInt16].MakeByRefType(), [UInt16].MakeByRefType())
+    $machine = $type.DefinePInvokeMethod('IsWow64Process2', 'kernel32.dll', 'IsWow64Process2',
+        $attributes, $calling, [bool], $machineParameters, $nativeCalling, $charset)
+    $machine.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    $notifyParameters = [type[]]@([IntPtr], [UInt32], [UIntPtr], [string], [UInt32], [UInt32], [UIntPtr].MakeByRefType())
+    $notify = $type.DefinePInvokeMethod('SendMessageTimeout', 'user32.dll', 'SendMessageTimeoutW',
+        $attributes, $calling, [IntPtr], $notifyParameters, $nativeCalling, $charset)
+    $notify.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    [void]$type.CreateType()
+}
+
 function Get-RarusEchoPlatform {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return 'unsupported' }
     # Process environment and GetNativeSystemInfo can report emulated x64 on ARM64.
     # IsWow64Process2 exposes the native host architecture on modern Windows.
-    if (-not ('RarusEchoInstallerPlatform' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-public static class RarusEchoInstallerPlatform {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);
-    public static ushort NativeMachine() {
-        try {
-            ushort processMachine, nativeMachine;
-            if (!IsWow64Process2(new IntPtr(-1), out processMachine, out nativeMachine))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-            return nativeMachine;
-        } catch (EntryPointNotFoundException) { return 0; }
+    Initialize-RarusEchoNativeMethods
+    $processMachine = [UInt16]0
+    $nativeMachine = [UInt16]0
+    try {
+        if (-not [RarusEchoInstallerNativeMethods]::IsWow64Process2([IntPtr](-1), [ref]$processMachine, [ref]$nativeMachine)) {
+            throw 'Windows could not determine the native OS architecture.'
+        }
+    } catch {
+        if ($_.Exception.InnerException -isnot [EntryPointNotFoundException]) { throw }
     }
-}
-'@
-    }
-    $nativeMachine = [RarusEchoInstallerPlatform]::NativeMachine()
     if ($nativeMachine -ne 0) {
         if ($nativeMachine -eq 0x8664) { return 'windows-amd64' }
         return 'unsupported'
@@ -99,16 +116,18 @@ function Assert-RarusEchoChecksum([string]$Archive, [string]$Manifest, [string]$
     if ($actual -ine $selected[0]) { throw 'Release archive checksum does not match SHA256SUMS.' }
 }
 
-function Expand-RarusEchoArchive([string]$Archive, [string]$Destination) {
+function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string]$Tag = '') {
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $required = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-        'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt',
-        'libexec/ffmpeg.exe', 'libexec/ffprobe.exe', 'media-build-info.json', 'media-SHA256SUMS', 'media-source.tar.xz')
+    $baseRequired = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
+        'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
+    $mediaRequired = @('libexec/ffmpeg.exe', 'libexec/ffprobe.exe', 'media-build-info.json', 'media-SHA256SUMS', 'media-source.tar.xz')
+    $required = $baseRequired + $mediaRequired
     $members = New-Object 'System.Collections.Generic.Dictionary[string,bool]' ([StringComparer]::OrdinalIgnoreCase)
     $spellings = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)
     $runtimeFiles = 0
     $mediaLicenseFiles = 0
+    $historicalProducerModes = $false
     $zip = [IO.Compression.ZipFile]::OpenRead($Archive)
     try {
         foreach ($entry in $zip.Entries) {
@@ -145,7 +164,12 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination) {
             if ($isDirectory) { throw 'ZIP archive must contain regular file entries only.' }
             $isExecutable = $name -cin @('rarus-echo.exe', 'libexec/ffmpeg.exe', 'libexec/ffprobe.exe')
             if (($unixType -ne 0 -or $unixMode -ne 0) -and (($isExecutable -and $unixMode -ne 493) -or (-not $isExecutable -and $unixMode -ne 420))) {
-                throw 'ZIP archive has incorrect executable/data permissions.'
+                if ($Tag -ceq '0.5.0-rc-1' -and $unixType -eq 0x8000 -and
+                    (($name -ceq 'rarus-echo.exe' -and $unixMode -eq 511) -or (-not $isExecutable -and $unixMode -eq 438))) {
+                    # The published NTFS ZIP producer recorded 0777/0666. Accept
+                    # those modes only after verifying its frozen identity/shape.
+                    $historicalProducerModes = $true
+                } else { throw 'ZIP archive has incorrect executable/data permissions.' }
             }
             $isRuntime = $normalized.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)
             $isMediaLicense = $normalized.StartsWith('media-licenses/', [StringComparison]::Ordinal)
@@ -165,11 +189,13 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination) {
                 if ($members.ContainsKey($parent) -and -not $members[$parent]) { throw 'ZIP archive member collides with a file path.' }
             }
         }
-        foreach ($name in $required) {
+        $requiredBeforeExtraction = $required
+        if ($Tag -ceq '0.5.0-rc-1') { $requiredBeforeExtraction = $baseRequired }
+        foreach ($name in $requiredBeforeExtraction) {
             if (-not $members.ContainsKey($name) -or $members[$name]) { throw ('Missing required archive file: ' + $name) }
         }
         if ($runtimeFiles -eq 0) { throw 'Missing required archive runtime licenses.' }
-        if ($mediaLicenseFiles -eq 0) { throw 'Missing required archive media licenses.' }
+        if ($Tag -cne '0.5.0-rc-1' -and $mediaLicenseFiles -eq 0) { throw 'Missing required archive media licenses.' }
         if (Test-Path -LiteralPath $Destination) { throw 'Archive extraction destination already exists.' }
         [void][IO.Directory]::CreateDirectory($Destination)
         foreach ($entry in $zip.Entries) {
@@ -186,66 +212,86 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination) {
             } finally { $outputStream.Dispose(); $inputStream.Dispose() }
         }
     } finally { $zip.Dispose() }
+    if ($Tag -ceq '0.5.0-rc-1') {
+        $build = Read-RarusEchoJson (Join-Path $Destination 'build-info.json')
+        if (Test-RarusEchoLegacyRelease $build $Tag) {
+            foreach ($name in $members.Keys) {
+                if ($baseRequired -cnotcontains $name -and -not $name.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)) {
+                    throw 'Frozen legacy archive must contain only its original files and runtime licenses, without media entries.'
+                }
+            }
+            if (@($build.PSObject.Properties | Where-Object { $_.Name -ieq 'media' }).Count -ne 0 -or
+                @($build.PSObject.Properties | Where-Object { $_.Name -ceq 'target' }).Count -ne 1 -or $build.target -cne 'windows-amd64') {
+                throw 'Frozen legacy metadata must have its original target and no media identity.'
+            }
+        } else {
+            if ($historicalProducerModes) { throw 'Historical ZIP permissions require the exact frozen legacy release identity.' }
+            foreach ($name in $mediaRequired) {
+                if (-not $members.ContainsKey($name) -or $members[$name]) { throw ('Missing required archive media file: ' + $name) }
+            }
+            if ($mediaLicenseFiles -eq 0) { throw 'Missing required archive media licenses.' }
+        }
+    }
+}
+
+function Test-RarusEchoLegacyRelease([object]$Build, [string]$Tag) {
+    # This single published pre-media tag/source is frozen, not a missing-file fallback.
+    return ($Tag -ceq '0.5.0-rc-1' -and
+        @($Build.PSObject.Properties | Where-Object { $_.Name -ceq 'version' }).Count -eq 1 -and
+        @($Build.PSObject.Properties | Where-Object { $_.Name -ceq 'source_sha' }).Count -eq 1 -and
+        $Build.version -ceq '0.5.0-rc-1' -and $Build.source_sha -ceq 'e359975527bd483707dc39d23599545a77c1620d')
 }
 
 function Read-RarusEchoJson([string]$Path) {
-    # ConvertFrom-Json accepts duplicate names in Windows PowerShell 5.1. Validate
-    # the full grammar and duplicate keys before using its convenient object model.
-    if (-not ('RarusEchoInstallerJson' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
-public sealed class RarusEchoInstallerJson {
-    private readonly string text; private int position;
-    private RarusEchoInstallerJson(string input) { text = input; }
-    private void Fail() { throw new FormatException("Invalid media/build JSON or duplicate object key."); }
-    private void Space() { while(position < text.Length && " \t\r\n".IndexOf(text[position]) >= 0) position++; }
-    private char Take() { if(position >= text.Length) Fail(); return text[position++]; }
-    private string String(bool key) {
-        if(Take() != '"') Fail(); int start = position;
-        while(position < text.Length) {
-            char c = Take(); if(c == '"') return text.Substring(start, position-start-1);
-            if(c < 32) Fail();
-            if(c == '\\') {
-                if(key) Fail(); char escape = Take();
-                if(escape == 'u') { for(int i=0;i<4;i++) if(!Uri.IsHexDigit(Take())) Fail(); }
-                else if("\"\\/bfnrt".IndexOf(escape) < 0) Fail();
-            }
-        } Fail(); return null;
-    }
-    private void Value(int depth) {
-        if(depth > 64) Fail(); Space(); if(position >= text.Length) Fail(); char c = text[position];
-        if(c == '{') {
-            position++; Space(); if(position < text.Length && text[position] == '}') { position++; return; }
-            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            while(true) {
-                Space(); string name = String(true); if(!keys.Add(name)) Fail();
-                Space(); if(Take() != ':') Fail(); Value(depth+1); Space(); c = Take();
-                if(c == '}') return; if(c != ',') Fail();
-            }
-        } else if(c == '[') {
-            position++; Space(); if(position < text.Length && text[position] == ']') { position++; return; }
-            while(true) { Value(depth+1); Space(); c = Take(); if(c == ']') return; if(c != ',') Fail(); }
-        } else if(c == '"') String(false);
-        else {
-            int start = position;
-            while(position < text.Length && " \t\r\n,]}".IndexOf(text[position]) < 0) position++;
-            string token = text.Substring(start, position-start);
-            if(!Regex.IsMatch(token, @"\A(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\z")) Fail();
-        }
-    }
-    public static void Validate(string text) {
-        var parser = new RarusEchoInstallerJson(text); parser.Space();
-        if(parser.position >= text.Length || text[parser.position] != '{') parser.Fail();
-        parser.Value(0); parser.Space(); if(parser.position != text.Length) parser.Fail();
-    }
-}
-'@
-    }
+    # ConvertFrom-Json accepts duplicate names in Windows PowerShell 5.1. Check
+    # the complete grammar first, without CodeDOM compilation in Unicode TEMP.
     $text = [IO.File]::ReadAllText($Path)
     if ($text.Length -gt 1048576) { throw 'Media/build JSON exceeds the installer limit.' }
-    [RarusEchoInstallerJson]::Validate($text)
+    $tokenPattern = '\G[ \t\r\n]*(?:"(?<string>(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*)"|(?<number>-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)|(?<literal>true|false|null)|(?<punct>[{}\[\]:,]))'
+    $tokens = [Regex]::new($tokenPattern)
+    $position = 0
+    $stack = New-Object 'System.Collections.Generic.Stack[object]'
+    $root = $tokens.Match($text, $position)
+    if (-not $root.Success -or $root.Groups['punct'].Value -cne '{') { throw 'Invalid media/build JSON root.' }
+    $position = $root.Index + $root.Length
+    $stack.Push([pscustomobject]@{ Kind = 'object'; State = 'key-or-end'; Keys = (New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)) })
+    while ($stack.Count -gt 0) {
+        $token = $tokens.Match($text, $position)
+        if (-not $token.Success) { throw 'Invalid media/build JSON token.' }
+        $position = $token.Index + $token.Length
+        $frame = $stack.Peek()
+        $punct = $token.Groups['punct'].Value
+        if ($frame.State -cin @('key-or-end', 'key')) {
+            if ($frame.State -ceq 'key-or-end' -and $punct -ceq '}') { [void]$stack.Pop(); continue }
+            $name = $token.Groups['string']
+            if (-not $name.Success -or $name.Value.Contains('\') -or -not $frame.Keys.Add($name.Value)) { throw 'Invalid media/build JSON key or duplicate object key.' }
+            $frame.State = 'colon'
+            continue
+        }
+        if ($frame.State -ceq 'colon') {
+            if ($punct -cne ':') { throw 'Invalid media/build JSON object separator.' }
+            $frame.State = 'value'
+            continue
+        }
+        if ($frame.State -ceq 'comma-or-end') {
+            $end = if ($frame.Kind -ceq 'object') { '}' } else { ']' }
+            if ($punct -ceq $end) { [void]$stack.Pop(); continue }
+            if ($punct -cne ',') { throw 'Invalid media/build JSON value separator.' }
+            $frame.State = if ($frame.Kind -ceq 'object') { 'key' } else { 'value' }
+            continue
+        }
+        if ($frame.State -ceq 'value-or-end' -and $punct -ceq ']') { [void]$stack.Pop(); continue }
+        if ($punct -cin @('{', '[')) {
+            $frame.State = 'comma-or-end'
+            if ($stack.Count -ge 64) { throw 'Media/build JSON nesting exceeds the installer limit.' }
+            if ($punct -ceq '{') {
+                $stack.Push([pscustomobject]@{ Kind = 'object'; State = 'key-or-end'; Keys = (New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)) })
+            } else { $stack.Push([pscustomobject]@{ Kind = 'array'; State = 'value-or-end' }) }
+        } elseif ($token.Groups['string'].Success -or $token.Groups['number'].Success -or $token.Groups['literal'].Success) {
+            $frame.State = 'comma-or-end'
+        } else { throw 'Invalid media/build JSON value.' }
+    }
+    if ($text.Substring($position) -cnotmatch '\A[ \t\r\n]*\z') { throw 'Invalid trailing media/build JSON content.' }
     return ($text | ConvertFrom-Json)
 }
 
@@ -363,6 +409,13 @@ function Assert-RarusEchoNoLinks([string]$Directory) {
     }
 }
 
+function Send-RarusEchoEnvironmentChange {
+    Initialize-RarusEchoNativeMethods
+    $result = [UIntPtr]::Zero
+    # Best effort: do not wait indefinitely for unresponsive top-level windows.
+    [void][RarusEchoInstallerNativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
+}
+
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
     if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Unsupported platform. This installer supports Windows amd64; Linux amd64/arm64 and macOS arm64 use install.sh.' }
     if ($Version -and $Version -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw 'Invalid release version tag.' }
@@ -404,7 +457,24 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
     $previousExecutableHash = $null
     $pathChanged = $false
     $committed = $false
-    $oldUserPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $userPathExisted = $false
+    $oldUserPath = ''
+    $oldUserPathKind = [Microsoft.Win32.RegistryValueKind]::String
+    if (-not $NoModifyPath) {
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+        if ($null -ne $key) {
+            try {
+                if ($key.GetValueNames() -contains 'Path') {
+                    $userPathExisted = $true
+                    $oldUserPathKind = $key.GetValueKind('Path')
+                    if ($oldUserPathKind -notin @([Microsoft.Win32.RegistryValueKind]::String, [Microsoft.Win32.RegistryValueKind]::ExpandString)) {
+                        throw 'User PATH must be a registry string or expandable string.'
+                    }
+                    $oldUserPath = [string]$key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                }
+            } finally { $key.Dispose() }
+        }
+    }
     [void][IO.Directory]::CreateDirectory($temporary)
     try {
         $tag = $Version
@@ -426,8 +496,10 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         } catch { throw ('Could not download standalone assets for public release ' + $tag + '. The release must publish ' + $asset + ' and SHA256SUMS. ' + $_.Exception.Message) }
         Assert-RarusEchoChecksum $archive $manifest $asset
         $candidate = Join-Path $temporary 'candidate'
-        Expand-RarusEchoArchive $archive $candidate
-        $build = Assert-RarusEchoMedia $candidate $temporary
+        Expand-RarusEchoArchive $archive $candidate $tag
+        $build = Read-RarusEchoJson (Join-Path $candidate 'build-info.json')
+        $legacyPackage = Test-RarusEchoLegacyRelease $build $tag
+        if (-not $legacyPackage) { $build = Assert-RarusEchoMedia $candidate $temporary }
         $identity = Get-RarusEchoIdentity (Join-Path $candidate 'rarus-echo.exe') $tag
         $sourceSha = [Regex]::Match($identity, '\(source ([0-9a-f]{40})\)$').Groups[1].Value
         if ($build.version -cne $tag -or $build.source_sha -cne $sourceSha) { throw 'CLI build metadata identity mismatch.' }
@@ -448,11 +520,11 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
                     throw 'Existing immutable package conflicts with the release; it was not overwritten.'
                 }
             }
-            [void](Assert-RarusEchoMedia $immutablePackage $temporary)
+            if (-not $legacyPackage) { [void](Assert-RarusEchoMedia $immutablePackage $temporary) }
         } else {
             [void][IO.Directory]::CreateDirectory($stageBundle)
             foreach ($item in Get-ChildItem -LiteralPath $candidate -Force) { Copy-Item -LiteralPath $item.FullName -Destination $stageBundle -Recurse }
-            [void](Assert-RarusEchoMedia $stageBundle $temporary)
+            if (-not $legacyPackage) { [void](Assert-RarusEchoMedia $stageBundle $temporary) }
         }
         [void][IO.Directory]::CreateDirectory($stageExecutableDirectory)
         [void][IO.Directory]::CreateDirectory($stagePackage)
@@ -480,14 +552,21 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         if (-not $NoModifyPath) {
             $alreadyPresent = $false
             foreach ($entry in ($oldUserPath -split ';')) {
-                $expanded = [Environment]::ExpandEnvironmentVariables($entry.Trim().Trim('"'))
-                if ($expanded.TrimEnd('\', '/') -ieq $InstallDir.TrimEnd('\', '/')) { $alreadyPresent = $true }
+                $candidatePath = $entry.Trim().Trim('"')
+                if ($oldUserPathKind -eq [Microsoft.Win32.RegistryValueKind]::ExpandString) {
+                    $candidatePath = [Environment]::ExpandEnvironmentVariables($candidatePath)
+                }
+                if ($candidatePath.TrimEnd('\', '/') -ieq $InstallDir.TrimEnd('\', '/')) { $alreadyPresent = $true }
             }
             if (-not $alreadyPresent) {
                 $newPath = $InstallDir
                 if ($oldUserPath) { $newPath += ';' + $oldUserPath }
-                $pathChanged = $true
-                [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    $pathChanged = $true
+                    $key.SetValue('Path', $newPath, $oldUserPathKind)
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
             }
         }
         $committed = $true
@@ -498,6 +577,7 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         Write-Host ('For this PowerShell session, run: $env:PATH = ''' + $InstallDir.Replace("'", "''") + ';'' + $env:PATH')
     } catch {
         $failure = $_.Exception.Message
+        $committed = $false
         $rollbackFailures = @()
         try {
             if ($oldExecutableMoved) {
@@ -514,8 +594,16 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
             if ($newPackageMoved -and (Test-Path -LiteralPath $packageDirectory)) { Remove-Item -LiteralPath $packageDirectory -Recurse -Force }
             if ($oldPackageMoved -and (Test-Path -LiteralPath $backupPackage)) { [IO.Directory]::Move($backupPackage, $packageDirectory) }
         } catch { $rollbackFailures += $_.Exception.Message }
-        try { if ($pathChanged -and [Environment]::GetEnvironmentVariable('PATH', 'User') -cne $oldUserPath) { [Environment]::SetEnvironmentVariable('PATH', $oldUserPath, 'User') } }
-        catch { $rollbackFailures += $_.Exception.Message }
+        if ($pathChanged) {
+            try {
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    if ($userPathExisted) { $key.SetValue('Path', $oldUserPath, $oldUserPathKind) }
+                    else { $key.DeleteValue('Path', $false) }
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
+            } catch { $rollbackFailures += 'User PATH: ' + $_.Exception.Message }
+        }
         if ($rollbackFailures.Count -eq 0 -and $newBundleMoved -and (Test-Path -LiteralPath $immutablePackage)) {
             try { Remove-Item -LiteralPath $immutablePackage -Recurse -Force }
             catch { $rollbackFailures += $_.Exception.Message }

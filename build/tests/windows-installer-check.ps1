@@ -1,6 +1,6 @@
 # Offline contract checks. Windows PowerShell 5.1 runs the native executable tests.
 [CmdletBinding()]
-param([string]$Assets, [string]$Version)
+param([string]$Assets, [string]$Version, [switch]$BootstrapOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -33,7 +33,8 @@ $script:asset = $null
 $script:isNativeWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $originalLocal = $env:LOCALAPPDATA
 $originalRoaming = $env:APPDATA
-$originalPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+$originalJavaHome = $env:JAVA_HOME
+$originalPath = $null
 
 function Assert-True([bool]$Value, [string]$Message) {
     if (-not $Value) { throw $Message }
@@ -48,6 +49,35 @@ function Assert-Fails([scriptblock]$Body, [string]$Pattern) {
     try { & $Body } catch { $failure = $_.Exception.Message }
     Assert-True ($null -ne $failure) 'Expected installation/validation to fail.'
     Assert-True ($failure -match $Pattern) ('Unexpected failure: ' + $failure)
+}
+function Get-TestUserPathState {
+    $state = [pscustomobject]@{ Exists = $false; Value = $null; Kind = [Microsoft.Win32.RegistryValueKind]::String }
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+    if ($null -ne $key) {
+        try {
+            if ($key.GetValueNames() -contains 'Path') {
+                $state.Exists = $true
+                $state.Value = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                $state.Kind = $key.GetValueKind('Path')
+            }
+        } finally { $key.Dispose() }
+    }
+    return $state
+}
+function Set-TestUserPathState([object]$State) {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+    try {
+        if ($State.Exists) { $key.SetValue('Path', $State.Value, $State.Kind) }
+        else { $key.DeleteValue('Path', $false) }
+    } finally { $key.Dispose() }
+}
+function Assert-TestUserPathState([object]$Expected, [string]$Message) {
+    $actual = Get-TestUserPathState
+    Assert-True ($actual.Exists -eq $Expected.Exists) ($Message + ': registry value existence changed.')
+    if ($Expected.Exists) {
+        Assert-True ($actual.Kind -eq $Expected.Kind) ($Message + ': registry value kind changed.')
+        Assert-True ($actual.Value -ceq $Expected.Value) ($Message + ': raw registry value changed.')
+    }
 }
 function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = @(), [string]$Omit = '', [string]$Mode = '') {
     $files = @{}
@@ -91,6 +121,13 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
         $files['media-SHA256SUMS'] = [Text.Encoding]::UTF8.GetBytes(($records -join "`n") + "`n")
         if ($Mode -eq 'tampered-media') { $files['libexec/ffprobe.exe'] = [Text.Encoding]::UTF8.GetBytes('tampered') }
     } finally { $hash.Dispose() }
+    if ($Mode.StartsWith('legacy')) {
+        foreach ($name in @($files.Keys)) {
+            if ($name.StartsWith('libexec/') -or $name.StartsWith('media-')) { $files.Remove($name) }
+        }
+        $files['build-info.json'] = [Text.Encoding]::UTF8.GetBytes((@{version=$script:tag; source_sha=$script:sha; target='windows-amd64'} | ConvertTo-Json))
+        if ($Mode -eq 'legacy-media-entry') { $files['media-build-info.json'] = [Text.Encoding]::UTF8.GetBytes('{}') }
+    }
     $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
     try {
         $names = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
@@ -101,6 +138,11 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
             $permissions = 420
             if ($name -cin @('rarus-echo.exe', 'libexec/ffmpeg.exe', 'libexec/ffprobe.exe')) { $permissions = 493 }
             if ($Mode -eq 'wrong-mode' -and $name -ceq 'libexec/ffprobe.exe') { $permissions = 420 }
+            if ($Mode -eq 'legacy-wrong-mode' -and $name -ceq 'rarus-echo.exe') { $permissions = 420 }
+            if ($Mode -cin @('legacy-producer', 'modern-producer')) {
+                $permissions = 438
+                if ($name -ceq 'rarus-echo.exe') { $permissions = 511 }
+            }
             $entry.ExternalAttributes = (($permissions -bor 0x8000) -shl 16)
             $stream = $entry.Open()
             try {
@@ -161,7 +203,31 @@ function Invoke-RarusEchoDownload([string]$Uri, [string]$Destination) {
     } else { throw ('Unexpected download: ' + $Uri) }
 }
 
+if ($script:isNativeWindows) {
+    # Snapshot raw data and type; Environment.GetEnvironmentVariable expands REG_EXPAND_SZ.
+    $originalPath = Get-TestUserPathState
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class RarusEchoInstallerTestEnvironment {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
+    public static void Notify() {
+        UIntPtr result;
+        SendMessageTimeout(new IntPtr(0xffff), 0x001a, UIntPtr.Zero, "Environment", 2, 1000, out result);
+    }
+}
+'@
+}
+
 try {
+    Test-Case 'native interop definitions are available without compiler output' {
+        Initialize-RarusEchoNativeMethods
+        $native = 'RarusEchoInstallerNativeMethods' -as [type]
+        Assert-True ($native.Assembly.IsDynamic) 'Native interop must stay in memory.'
+        Assert-True ($null -ne $native.GetMethod('IsWow64Process2')) 'Missing architecture P/Invoke.'
+        Assert-True ($null -ne $native.GetMethod('SendMessageTimeout')) 'Missing environment broadcast P/Invoke.'
+    }
     Test-Case 'unsupported platform fails before any download' {
         function Get-RarusEchoPlatform { return 'linux-arm64' }
         Assert-Fails { Install-RarusEcho -NoModifyPath } 'Windows.*amd64|unsupported'
@@ -198,6 +264,18 @@ try {
             Assert-Fails { Assert-RarusEchoChecksum $validZip $manifest 'rarus-echo-windows-amd64.zip' } 'checksum|SHA256'
         }
     }
+    Test-Case 'media JSON validation rejects duplicate keys and malformed grammar without compilation' {
+        $jsonPath = Join-Path $root ('metadata ' + [char]0x0416 + '.json')
+        [IO.File]::WriteAllText($jsonPath, '{"schema_version":1,"nested":{"flags":["escaped\\value",true,null,-1.25e2]},"empty":[]}')
+        $parsed = Read-RarusEchoJson $jsonPath
+        Assert-True ($parsed.schema_version -eq 1) 'Valid complete media JSON was rejected.'
+        foreach ($invalid in @('{"key":1,"key":2}', '{"key":1,"KEY":2}', '{"\u006bey":1}',
+            '{"key":01}', '{"key":1,}', '{"key":[1,]}', '{"key":tru}', '{"key":"bad\q"}',
+            '{"key":1} trailing', '[]', '{"key":{"nested":1}')) {
+            [IO.File]::WriteAllText($jsonPath, $invalid)
+            Assert-Fails { Read-RarusEchoJson $jsonPath } 'JSON'
+        }
+    }
     Test-Case 'safe archive retains required license files' {
         $destination = Join-Path $root 'expanded'
         Expand-RarusEchoArchive $validZip $destination
@@ -207,6 +285,29 @@ try {
         $path = Join-Path $root 'wrong-media-mode.zip'
         New-TestArchive $path '' @() '' 'wrong-mode'
         Assert-Fails { Expand-RarusEchoArchive $path (Join-Path $root 'wrong-media-mode-out') } 'permissions|mode'
+    }
+    Test-Case 'historical Windows producer modes require the exact frozen legacy identity' {
+        $savedTag = $script:tag
+        $savedSha = $script:sha
+        try {
+            $script:tag = '0.5.0-rc-1'
+            $script:sha = 'e359975527bd483707dc39d23599545a77c1620d'
+            $archive = Join-Path $root 'legacy-producer.zip'
+            New-TestArchive $archive '' @() '' 'legacy-producer'
+            $destination = Join-Path $root 'legacy-producer-out'
+            Expand-RarusEchoArchive $archive $destination $script:tag
+            Assert-True (Test-Path -LiteralPath (Join-Path $destination 'rarus-echo.exe')) 'Authentic frozen Windows producer modes were rejected.'
+            foreach ($scenario in @('wrong-source', 'unknown-release', 'media-payload')) {
+                $script:tag = '0.5.0-rc-1'
+                $script:sha = 'a' * 40
+                $mode = 'legacy-producer'
+                if ($scenario -eq 'unknown-release') { $script:tag = '0.5.0-rc-2' }
+                if ($scenario -eq 'media-payload') { $mode = 'modern-producer' }
+                $archive = Join-Path $root ('producer-' + $scenario + '.zip')
+                New-TestArchive $archive '' @() '' $mode
+                Assert-Fails { Expand-RarusEchoArchive $archive (Join-Path $root ('producer-' + $scenario + '-out')) $script:tag } 'permission|legacy|media|required'
+            }
+        } finally { $script:tag = $savedTag; $script:sha = $savedSha }
     }
     $badNames = @('../outside.txt', '/outside.txt', 'runtime-licenses/../escape.txt', 'runtime-licenses\escape.txt',
         'runtime-licenses/file:stream', 'runtime-licenses/CON', 'runtime-licenses/file.', 'runtime-licenses//empty',
@@ -261,6 +362,54 @@ try {
         Write-Host ('PASS ' + $script:checks + ' portable checks; native Windows executable/PATH checks require Windows PowerShell 5.1.')
         return
     }
+    Test-Case 'native helpers work in a fresh process with Unicode TEMP and cwd' {
+        $temporary = Join-Path $root (([string][char]0x044F) + ' compiler files')
+        [void][IO.Directory]::CreateDirectory($temporary)
+        $probe = @'
+$ErrorActionPreference = 'Stop'
+$errors = $null
+$tokens = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:ECHO_TEST_INSTALLER, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+foreach ($definition in $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$before = @($env:TMP, $env:TEMP, $env:TMPDIR)
+foreach ($attempt in 1..2) {
+    if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Wrong native architecture in Unicode environment.' }
+    Send-RarusEchoEnvironmentChange
+    $manifest = Join-Path $env:TEMP 'media-build-info.json'
+    try {
+        [IO.File]::WriteAllText($manifest, '{"schema_version":1,"nested":{"flags":["value",true,null]}}')
+        if ((Read-RarusEchoJson $manifest).schema_version -ne 1) { throw 'Media JSON validation failed in Unicode TEMP.' }
+    } finally { [IO.File]::Delete($manifest) }
+}
+if (($before -join '|') -cne (@($env:TMP, $env:TEMP, $env:TMPDIR) -join '|')) { throw 'Bootstrap changed caller TEMP variables.' }
+if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Bootstrap left compiler files behind.' }
+'@
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = Join-Path $PSHOME $(if ($PSVersionTable.PSVersion.Major -le 5) { 'powershell.exe' } else { 'pwsh.exe' })
+        $start.Arguments = '-NoProfile -NonInteractive -EncodedCommand ' + [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($probe))
+        $start.UseShellExecute = $false
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.WorkingDirectory = $temporary
+        foreach ($name in @('TMP', 'TEMP', 'TMPDIR')) { $start.EnvironmentVariables[$name] = $temporary }
+        $start.EnvironmentVariables['ECHO_TEST_INSTALLER'] = $installer
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo = $start
+        try {
+            [void]$process.Start()
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Unicode bootstrap probe timed out.' }
+            Assert-True ($process.ExitCode -eq 0) ('Unicode bootstrap probe failed: ' + $stdout.Result + $stderr.Result)
+        } finally { $process.Dispose() }
+    }
+    if ($BootstrapOnly) {
+        Write-Host ('PASS ' + $script:checks + ' Windows bootstrap checks.')
+        return
+    }
     Test-Case 'native OS architecture is independent of process architecture variables' {
         $originalArchitecture = $env:PROCESSOR_ARCHITECTURE
         $originalWowArchitecture = $env:PROCESSOR_ARCHITEW6432
@@ -286,13 +435,71 @@ try {
     $defaultBin = Join-Path $env:LOCALAPPDATA 'rarus-echo/bin'
     $defaultPackage = Join-Path $env:LOCALAPPDATA 'rarus-echo/package'
     $oldToolkit = Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)
+    $env:JAVA_HOME = Join-Path $root 'Java before'
+    $seededPath = [pscustomobject]@{
+        Exists = $true
+        Value = '%JAVA_HOME%\bin;C:\Existing Tools'
+        Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+    }
+    Set-TestUserPathState $seededPath
     Test-Case 'latest install preserves config and no-modify PATH' {
         Install-RarusEcho -NoModifyPath
         Assert-True (Test-Path -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')) 'Default executable was not installed.'
         Assert-True (Test-Path -LiteralPath (Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) 'Package notices were not installed.'
         Assert-True (Test-Path -LiteralPath (Join-Path $oldToolkit 'libexec/ffprobe.exe')) 'Complete immutable toolkit was not installed.'
         Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Configuration changed.'
-        Assert-True ([Environment]::GetEnvironmentVariable('PATH', 'User') -eq $originalPath) 'NoModifyPath changed user PATH.'
+        Assert-TestUserPathState $seededPath 'NoModifyPath changed user PATH'
+    }
+    Test-Case 'install and repeat preserve expandable PATH references and registry kind' {
+        Install-RarusEcho -Version $script:tag
+        $expected = [pscustomobject]@{
+            Exists = $true
+            Value = $defaultBin + ';' + $seededPath.Value
+            Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+        }
+        Assert-TestUserPathState $expected 'Install must preserve REG_EXPAND_SZ and raw variable references'
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Repeat install must preserve REG_EXPAND_SZ and raw variable references'
+        $env:JAVA_HOME = Join-Path $root 'Java after'
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+        try { $expanded = [string]$key.GetValue('Path') } finally { $key.Dispose() }
+        Assert-True ($expanded -ceq ($defaultBin + ';' + $env:JAVA_HOME + '\bin;C:\Existing Tools')) 'Changing JAVA_HOME did not change the expanded PATH.'
+    }
+    Test-Case 'an expanded existing installer entry is idempotent without rewriting raw PATH' {
+        $expected = [pscustomobject]@{
+            Exists = $true
+            Value = '%LOCALAPPDATA%\rarus-echo\bin;%JAVA_HOME%\bin'
+            Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+        }
+        Set-TestUserPathState $expected
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Expanded installer entry was rewritten or duplicated'
+    }
+    Test-Case 'literal variable-form installer entry in REG_SZ requires the actual directory' {
+        $raw = '%LOCALAPPDATA%\rarus-echo\bin;%JAVA_HOME%\bin'
+        Set-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $raw; Kind = [Microsoft.Win32.RegistryValueKind]::String })
+        $expected = [pscustomobject]@{
+            Exists = $true
+            Value = $defaultBin + ';' + $raw
+            Kind = [Microsoft.Win32.RegistryValueKind]::String
+        }
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Literal REG_SZ variable reference incorrectly counted as the real install directory'
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Repeat install duplicated the actual directory in REG_SZ'
+    }
+    Test-Case 'ordinary string PATH preserves its kind and literal variable references' {
+        $raw = '%JAVA_HOME%\bin;C:\Plain Tools'
+        Set-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $raw; Kind = [Microsoft.Win32.RegistryValueKind]::String })
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $defaultBin + ';' + $raw; Kind = [Microsoft.Win32.RegistryValueKind]::String }) 'Ordinary string PATH was converted'
+    }
+    Test-Case 'missing user PATH is created once as an ordinary string' {
+        Set-TestUserPathState ([pscustomobject]@{ Exists = $false })
+        Install-RarusEcho -Version $script:tag
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $defaultBin; Kind = [Microsoft.Win32.RegistryValueKind]::String }) 'Missing user PATH was not installed idempotently'
+        Set-TestUserPathState $seededPath
     }
     Test-Case 'repeat pinned install adds user PATH only once' {
         $script:downloads.Clear()
@@ -328,6 +535,44 @@ try {
         Assert-True ([IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) -eq $oldNotice) 'Failure replaced notices.'
         Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Failure changed configuration.'
     }
+    Test-Case 'only the frozen pre-media release installs without media and repeats safely' {
+        $savedTag = $script:tag
+        $savedSha = $script:sha
+        try {
+            $script:tag = '0.5.0-rc-1'
+            $script:sha = 'e359975527bd483707dc39d23599545a77c1620d'
+            $legacyExecutable = Join-Path $root 'legacy.exe'
+            New-ConsoleFixture $legacyExecutable ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')
+            $legacyWrongNative = Join-Path $root 'legacy-wrong-native.exe'
+            New-ConsoleFixture $legacyWrongNative ('RARUS Echo CLI ' + $script:tag + ' (source ' + ('a' * 40) + ')')
+            $script:asset = Join-Path $root 'legacy.zip'
+            New-TestArchive $script:asset $legacyExecutable @() '' 'legacy'
+            $legacyInstall = Join-Path $root ('legacy ' + [char]0x0416 + ' bin')
+            Install-RarusEcho -Version $script:tag -InstallDir $legacyInstall -NoModifyPath
+            Install-RarusEcho -Version $script:tag -InstallDir $legacyInstall -NoModifyPath
+            [void](Get-RarusEchoIdentity (Join-Path $legacyInstall 'rarus-echo.exe') $script:tag)
+            $legacyPackage = Join-Path $legacyInstall ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)
+            Assert-True (Test-Path -LiteralPath (Join-Path $legacyPackage 'runtime-licenses/PHP.txt')) 'Frozen legacy package lost its original licenses.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacyPackage 'libexec'))) 'Frozen legacy package contains media.'
+            Assert-OldInstallation
+            foreach ($scenario in @('wrong-source', 'unknown-release', 'wrong-native', 'legacy-media-entry', 'legacy-wrong-mode', 'missing-license')) {
+                $script:tag = '0.5.0-rc-1'
+                $script:sha = 'e359975527bd483707dc39d23599545a77c1620d'
+                if ($scenario -eq 'wrong-source') { $script:sha = 'a' * 40 }
+                if ($scenario -eq 'unknown-release') { $script:tag = '0.5.0-rc-2' }
+                $script:asset = Join-Path $root ('legacy-' + $scenario + '.zip')
+                $mode = 'legacy'
+                if ($scenario.StartsWith('legacy-')) { $mode = $scenario }
+                $omit = ''
+                if ($scenario -eq 'missing-license') { $omit = 'runtime-licenses/PHP.txt' }
+                $candidate = $legacyExecutable
+                if ($scenario -eq 'wrong-native') { $candidate = $legacyWrongNative }
+                New-TestArchive $script:asset $candidate @() $omit $mode
+                Assert-Fails { Install-RarusEcho -Version $script:tag -NoModifyPath } 'archive|media|identity|version|permission|license|required|legacy'
+                Assert-OldInstallation
+            }
+        } finally { $script:tag = $savedTag; $script:sha = $savedSha; $script:asset = Join-Path $root 'next.zip' }
+    }
     foreach ($mode in @('wrong-media-target', 'wrong-media-identity', 'tampered-media', 'duplicate-media-checksum', 'malformed-media-json', 'duplicate-media-key', 'wrong-schema-type', 'wrong-configure-type', 'wrong-ffmpeg', 'wrong-ffprobe', 'conversion-failure')) {
         Test-Case ('invalid media bundle preserves install: ' + $mode) {
             $script:asset = Join-Path $root ($mode + '.zip')
@@ -346,6 +591,28 @@ try {
             Assert-True ([IO.File]::ReadAllText($immutableManifest) -eq 'conflicting manifest') 'Conflicting immutable manifest was overwritten.'
             Assert-OldInstallation
         } finally { [IO.File]::WriteAllText($immutableManifest, $originalManifest) }
+    }
+    Test-Case 'handled failure after PATH write restores raw expandable value and kind' {
+        Set-TestUserPathState $seededPath
+        Assert-Fails {
+            Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
+                if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
+            }
+        } 'fixture output sink failure'
+        Assert-TestUserPathState $seededPath 'Rollback lost the original expandable PATH'
+        Assert-OldInstallation
+    }
+    Test-Case 'handled failure after PATH write restores absence of the registry value' {
+        $absent = [pscustomobject]@{ Exists = $false }
+        Set-TestUserPathState $absent
+        Assert-Fails {
+            Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
+                if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
+            }
+        } 'fixture output sink failure'
+        Assert-TestUserPathState $absent 'Rollback created a previously absent user PATH'
+        Assert-OldInstallation
+        Set-TestUserPathState $seededPath
     }
     Test-Case 'missing stable assets preserve existing install' {
         $script:missingAsset = $true
@@ -421,7 +688,7 @@ public static class RarusEchoDirectoryLock {
         @{Name='notices-backup'; Call='[IO.Directory]::Move($packageDirectory, $backupPackage)'},
         @{Name='notices'; Call='[IO.Directory]::Move($stagePackage, $packageDirectory)'},
         @{Name='executable'; Call='[IO.File]::Replace((Join-Path $stageExecutableDirectory ''rarus-echo.exe''), $executable, $backupExecutable)'},
-        @{Name='PATH'; Call='[Environment]::SetEnvironmentVariable(''PATH'', $newPath, ''User'')'}
+        @{Name='PATH'; Call='$key.SetValue(''Path'', $newPath, $oldUserPathKind)'}
     )
     $script:operationIndex = 0
     foreach ($operation in $transactionOperations) {
@@ -432,7 +699,7 @@ public static class RarusEchoDirectoryLock {
             Assert-True ($fault -ne $script:installerImplementation.ToString()) 'Post-operation fault was not injected.'
             Set-Item -Path function:Install-RarusEcho -Value ([scriptblock]::Create($fault))
             $savedTag = $script:tag
-            $savedUserPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+            $savedUserPath = Get-TestUserPathState
             try {
                 $script:tag = 'v1.4.0-transaction.' + $script:operationIndex
                 $transactionExecutable = Join-Path $root ('transaction-' + $script:operationIndex + '.exe')
@@ -440,17 +707,17 @@ public static class RarusEchoDirectoryLock {
                 $script:asset = Join-Path $root ('transaction-' + $script:operationIndex + '.zip')
                 New-TestArchive $script:asset $transactionExecutable
                 # Ensure the real PATH setter runs even after the repeat-install test.
-                [Environment]::SetEnvironmentVariable('PATH', (Join-Path $root 'previous user PATH'), 'User')
-                $expectedPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+                Set-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = '%JAVA_HOME%\bin;C:\Previous Tools'; Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString })
+                $expectedPath = Get-TestUserPathState
                 Assert-Fails { Install-RarusEcho -Version $script:tag } ([Regex]::Escape($failureText))
                 Assert-OldInstallation
-                Assert-True ([Environment]::GetEnvironmentVariable('PATH', 'User') -ceq $expectedPath) 'Failure after PATH mutation did not restore the previous user PATH.'
+                Assert-TestUserPathState $expectedPath 'Failure after PATH mutation did not restore the previous raw user PATH and kind'
                 Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)))) 'Failed transaction retained a newly activated immutable package.'
                 Assert-True (@(Get-ChildItem -LiteralPath $defaultBin -Filter '.rarus-echo-backup-*.exe').Count -eq 0) 'Successful rollback retained an executable backup.'
             } finally {
                 $script:tag = $savedTag
                 $script:asset = Join-Path $root 'next.zip'
-                [Environment]::SetEnvironmentVariable('PATH', $savedUserPath, 'User')
+                Set-TestUserPathState $savedUserPath
                 Set-Item -Path function:Install-RarusEcho -Value $script:installerImplementation
             }
         }
@@ -489,32 +756,43 @@ public static class RarusEchoDirectoryLock {
             $script:asset = Join-Path $Assets 'rarus-echo-windows-amd64.zip'
             $script:manifestOverride = [IO.File]::ReadAllText((Join-Path $Assets 'SHA256SUMS'))
             $realCandidate = Join-Path $root 'real-native-candidate'
-            Expand-RarusEchoArchive $script:asset $realCandidate
+            Expand-RarusEchoArchive $script:asset $realCandidate $Version
             $realBuild = Read-RarusEchoJson (Join-Path $realCandidate 'build-info.json')
+            $frozenLegacy = Test-RarusEchoLegacyRelease $realBuild $Version
             $native = Join-Path $root ('native complete ' + [char]0x0416 + ' bin')
-            $python = (Get-Command python -ErrorAction Stop).Source
+            if (-not $frozenLegacy) { $python = (Get-Command python -ErrorAction Stop).Source }
             $mediaCheck = Join-Path $PSScriptRoot 'installed-media-check.py'
             $savedProcessPath = $env:PATH
             try {
                 $env:PATH = Join-Path $env:SystemRoot 'System32'
                 Install-RarusEcho -Version $Version -NoModifyPath
                 Install-RarusEcho -Version $Version -NoModifyPath
-                & $python $mediaCheck --binary (Join-Path $defaultBin 'rarus-echo.exe')
-                if ($LASTEXITCODE -ne 0) { throw 'Default installed native CLI could not resolve and use its matching toolkit.' }
+                [void](Get-RarusEchoIdentity (Join-Path $defaultBin 'rarus-echo.exe') $Version)
+                if (-not $frozenLegacy) {
+                    & $python $mediaCheck --binary (Join-Path $defaultBin 'rarus-echo.exe')
+                    if ($LASTEXITCODE -ne 0) { throw 'Default installed native CLI could not resolve and use its matching toolkit.' }
+                }
                 Install-RarusEcho -Version $Version -InstallDir $native -NoModifyPath
                 Install-RarusEcho -Version $Version -InstallDir $native -NoModifyPath
                 $package = Join-Path $native ('.rarus-echo/packages/' + $Version + '-' + $realBuild.source_sha)
-                Assert-True (Test-Path -LiteralPath (Join-Path $package 'libexec/ffmpeg.exe')) 'Native media executable was not installed.'
+                if (-not $frozenLegacy) { Assert-True (Test-Path -LiteralPath (Join-Path $package 'libexec/ffmpeg.exe')) 'Native media executable was not installed.' }
                 [void](Get-RarusEchoIdentity (Join-Path $native 'rarus-echo.exe') $Version)
-                & $python $mediaCheck --binary (Join-Path $native 'rarus-echo.exe')
-                if ($LASTEXITCODE -ne 0) { throw 'Unicode custom installed native CLI could not resolve and use its matching toolkit.' }
+                if (-not $frozenLegacy) {
+                    & $python $mediaCheck --binary (Join-Path $native 'rarus-echo.exe')
+                    if ($LASTEXITCODE -ne 0) { throw 'Unicode custom installed native CLI could not resolve and use its matching toolkit.' }
+                }
+                Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Native install changed the existing user configuration.'
             } finally { $env:PATH = $savedProcessPath }
         }
     }
     Write-Host ('PASS ' + $script:checks + ' Windows installer checks.')
 } finally {
-    if ($script:isNativeWindows) { [Environment]::SetEnvironmentVariable('PATH', $originalPath, 'User') }
+    if ($script:isNativeWindows) {
+        Set-TestUserPathState $originalPath
+        [RarusEchoInstallerTestEnvironment]::Notify()
+    }
     $env:LOCALAPPDATA = $originalLocal
     $env:APPDATA = $originalRoaming
+    $env:JAVA_HOME = $originalJavaHome
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
 }

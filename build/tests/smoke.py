@@ -21,7 +21,7 @@ import email.parser
 import email.policy
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from release_assets import inspect_archive
+from release_assets import inspect_archive, validate_legacy_identity
 from media import toolkit as media_toolkit
 
 FILE_ID = "33333333-3333-4333-8333-333333333333"
@@ -68,13 +68,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.answer({"results": [{"file_id": FILE_ID}]})
 
 
-def smoke(directory, version, sha, probe=None, php=None):
+def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True):
+    if not media:
+        validate_legacy_identity(version, sha)
     with tempfile.TemporaryDirectory(prefix="echo-acceptance-") as temp:
         workspace = Path(temp) / "изолированный каталог"
         workspace.mkdir()
         suffix = ".phar" if php else (".exe" if os.name == "nt" else "")
         binary = workspace / ("rarus-echo" + suffix)
-        if php:
+        if php or not media:
             shutil.copy2(Path(directory) / binary.name, binary)
         else:
             shutil.copytree(directory, workspace, dirs_exist_ok=True)
@@ -97,10 +99,26 @@ def smoke(directory, version, sha, probe=None, php=None):
         result = command(binary, ["--version", "--no-ansi"], elsewhere, env, php=php)
         check(version in result.stdout and sha in result.stdout, "Embedded identity mismatch")
         command(binary, ["--help", "--no-ansi"], workspace, env, php=php)
-        for name in ["install", "queue", "submit", "status", "transcript"]:
+        for name in ["install", "queue", "submit", "status", "transcript"] + (["doctor"] if doctor else []):
             command(binary, [name, "--help", "--no-ansi"], workspace, env, php=php)
         missing = command(binary, ["queue", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
         check("RARUS_ECHO_API_KEY" in missing.stderr, "Missing credential handling failed")
+        if doctor:
+            diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
+            report = json.loads(diagnosis.stdout)
+            check(report["schema_version"] == 1 and report["status"] == "error", "Doctor report contract failed")
+            check(set(report["checks"]) == {"config", "connection", "ffmpeg"}, "Doctor omitted a check")
+            check(report["checks"]["connection"]["status"] == "skipped", "Doctor requested Echo without credentials")
+            if media and not php:
+                ffmpeg = report["checks"]["ffmpeg"]
+                expected_path = workspace / 'libexec' / ('ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')
+                media_info = json.loads((workspace / 'media-build-info.json').read_text())
+                check(ffmpeg['status'] == 'ok' and ffmpeg['code'] == 'ffmpeg_ok'
+                      and Path(ffmpeg['details']['path']).resolve() == expected_path.resolve()
+                      and ffmpeg['details']['version'] == media_info['ffmpeg_version'],
+                      "Doctor did not validate the pinned bundled toolkit")
+            else:
+                check(report["checks"]["ffmpeg"]["code"] == "ffmpeg_missing", "Doctor ignored isolated PATH")
         invalid = command(binary, ["status", "invalid-id", "--json", "--no-ansi"],
                           workspace, env, expected=1, php=php)
         check("valid UUID" in invalid.stderr, "Invalid input handling failed")
@@ -125,7 +143,7 @@ def smoke(directory, version, sha, probe=None, php=None):
             wav.setsampwidth(2)
             wav.setframerate(8000)
             wav.writeframes(struct.pack("<h", 1) * 800)
-        if probe and not php:
+        if probe and not php and media:
             cancellation_check(copied_probe, workspace / "libexec" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
                                audio, workspace, env)
             timeout_check(copied_probe, workspace / "libexec" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
@@ -141,6 +159,14 @@ def smoke(directory, version, sha, probe=None, php=None):
                            "RARUS_ECHO_BASE_URL": url}
             queue = command(binary, ["queue", "--json", "--no-ansi"], workspace, env | credentials, php=php)
             check(json.loads(queue.stdout)["files_count"] == 3, "Queue or environment credentials failed")
+            if doctor:
+                diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace,
+                                    env | credentials, expected=1, php=php)
+                report = json.loads(diagnosis.stdout)
+                check(report["checks"]["connection"]["status"] == "ok", "Doctor authenticated queue request failed")
+                check(report["checks"]["config"]["details"]["source"] == "environment", "Doctor source selection failed")
+                check(API_KEY not in diagnosis.stdout + diagnosis.stderr
+                      and USER_ID not in diagnosis.stdout + diagnosis.stderr, "Doctor leaked credentials")
             config = workspace / "параметры доступа" / "connection.json"
             command(binary, ["--config", str(config), "--help"], workspace, env, php=php)
             command(binary, ["--config", str(config), "--version"], workspace, env, php=php)
@@ -174,12 +200,17 @@ def smoke(directory, version, sha, probe=None, php=None):
                     check(config.stat().st_mode & 0o777 == 0o600, "Configuration is not private")
                     check(config.parent.stat().st_mode & 0o777 == 0o700, "Configuration directory is not private")
             (workspace / ".env").write_text("".join(k + "=" + v + "\n" for k, v in credentials.items()), encoding="utf-8")
+            if doctor and media and not php:
+                diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, php=php)
+                report = json.loads(diagnosis.stdout)
+                check(report["status"] == "ok" and report["checks"]["ffmpeg"]["status"] == "ok"
+                      and report["checks"]["connection"]["status"] == "ok", "Configured bundled Doctor failed")
             upload = command(binary, ["submit", str(audio), "--json", "--no-ansi"], workspace, env, php=php)
             check(json.loads(upload.stdout)["file_ids"] == [FILE_ID], "Upload or dotenv failed")
             request = Handler.requests[-1]
             check(request[0] == "/v1/async/transcription"
                   and audio.read_bytes() in request[2], "Multipart upload bytes/path mismatch")
-            if not php:
+            if not php and media:
                 fixtures = Path(__file__).resolve().parents[2] / "tests/Fixtures/Media"
                 fixture = fixtures / "video-aac.mp4"
                 check(fixture.is_file(), "Committed media fixtures are required for native acceptance")
@@ -336,11 +367,11 @@ def timeout_check(probe, ffmpeg, audio, workspace, env):
         ready.unlink(missing_ok=True)
 
 
-def extract_archive(path, destination, version, sha):
+def extract_archive(path, destination, version, sha, *, require_media=True):
     if path.suffix == ".zip":
         with zipfile.ZipFile(path) as archive:
             info = json.loads(archive.read("build-info.json"))
-        inspect_archive(path, info["target"], version, sha)
+        inspect_archive(path, info["target"], version, sha, require_media=require_media)
         with zipfile.ZipFile(path) as archive:
             for name in archive.namelist():
                 output = destination / name
@@ -350,7 +381,7 @@ def extract_archive(path, destination, version, sha):
     else:
         with tarfile.open(path) as archive:
             info = json.load(archive.extractfile("build-info.json"))
-        inspect_archive(path, info["target"], version, sha)
+        inspect_archive(path, info["target"], version, sha, require_media=require_media)
         with tarfile.open(path) as archive:
             for member in archive:
                 output = destination / member.name
@@ -367,14 +398,18 @@ def main():
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--probe", type=Path)
     parser.add_argument("--php", type=Path)
+    parser.add_argument("--without-doctor", action="store_true",
+                        help="Accept a historical release whose tagged source predates doctor")
+    parser.add_argument("--without-media", action="store_true",
+                        help="Accept only the frozen published release whose verified source predates media")
     args = parser.parse_args()
     if args.artifact.is_dir():
-        smoke(args.artifact, args.version, args.source_sha, args.probe, args.php)
+        smoke(args.artifact, args.version, args.source_sha, args.probe, args.php, not args.without_doctor, not args.without_media)
         return
     with tempfile.TemporaryDirectory(prefix="echo-extract-") as temp:
         destination = Path(temp)
-        extract_archive(args.artifact, destination, args.version, args.source_sha)
-        smoke(destination, args.version, args.source_sha, args.probe, args.php)
+        extract_archive(args.artifact, destination, args.version, args.source_sha, require_media=not args.without_media)
+        smoke(destination, args.version, args.source_sha, args.probe, args.php, not args.without_doctor, not args.without_media)
 
 
 if __name__ == "__main__":

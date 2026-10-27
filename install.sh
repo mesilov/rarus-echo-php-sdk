@@ -188,7 +188,7 @@ awk '
 ' "$work/types" || fail 'archive must contain regular files with exact executable/data permissions'
 mkdir "$work/package"
 tar -xzf "$work/$archive" -C "$work/package" || fail 'cannot unpack archive'
-for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt libexec/ffmpeg libexec/ffprobe media-build-info.json media-source.tar.xz media-SHA256SUMS; do
+for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
     [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "archive missing required file: $file"
 done
 have_license=0
@@ -203,7 +203,6 @@ while IFS= read -r member; do
     esac
 done < "$work/members"
 [ "$have_license" -eq 1 ] || fail 'archive missing runtime licenses'
-[ "$have_media_license" -eq 1 ] || fail 'archive missing media licenses'
 # Parse complete JSON with portable awk, rejecting duplicate keys and malformed input.
 # Escaped object keys are deliberately not accepted in our controlled build manifests.
 json_records() {
@@ -229,7 +228,11 @@ json_records() {
             print path "\t@object\tobject";
             pos++; ws(); if(substr(doc,pos,1)=="}") { pos++; return }
             while(1) {
-                ws(); key=string_value(); if(key ~ /[\\.\[\]]/) bad();
+                ws(); key=string_value(); if(key ~ /[\\]/) bad();
+                # Encode path delimiters so filename keys in toolchain_patches
+                # remain valid without impersonating nested identity properties.
+                gsub(/%/, "%25", key); gsub(/\./, "%2e", key);
+                gsub(/\[/, "%5b", key); gsub(/\]/, "%5d", key);
                 child=path (path!="" ? "." : "") key;
                 if(seen[child]++) bad(); ws(); if(substr(doc,pos++,1)!=":") bad();
                 value(child,depth+1); ws(); c=substr(doc,pos++,1); if(c=="}") return; if(c!=",") bad();
@@ -298,7 +301,22 @@ validate_media() {
     probe=$("$bundle/libexec/ffprobe" -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "$work/check.flac") || fail 'bundled media probe failed'
     [ "$probe" = flac ] || fail 'bundled media probe did not confirm FLAC audio'
 }
-validate_media "$work/package"
+json_records "$work/package/build-info.json" > "$work/build-records" || fail 'invalid CLI build JSON'
+legacy_package=0
+# Frozen compatibility for the only published pre-media standalone release.
+# No other version/source pair may omit the complete media payload.
+if [ "$version" = 0.5.0-rc-1 ] && [ "$(field "$work/build-records" source_sha)" = e359975527bd483707dc39d23599545a77c1620d ]; then
+    legacy_package=1
+    awk '/^(libexec\/|media-)/ {exit 1}' "$work/members" || fail 'frozen legacy archive must not contain media entries'
+    awk -F '\t' '$1=="media" || index($1,"media.")==1 {exit 1}' "$work/build-records" || fail 'frozen legacy metadata must not declare media'
+    [ "$(field "$work/build-records" target)" = "$target" ] || fail 'frozen legacy archive target mismatch'
+else
+    for file in libexec/ffmpeg libexec/ffprobe media-build-info.json media-source.tar.xz media-SHA256SUMS; do
+        [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "archive missing required file: $file"
+    done
+    [ "$have_media_license" -eq 1 ] || fail 'archive missing media licenses'
+    validate_media "$work/package"
+fi
 reported=$("$work/package/rarus-echo" --version --no-ansi) || fail 'candidate --version failed; check platform compatibility and macOS launch permissions'
 identity_prefix="RARUS Echo CLI $version (source "
 case "$reported" in "$identity_prefix"*')') ;; *) fail 'candidate version does not match the selected release' ;; esac
@@ -339,11 +357,11 @@ if [ -e "$immutable_package" ]; then
     while IFS= read -r member; do
         [ ! -L "$immutable_package/$member" ] && [ -f "$immutable_package/$member" ] && cmp -s "$work/package/$member" "$immutable_package/$member" || fail 'existing immutable package conflicts with release'
     done < "$work/members"
-    validate_media "$immutable_package"
+    [ "$legacy_package" -eq 1 ] || validate_media "$immutable_package"
 else
     immutable_stage=$(mktemp -d "$install_dir/.rarus-echo/packages/.stage.XXXXXXXX")
     cp -R "$work/package/." "$immutable_stage/"
-    validate_media "$immutable_stage"
+    [ "$legacy_package" -eq 1 ] || validate_media "$immutable_stage"
 fi
 [ ! -d "$install_dir/rarus-echo" ] || fail 'binary destination is a directory'
 [ ! -d "$share_dir/env" ] || fail 'activation destination is a directory'
@@ -357,9 +375,12 @@ chmod 755 "$binary_stage"
 staged_version=$("$binary_stage" --version --no-ansi) || fail 'staged binary cannot execute in install directory'
 [ "$staged_version" = "$reported" ] || fail 'staged binary version mismatch'
 package_stage=$(mktemp -d "$share_dir/.package.XXXXXXXX")
-for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses media-build-info.json media-licenses media-SHA256SUMS; do
+for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses; do
     cp -R "$work/package/$file" "$package_stage/"
 done
+if [ "$legacy_package" -eq 0 ]; then
+    for file in media-build-info.json media-licenses media-SHA256SUMS; do cp -R "$work/package/$file" "$package_stage/"; done
+fi
 # Single-quote shell strings, including literal quotes in user directories.
 quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 quoted_dir=$(quote "$install_dir")

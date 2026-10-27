@@ -27,7 +27,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk:^0.4
+composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-1
 ```
 
 ## Быстрый старт
@@ -164,21 +164,21 @@ vendor/bin/rarus-echo --help
 
 #### Однострочная установка
 
-Linux x86-64/ARM64 и macOS Apple Silicon:
+Для проверки prerelease `0.5.0-rc-1` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
 
 ```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-1
 ```
 
 Windows x86-64, PowerShell 5.1 или новее:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content))
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-1
 ```
 
-**Доступность:** эти команды требуют публикации скриптов в `main` и релиза со standalone-архивами. На 27 октября 2026 года последний стабильный релиз `0.4.0` ещё не содержит таких архивов. Если нужный архив отсутствует, установщик завершится с ошибкой. PR в `dev` сам по себе не включает публичную установку.
+`0.5.0-rc-1` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-1). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
 
-Скрипт определяет платформу, выбирает последний стабильный релиз, проверяет SHA-256 и версию бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
+Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
 
 | Параметр | POSIX sh | PowerShell |
 | --- | --- | --- |
@@ -241,7 +241,7 @@ Expand-Archive $archive -DestinationPath .\rarus-echo
 .\rarus-echo\rarus-echo.exe --help
 ```
 
-`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для подготовки видео сохраняйте весь распакованный комплект: `libexec/ffmpeg`, `libexec/ffprobe` (на Windows с `.exe`), media metadata, контрольные суммы, лицензии и сжатые соответствующие исходники. Дополнительная установка FFmpeg не требуется. Справка, версия и команды без обработки видео продолжают работать с одним исполняемым файлом. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
+`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для подготовки видео сохраняйте весь распакованный комплект: `libexec/ffmpeg`, `libexec/ffprobe` (на Windows с `.exe`), media metadata, контрольные суммы, лицензии и сжатые соответствующие исходники. Дополнительная установка FFmpeg не требуется. Опубликованный до этого изменения `0.5.0-rc-1` остаётся доступен по точной версии с прежним CLI без медианабора. Справка, версия и команды без обработки видео продолжают работать с одним исполняемым файлом. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
 
 macOS-сборка имеет ad-hoc подпись без notarization, Windows-сборка не подписана Authenticode; система может запросить подтверждение запуска скачанного файла. Docker остаётся основным quick start выше.
 
@@ -288,6 +288,40 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 
 `help`, `--version` и `install` работают без готового подключения. В Docker сохраните файл в смонтированном каталоге и передавайте путь внутри контейнера через `--config`; для интерактивного `install` запускайте контейнер с `-it`.
 
+### Диагностика окружения
+
+Команда `doctor` доступна в `dev` (Unreleased) и не входит в опубликованный `0.5.0-rc-1`.
+
+`doctor` без аргументов проверяет конфиг, авторизованную связь с Echo и наличие ffmpeg для извлечения аудиодорожки из видео:
+
+```bash
+rarus-echo doctor
+rarus-echo --config "/path/to/config.json" doctor
+rarus-echo doctor --json
+```
+
+Команда показывает путь и состояние файла, выбранный источник подключения (`explicit_config`, `environment` или `default_config`), результат запроса очереди и путь/версию ffmpeg. Она использует существующие правила выбора подключения. При валидных env/`.env` credentials отсутствие или ошибка неиспользуемого стандартного конфига дают предупреждение; при невалидных активных настройках проверка сервера пропускается. Проверка ffmpeg выполняется независимо.
+
+Сетевой запрос ограничен десятью секундами, не следует редиректам и не создаёт задания. Вся проверка медианабора ограничена пятью секундами и использует тот же поиск и проверку `ffmpeg`/`ffprobe`, что и `submit`: полный Docker/standalone-комплект либо явную пару абсолютных путей для Composer. При повреждении встроенного набора восстановите полный пакет; наличие произвольного ffmpeg в PATH не заменяет совместимый набор. `doctor` не меняет конфиг, не устанавливает зависимости и не извлекает аудио.
+
+Статусы проверок: `ok`, `warning`, `error`, `skipped`. Общий статус — `error` при любой ошибке/пропуске, `warning` при одних предупреждениях, иначе `ok`. Код завершения — `1` при общем `error`, `0` при `ok`/`warning`; ошибки синтаксиса команды обрабатываются Symfony Console и завершаются с кодом `1`.
+
+`--json` выводит один объект в stdout без credentials и сырых ответов сервера:
+
+```json
+{
+  "schema_version": 1,
+  "status": "error",
+  "checks": {
+    "config": {"status": "error", "code": "missing_config", "message": "…", "details": {"source": "explicit_config", "path": "/path/to/config.json", "file_status": "missing_config"}},
+    "connection": {"status": "skipped", "code": "connection_skipped", "message": "…", "details": {}},
+    "ffmpeg": {"status": "error", "code": "ffmpeg_missing", "message": "…", "details": {}}
+  }
+}
+```
+
+`code` задаёт машинную причину результата, `message` — описание с рекомендацией, `details` — объект дополнительных сведений. Для конфига `file_status` хранит результат проверки файла отдельно от активного источника. Успешная проверка ffmpeg содержит `path` и `version`; сетевая — `timeout_seconds`, при HTTP-ошибке также `http_status`.
+
 #### Таймаут HTTP-клиента для больших файлов
 
 При отправке больших файлов автоматически подобранный HTTP-клиент раньше обрывал загрузку с ошибкой `Idle timeout reached ...` (по умолчанию PHP `default_socket_timeout` ~60 с). Теперь SDK создаёт HTTP-клиент с idle timeout `600` секунд. Значение можно переопределить переменной окружения (положительное целое число секунд):
@@ -301,6 +335,7 @@ export RARUS_ECHO_HTTP_TIMEOUT=1200 # опционально, по умолча�
 ### Команды
 
 ```bash
+vendor/bin/rarus-echo doctor
 vendor/bin/rarus-echo queue
 vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
@@ -364,12 +399,12 @@ Docker и полный standalone-комплект содержат совмес
 
 #### Глобальные опции
 
-Доступны для команд RARUS Echo (`install`, `queue`, `submit`, `status`, `transcript`), кроме явно отмеченного `--json`:
+Доступны для команд RARUS Echo (`install`, `doctor`, `queue`, `submit`, `status`, `transcript`), кроме явно отмеченного `--json`:
 
 | Опция | Значение | Описание |
 | --- | --- | --- |
 | `--config` | путь к файлу | Выбрать файл подключения для чтения или записи через `install`. |
-| `--json` | флаг | Вывести результат сервисной команды в формате JSON; недоступна для `install`. |
+| `--json` | флаг | Вывести результат сервисной команды или `doctor` в формате JSON; недоступна для `install`. |
 | `-h`, `--help` | флаг | Показать справку по команде. |
 | `--silent` | флаг | Полностью подавить вывод (никаких сообщений). Доступна только с Symfony Console ≥ 7.2. |
 | `-q`, `--quiet` | флаг | Выводить только ошибки, остальной вывод подавляется. |
@@ -378,7 +413,7 @@ Docker и полный standalone-комплект содержат совмес
 | `--ansi`, `--no-ansi` | флаг | Принудительно включить/выключить ANSI-раскраску. |
 | `-n`, `--no-interaction` | флаг | Не задавать интерактивных вопросов. |
 
-`--json` добавляется сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
+`--json` добавляется командой `doctor` и сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
 
 #### `install`
 
@@ -387,6 +422,15 @@ Docker и полный standalone-комплект содержат совмес
 ```text
 vendor/bin/rarus-echo install [--config=PATH]
 ```
+
+#### `doctor`
+
+```bash
+vendor/bin/rarus-echo doctor [--json]
+vendor/bin/rarus-echo --config "/path/to/config.json" doctor
+```
+
+Обязательных аргументов нет. Показывает все проверки и общий итог; `--json` включает структурированный отчёт версии 1. Глобальный `--config PATH` выбирает диагностируемый файл. Статусы, таймауты и коды завершения описаны в разделе «Диагностика окружения» выше.
 
 #### `queue`
 
