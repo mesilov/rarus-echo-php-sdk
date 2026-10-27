@@ -1,5 +1,6 @@
 """Contract tests for archives and source identity; no compiler or API access."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import shutil
@@ -125,7 +126,8 @@ class SourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "clean"):
                 verify_checkout(root)
             result = subprocess.run(["bash", str(root / "build/package-linux.sh")],
-                                    cwd=root, capture_output=True, text=True)
+                                    cwd=root, capture_output=True, text=True,
+                                    env=os.environ | {"ECHO_SOURCE_SHA": head})
             self.assertNotEqual(0, result.returncode)
             self.assertIn("clean checkout", result.stderr)
             (root / "untracked").unlink()
