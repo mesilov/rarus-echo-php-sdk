@@ -362,7 +362,8 @@ function Assert-RarusEchoMedia([string]$Directory, [string]$Temporary) {
     if ($media.source_package.path -cne 'media-source.tar.xz' -or $media.source_package.sha256 -cne $records['media-source.tar.xz']) { throw 'Media corresponding source identity/hash mismatch.' }
     $pcm = Join-Path $Temporary 'installer-check.pcm'
     $flac = Join-Path $Temporary 'installer-check.flac'
-    [IO.File]::WriteAllBytes($pcm, (New-Object byte[] 16))
+    # 1024 mono s16le frames avoid FFmpeg FLAC rejecting an undersized block.
+    [IO.File]::WriteAllBytes($pcm, (New-Object byte[] 2048))
     if (Test-Path -LiteralPath $flac) { [IO.File]::Delete($flac) }
     [void](Invoke-RarusEchoMedia (Join-Path $Directory 'libexec/ffmpeg.exe') @('-nostdin', '-v', 'error', '-f', 's16le', '-ar', '8000', '-ac', '1', '-i', $pcm, '-c:a', 'flac', $flac))
     if (-not (Test-Path -LiteralPath $flac -PathType Leaf) -or (Get-Item -LiteralPath $flac).Length -le 0) { throw 'Bundled media conversion produced no output.' }

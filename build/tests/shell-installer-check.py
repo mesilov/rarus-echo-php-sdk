@@ -107,6 +107,18 @@ printf 'flac\\n'
         if mode == 'wrong-ffmpeg': files['libexec/ffmpeg'] = '#!/bin/sh\necho "ffmpeg version 8.0 fixture"\n'
         if mode == 'wrong-ffprobe': files['libexec/ffprobe'] = '#!/bin/sh\necho "ffprobe version 8.0 fixture"\n'
         if mode == 'conversion-failure': files['libexec/ffmpeg'] = '#!/bin/sh\n[ "$1" = -version ] || exit 9\necho "ffmpeg version 9.0.2 fixture"\n'
+        if mode == 'pcm-sample-check':
+            files['libexec/ffmpeg'] = '''#!/bin/sh
+if [ "$1" = -version ]; then echo 'ffmpeg version 9.0.2 fixture'; exit; fi
+input=
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = -i ]; then input=$2; fi
+    last=$1
+    shift
+done
+[ -n "$input" ] && [ "$(wc -c < "$input")" -eq 2048 ] || exit 9
+printf 'fixture FLAC' > "$last"
+'''
         media = {'schema_version': 1, 'ffmpeg_version': '9.0.2', 'source_sha256': MEDIA_SHA,
                  'profile_sha256': PROFILE_SHA, 'target': target, 'configure_args': [],
                  'compiler': 'fixture', 'minimum_os': 'fixture',
@@ -454,6 +466,10 @@ exec "''' + real_mv + '''" "$@"
         media.write_text('conflicting manifest')
         self.run_installer('--no-modify-path', success=False)
         self.assertEqual(media.read_text(), 'conflicting manifest')
+
+    def test_media_acceptance_uses_1024_pcm_frames_for_flac(self):
+        self.package(mode='pcm-sample-check')
+        self.run_installer('--no-modify-path')
 
     def test_frozen_legacy_release_installs_repeats_and_keeps_native_identity(self):
         self.env['FIXTURE_TAG'] = LEGACY_VERSION

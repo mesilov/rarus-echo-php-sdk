@@ -294,7 +294,14 @@ validate_media() {
     [ "$(field "$work/media-records" source_package.path)" = media-source.tar.xz ] || fail 'unexpected media source path'
     [ "$(field "$work/media-records" source_package.sha256)" = "$(hash_file "$bundle/media-source.tar.xz")" ] || fail 'media source manifest hash mismatch'
     # A short generated PCM input proves the bundled demuxer/FLAC encoder and probe.
-    printf '\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000' > "$work/check.pcm"
+    # Supply 1024 mono s16le frames; an eight-frame input is below FLAC limits.
+    {
+        pcm_chunk=0
+        while [ "$pcm_chunk" -lt 128 ]; do
+            printf '\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'
+            pcm_chunk=$((pcm_chunk + 1))
+        done
+    } > "$work/check.pcm"
     rm -f "$work/check.flac"
     "$bundle/libexec/ffmpeg" -nostdin -v error -f s16le -ar 8000 -ac 1 -i "$work/check.pcm" -c:a flac "$work/check.flac" || fail 'bundled media conversion failed'
     [ -s "$work/check.flac" ] || fail 'bundled media conversion produced no output'
