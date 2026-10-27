@@ -125,6 +125,7 @@ jobs:
         with:
           path: runtime/
           key: echo-${{ matrix.target }}-${{ hashFiles('build/config.json', 'build/runtime.py', 'build/patches/**', 'build/media/**', 'build/tests/linkage-check.py') }}
+          restore-keys: echo-${{ matrix.target }}-
       - name: Build and accept macOS archive
         if: matrix.target == 'macos-arm64'
         env:

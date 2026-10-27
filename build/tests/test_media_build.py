@@ -10,6 +10,7 @@ import tempfile
 import subprocess
 import os
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -114,6 +115,34 @@ class MediaBuildTests(unittest.TestCase):
             (root / 'libexec/ffprobe').write_bytes(b'tampered')
             with self.assertRaisesRegex(ValueError, 'hash|checksum'):
                 media.verify_payload(root, 'macos-arm64')
+
+    def test_corresponding_source_requires_the_console_helper_dependency(self):
+        media = self.toolkit()
+        source = b'fixture upstream source'
+        source_hash = hashlib.sha256(source).hexdigest()
+        config = dict(media.CONFIG, source_sha256=source_hash)
+        names = ['recipe/build/media/toolkit.py', 'recipe/build/media/build.py',
+                 'recipe/build/media/accept.py', 'recipe/build/media/README.md',
+                 'recipe/build/media/upstream-source.tar.xz.asc', 'recipe/build/media/upstream-signing-key.asc',
+                 'recipe/build/tests/linkage-check.py', 'recipe/tests/Fixtures/Media/manifest.json',
+                 'effective-build.json']
+        files = {name: b'fixture recipe' for name in names}
+        files['ffmpeg-' + media.CONFIG['ffmpeg_version'] + '.tar.xz'] = source
+        files['recipe/build/media/config.json'] = json.dumps(config).encode()
+        with tempfile.TemporaryDirectory() as temp, patch.dict(media.CONFIG, {'source_sha256': source_hash}):
+            root = Path(temp)
+            def package():
+                with tarfile.open(root / 'media-source.tar.xz', 'w:xz') as archive:
+                    for name, data in files.items():
+                        member = tarfile.TarInfo(name)
+                        member.size = len(data)
+                        archive.addfile(member, io.BytesIO(data))
+            package()
+            with self.assertRaisesRegex(ValueError, 'materials missing'):
+                media.verify_source_package(root)
+            files['recipe/build/media/console.py'] = b'# required UTF-8 build console helper\n'
+            package()
+            media.verify_source_package(root)
 
     def test_portable_manifest_is_exact_four_record_complete_coverage(self):
         media = self.toolkit()

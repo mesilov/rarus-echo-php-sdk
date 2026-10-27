@@ -125,6 +125,11 @@ with static compiler runtime and checked system DLL imports. MSYS2 is confined
 to the media build environment so its `link.exe` cannot shadow MSVC for PHP.
 Native acceptance remains required on Linux amd64/arm64, macOS arm64 (macOS 15)
 and Windows amd64 (Server 2022; documented desktop floor Windows 11).
+Build entrypoints use UTF-8 console and Python-child I/O so Unicode acceptance
+paths work under Windows CP1252 as well. Foreign native diagnostic bytes remain
+visible as escapes and a child failure keeps its original exit status. Target
+cache fallbacks recheck the complete PHP runtime-input marker; media caches
+still verify their own source/profile/compiler/recipe identity.
 
 ```bash
 python3 build/media/build.py macos-arm64 --destination runtime/media-macos-arm64

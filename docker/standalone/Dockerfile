@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev autopoint \
     && docker-php-ext-install bcmath intl pcntl \
     && rm -rf /var/lib/apt/lists/*
-ENV PATH="/usr/local/musl/bin:${PATH}" COMPOSER_ALLOW_SUPERUSER=1
+ENV PATH="/usr/local/musl/bin:${PATH}" COMPOSER_ALLOW_SUPERUSER=1 \
+    PYTHONUTF8=1 PYTHONIOENCODING=utf-8:backslashreplace
 WORKDIR /app
 
 FROM base AS runtime-builder

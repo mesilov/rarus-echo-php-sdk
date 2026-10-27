@@ -11,6 +11,10 @@ import shutil
 import subprocess
 import sys
 
+from media.console import configure_build_console
+
+configure_build_console()
+
 from runtime import ROOT, CONFIG, run, composer, toolchain, build_runtime, extensions_for
 from source import verify_checkout, validate_sha
 from release_assets import TARGETS, pack

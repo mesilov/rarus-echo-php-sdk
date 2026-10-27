@@ -40,15 +40,19 @@ function Assert-True([bool]$Value, [string]$Message) {
     if (-not $Value) { throw $Message }
 }
 function Test-Case([string]$Name, [scriptblock]$Body) {
-    & $Body
+    try { & $Body }
+    catch { throw ('Test case "' + $Name + '" failed: ' + $_.Exception.Message) }
     $script:checks++
     Write-Host ('PASS ' + $Name)
 }
-function Assert-Fails([scriptblock]$Body, [string]$Pattern) {
+function Assert-Fails([scriptblock]$Body, [string]$Pattern, [switch]$RollbackMustComplete) {
     $failure = $null
     try { & $Body } catch { $failure = $_.Exception.Message }
     Assert-True ($null -ne $failure) 'Expected installation/validation to fail.'
     Assert-True ($failure -match $Pattern) ('Unexpected failure: ' + $failure)
+    if ($RollbackMustComplete) {
+        Assert-True ($failure -notmatch 'Rollback could not finish') ('Expected complete rollback, received: ' + $failure)
+    }
 }
 function Get-TestUserPathState {
     $state = [pscustomobject]@{ Exists = $false; Value = $null; Kind = [Microsoft.Win32.RegistryValueKind]::String }
@@ -600,7 +604,7 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
             Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
                 if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
             }
-        } 'fixture output sink failure'
+        } 'fixture output sink failure' -RollbackMustComplete
         Assert-TestUserPathState $seededPath 'Rollback lost the original expandable PATH'
         Assert-OldInstallation
     }
@@ -611,7 +615,7 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
             Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
                 if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
             }
-        } 'fixture output sink failure'
+        } 'fixture output sink failure' -RollbackMustComplete
         Assert-TestUserPathState $absent 'Rollback created a previously absent user PATH'
         Assert-OldInstallation
         Set-TestUserPathState $seededPath
@@ -663,6 +667,18 @@ public static class RarusEchoDirectoryLock {
         try { Assert-Fails { Install-RarusEcho -Version $script:tag -NoModifyPath } 'install|access|process|used|denied' } finally { $lockedDirectory.Dispose() }
         Assert-OldInstallation
     }
+    Test-Case 'native rollback replacement restores bytes without creating another backup' {
+        $directory = Join-Path $root 'rollback replacement API'
+        [void][IO.Directory]::CreateDirectory($directory)
+        $previous = Join-Path $directory 'previous.txt'
+        $active = Join-Path $directory 'active.txt'
+        [IO.File]::WriteAllText($previous, 'previous executable bytes')
+        [IO.File]::WriteAllText($active, 'new executable bytes')
+        [IO.File]::Replace($previous, $active, [System.Management.Automation.Language.NullString]::Value)
+        Assert-True ([IO.File]::ReadAllText($active) -ceq 'previous executable bytes') 'Atomic rollback replacement did not restore previous bytes.'
+        Assert-True (-not (Test-Path -LiteralPath $previous)) 'Atomic rollback replacement did not consume its backup.'
+        Assert-True (@(Get-ChildItem -LiteralPath $directory).Count -eq 1) 'Atomic rollback replacement created an unexpected backup.'
+    }
     Test-Case 'failure after activation rolls back complete package and notices' {
         # Fault injection changes only the two transaction operations under test.
         # Keep the real download fixture, hashing, ZIP validation and native programs.
@@ -676,7 +692,7 @@ public static class RarusEchoDirectoryLock {
             New-ConsoleFixture $rollbackExecutable ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')
             $script:asset = Join-Path $root 'rollback.zip'
             New-TestArchive $script:asset $rollbackExecutable
-            Assert-Fails { Install-RarusEcho -Version $script:tag -NoModifyPath } 'injected activation failure'
+            Assert-Fails { Install-RarusEcho -Version $script:tag -NoModifyPath } 'injected activation failure' -RollbackMustComplete
             Assert-OldInstallation
             Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)))) 'Failed activation retained a newly installed immutable package.'
         } finally {
@@ -711,7 +727,7 @@ public static class RarusEchoDirectoryLock {
                 # Ensure the real PATH setter runs even after the repeat-install test.
                 Set-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = '%JAVA_HOME%\bin;C:\Previous Tools'; Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString })
                 $expectedPath = Get-TestUserPathState
-                Assert-Fails { Install-RarusEcho -Version $script:tag } ([Regex]::Escape($failureText))
+                Assert-Fails { Install-RarusEcho -Version $script:tag } ([Regex]::Escape($failureText)) -RollbackMustComplete
                 Assert-OldInstallation
                 Assert-TestUserPathState $expectedPath 'Failure after PATH mutation did not restore the previous raw user PATH and kind'
                 Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)))) 'Failed transaction retained a newly activated immutable package.'
@@ -731,7 +747,7 @@ public static class RarusEchoDirectoryLock {
         Set-Item -Path function:Install-RarusEcho -Value ([scriptblock]::Create($fault))
         $firstInstall = Join-Path $root 'first incomplete install'
         try {
-            Assert-Fails { Install-RarusEcho -Version $script:tag -InstallDir $firstInstall -NoModifyPath } 'injected after first executable move'
+            Assert-Fails { Install-RarusEcho -Version $script:tag -InstallDir $firstInstall -NoModifyPath } 'injected after first executable move' -RollbackMustComplete
             Assert-True (-not (Test-Path -LiteralPath (Join-Path $firstInstall 'rarus-echo.exe'))) 'Failed first installation retained a native executable without its package.'
             Assert-True (-not (Test-Path -LiteralPath (Join-Path $firstInstall ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)))) 'Failed first installation retained its immutable package.'
             Assert-True (-not (Test-Path -LiteralPath (Join-Path $firstInstall 'package'))) 'Failed first installation retained notices.'
@@ -740,7 +756,7 @@ public static class RarusEchoDirectoryLock {
     }
     Test-Case 'failed rollback retains the previous executable for recovery' {
         $fault = $script:installerImplementation.ToString().Replace('$committed = $true', "throw 'injected activation failure'")
-        $fault = $fault.Replace('[IO.File]::Replace($backupExecutable, $executable, $null)', "throw 'injected rollback failure'")
+        $fault = $fault.Replace('[IO.File]::Replace($backupExecutable, $executable, [System.Management.Automation.Language.NullString]::Value)', "throw 'injected rollback failure'")
         Assert-True ($fault.Contains("throw 'injected rollback failure'")) 'Rollback fault was not injected.'
         Set-Item -Path function:Install-RarusEcho -Value ([scriptblock]::Create($fault))
         try {

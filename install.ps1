@@ -582,7 +582,9 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         try {
             if ($oldExecutableMoved) {
                 if (Test-Path -LiteralPath $backupExecutable -PathType Leaf) {
-                    if (Test-Path -LiteralPath $executable -PathType Leaf) { [IO.File]::Replace($backupExecutable, $executable, $null) }
+                    # PowerShell converts $null to an empty .NET string; use its
+                    # explicit null-string sentinel to request no new backup.
+                    if (Test-Path -LiteralPath $executable -PathType Leaf) { [IO.File]::Replace($backupExecutable, $executable, [System.Management.Automation.Language.NullString]::Value) }
                     else { [IO.File]::Move($backupExecutable, $executable) }
                 } elseif (-not (Test-Path -LiteralPath $executable -PathType Leaf) -or
                     (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash -cne $previousExecutableHash) {

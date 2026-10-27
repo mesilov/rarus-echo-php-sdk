@@ -13,6 +13,13 @@ import tempfile
 import time
 import urllib.request
 
+if __package__:
+    from .console import configure_build_console, utf8_environment
+else:
+    from console import configure_build_console, utf8_environment
+
+configure_build_console()
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 CONFIG = json.loads((HERE / 'config.json').read_text(encoding='utf-8'))
@@ -201,7 +208,7 @@ def verify_payload(root, target, expected_key=None):
 def verify_source_package(root):
     expected_source = 'ffmpeg-' + CONFIG['ffmpeg_version'] + '.tar.xz'
     required = {expected_source, 'recipe/build/media/config.json', 'recipe/build/media/toolkit.py', 'recipe/build/media/build.py',
-                'recipe/build/media/accept.py', 'recipe/build/media/README.md', 'recipe/build/media/upstream-source.tar.xz.asc',
+                'recipe/build/media/accept.py', 'recipe/build/media/console.py', 'recipe/build/media/README.md', 'recipe/build/media/upstream-source.tar.xz.asc',
                 'recipe/build/media/upstream-signing-key.asc', 'recipe/build/tests/linkage-check.py',
                 'recipe/tests/Fixtures/Media/manifest.json', 'effective-build.json'}
     seen, total = set(), 0
@@ -230,9 +237,12 @@ def verify_source_package(root):
 
 
 def run(args, cwd=None, env=None, timeout=900):
+    configure_build_console()
+    env = utf8_environment(env)
     print('+ ' + ' '.join(map(str, args)), flush=True)
     result = subprocess.run(list(map(str, args)), cwd=cwd, env=env, timeout=timeout,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            encoding='utf-8', errors='backslashreplace')
     if result.returncode:
         print(result.stdout, flush=True)
         result.check_returncode()

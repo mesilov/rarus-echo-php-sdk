@@ -161,8 +161,12 @@ def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True
             check(json.loads(queue.stdout)["files_count"] == 3, "Queue or environment credentials failed")
             if doctor:
                 diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace,
-                                    env | credentials, expected=1, php=php)
+                                    env | credentials, expected=0 if media and not php else 1, php=php)
                 report = json.loads(diagnosis.stdout)
+                if media and not php:
+                    check(report['status'] == 'warning' and report['checks']['config']['status'] == 'warning'
+                          and report['checks']['ffmpeg']['status'] == 'ok',
+                          "Bundled Doctor must succeed with a missing-file warning and environment credentials")
                 check(report["checks"]["connection"]["status"] == "ok", "Doctor authenticated queue request failed")
                 check(report["checks"]["config"]["details"]["source"] == "environment", "Doctor source selection failed")
                 check(API_KEY not in diagnosis.stdout + diagnosis.stderr
@@ -203,7 +207,8 @@ def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True
             if doctor and media and not php:
                 diagnosis = command(binary, ["doctor", "--json", "--no-ansi"], workspace, env, php=php)
                 report = json.loads(diagnosis.stdout)
-                check(report["status"] == "ok" and report["checks"]["ffmpeg"]["status"] == "ok"
+                expected_status = 'ok' if probe else 'warning'
+                check(report["status"] == expected_status and report["checks"]["ffmpeg"]["status"] == "ok"
                       and report["checks"]["connection"]["status"] == "ok", "Configured bundled Doctor failed")
             upload = command(binary, ["submit", str(audio), "--json", "--no-ansi"], workspace, env, php=php)
             check(json.loads(upload.stdout)["file_ids"] == [FILE_ID], "Upload or dotenv failed")
