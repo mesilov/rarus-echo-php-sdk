@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "ffmpeg_version": "9.0.2",
+  "source_url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+  "source_sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+  "source_signature_url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz.asc",
+  "signing_fingerprint": "FCF986EA15E6E293A5644F10B4322F04D67658D8",
+  "maximum_source_bytes": 67108864,
+  "maximum_extracted_bytes": 536870912,
+  "maximum_compressed_increment": 26214400,
+  "configure_args": [
+    "--disable-autodetect", "--disable-everything", "--disable-doc", "--disable-debug",
+    "--disable-shared", "--enable-static", "--disable-ffplay", "--disable-avdevice",
+    "--disable-swscale", "--disable-network", "--disable-gpl", "--disable-nonfree",
+    "--disable-version3", "--enable-ffmpeg", "--enable-ffprobe",
+    "--enable-protocol=file,pipe",
+    "--enable-demuxer=mov,matroska,avi,mp3,ogg,wav,flac,aac,asf,mpegts,mpegps,pcm_s16le",
+    "--enable-muxer=ipod,mp4,ogg,opus,mp3,wav,flac,adts",
+    "--enable-decoder=aac,aac_latm,ac3,eac3,mp3,mp3float,mp2,mp2float,opus,vorbis,flac,alac,wmav1,wmav2,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw",
+    "--enable-encoder=flac,pcm_s16le,pcm_s24le",
+    "--enable-parser=aac,aac_latm,ac3,mpegaudio,opus,vorbis,flac",
+    "--enable-bsf=aac_adtstoasc",
+    "--enable-filter=asetpts,adelay,atrim,aresample,aformat,anull"
+  ],
+  "targets": {
+    "linux-amd64": {"system": "Linux", "machine": "x86_64", "cc": "musl-gcc", "minimum_os": "Linux 4.14; static musl"},
+    "linux-arm64": {"system": "Linux", "machine": "aarch64", "cc": "musl-gcc", "minimum_os": "Linux 4.14; static musl"},
+    "macos-arm64": {"system": "Darwin", "machine": "arm64", "cc": "clang", "minimum_os": "macOS 15.0"},
+    "windows-amd64": {"system": "Windows", "machine": "AMD64", "cc": "gcc", "minimum_os": "Windows Server 2022 / Windows 11 (UCRT)"}
+  }
+}

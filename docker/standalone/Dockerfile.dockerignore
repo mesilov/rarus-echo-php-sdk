@@ -12,3 +12,8 @@
 !build/**
 
 build/**/__pycache__/
+
+!tests/
+!tests/Fixtures/
+!tests/Fixtures/Media/
+!tests/Fixtures/Media/**

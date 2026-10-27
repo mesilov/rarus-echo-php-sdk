@@ -10,6 +10,13 @@ namespace Rarus\Echo\Infrastructure\Console\Configuration;
  */
 class ConfigFileProtection
 {
+    public function __construct(private readonly float $timeoutSeconds = 10.0)
+    {
+        if (!is_finite($timeoutSeconds) || $timeoutSeconds <= 0) {
+            throw new \InvalidArgumentException('ACL subprocess timeout must be positive and finite.');
+        }
+    }
+
     public function protect(string $path): void
     {
         if (PHP_OS_FAMILY === 'Windows') {
@@ -77,23 +84,71 @@ class ConfigFileProtection
         if (!$systemRoot) {
             throw new \RuntimeException('Cannot locate Windows configuration protection tools.');
         }
+        $environment = getenv();
+        foreach (array_keys($environment) as $key) {
+            if (str_starts_with(strtoupper($key), 'RARUS_ECHO_')) {
+                unset($environment[$key]);
+            }
+        }
+        $environment['RARUS_ECHO_ACL_PATH'] = $path;
+        $environment['RARUS_ECHO_ACL_CREATE'] = $initialize ? '1' : '0';
+        $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         $process = @proc_open(
             [$systemRoot . '/System32/WindowsPowerShell/v1.0/powershell.exe', '-NoProfile', '-NonInteractive', '-EncodedCommand', base64_encode(mb_convert_encoding($script, 'UTF-16LE', 'UTF-8'))],
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']],
             $pipes,
             null,
-            [...getenv(), 'RARUS_ECHO_ACL_PATH' => $path, 'RARUS_ECHO_ACL_CREATE' => $initialize ? '1' : '0']
+            $environment,
+            ['bypass_shell' => true, 'create_process_group' => true]
         );
         if (!is_resource($process)) {
             throw new \RuntimeException('Cannot establish private Windows configuration storage.');
         }
-        fclose($pipes[0]);
-        stream_get_contents($pipes[1]);
-        stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        if (proc_close($process) !== 0) {
-            throw new \RuntimeException('Cannot establish or verify current-user Windows configuration permissions.');
+
+        try {
+            $deadline = microtime(true) + $this->timeoutSeconds;
+            do {
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    break;
+                }
+                if (microtime(true) >= $deadline) {
+                    throw new \RuntimeException('Windows ACL subprocess timeout exceeded.');
+                }
+                usleep(10000);
+            } while (true);
+            if ($status['exitcode'] !== 0) {
+                throw new \RuntimeException('Cannot establish or verify current-user Windows configuration permissions.');
+            }
+        } finally {
+            $this->closeProcess($process);
         }
+    }
+
+    /**
+     * The child may exit between polls without any PHP resource mutation.
+     *
+     * @param resource $process
+     * @phpstan-impure
+     */
+    private function processIsRunning($process): bool
+    {
+        return proc_get_status($process)['running'];
+    }
+
+    /** @param resource $process */
+    private function closeProcess($process): void
+    {
+        if ($this->processIsRunning($process)) {
+            @proc_terminate($process);
+            $deadline = microtime(true) + 0.2;
+            while ($this->processIsRunning($process) && microtime(true) < $deadline) {
+                usleep(10000);
+            }
+            if ($this->processIsRunning($process)) {
+                @proc_terminate($process, 9);
+            }
+        }
+        proc_close($process);
     }
 }

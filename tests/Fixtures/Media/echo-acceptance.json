@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-27T14:45:54+00:00",
+  "service_url": "https://production-ai-ui-api.ai.rarus-cloud.ru",
+  "task_type": "timestamps",
+  "language": "en",
+  "source_description": "Locally synthesized non-sensitive English test speech; audio is kept in ignored runtime storage, not redistributed. Only generated tones are repository fixtures.",
+  "cases": [
+    {
+      "name": "baseline.flac",
+      "input": {
+        "sha256": "a6a3b9ba72d2f528e948d0b032ed5a17e1c91820ed7ef5828f36901e7e08234a",
+        "size": 186670,
+        "codec": "flac",
+        "sample_rate": 16000,
+        "channels": 1,
+        "duration": 8.682688,
+        "start_time": 0.0
+      },
+      "file_id": "6d43550f-8c0e-4edd-888a-02a34b6509fd",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is Orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "stereo48.flac",
+      "input": {
+        "sha256": "a70be5578831bc1901a7b744300809788e085cdc36037e18f6d31cd6ba1c1066",
+        "size": 306943,
+        "codec": "flac",
+        "sample_rate": 48000,
+        "channels": 2,
+        "duration": 8.682646,
+        "start_time": 0.0
+      },
+      "file_id": "fe1aac92-c8cb-4740-976e-e88a5a3e3c8f",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "aac.m4a",
+      "input": {
+        "sha256": "ce8a0db43385096a36b8482035defe9fb880628e16b55ca1ce9438f421e637cb",
+        "size": 141412,
+        "codec": "aac",
+        "sample_rate": 48000,
+        "channels": 2,
+        "duration": 8.682646,
+        "start_time": 0.0
+      },
+      "file_id": "03d53247-3023-46f8-9fe7-80e08920c8c2",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "opus.ogg",
+      "input": {
+        "sha256": "8034fbb0aa24fd049f4b59c0fe923aa8b96ebbe27756830022a25008d54f862c",
+        "size": 97569,
+        "codec": "opus",
+        "sample_rate": 48000,
+        "channels": 2,
+        "duration": 8.689146,
+        "start_time": 0.0
+      },
+      "file_id": "a0bbbe02-4e48-4f82-852d-b9afd27855dc",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "vorbis.ogg",
+      "input": {
+        "sha256": "227be9235948eaf9fa34919efa984b89763119fdcb049c808325bc631a5620b6",
+        "size": 116548,
+        "codec": "vorbis",
+        "sample_rate": 48000,
+        "channels": 2,
+        "duration": 8.682667,
+        "start_time": 0.0
+      },
+      "file_id": "97f2fc17-c8a2-4f34-8087-3d93b4ca76bd",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is Orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "mp3.mp3",
+      "input": {
+        "sha256": "11e8455c4bf3027faee508e4d6907fcb917b12244d635494d4fc5b3b7af2974b",
+        "size": 140059,
+        "codec": "mp3",
+        "sample_rate": 44100,
+        "channels": 2,
+        "duration": 8.68263,
+        "start_time": 0.025057
+      },
+      "file_id": "38eebfe8-1258-4ada-be4c-d762f1c3bb9d",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is orange.\n\n[00:00:06]: This test contains no personal information."
+    },
+    {
+      "name": "delayed.flac",
+      "input": {
+        "sha256": "1709cf804fc9071424484252e341505a9033b1abbdef5d3e60201e74e2c47101",
+        "size": 183528,
+        "codec": "flac",
+        "sample_rate": 16000,
+        "channels": 1,
+        "duration": 10.682688,
+        "start_time": 0.0
+      },
+      "file_id": "3d35f756-f5bc-4635-8be9-b4c4714dff2f",
+      "status": "success",
+      "result": "[00:00:01]: This is a local audio compatibility test.\n\n[00:00:04]: The 1st marker is Apple.\n\n[00:00:06]: The 2nd marker is Orange.\n\n[00:00:08]: This test contains no personal information."
+    },
+    {
+      "name": "stereo48-24bit.flac",
+      "input": {
+        "sha256": "d90c4a0b82d553cfee3c93c0c290bf2000a0a70816b114bf990b6aeb9e90f31c",
+        "size": 307133,
+        "codec": "flac",
+        "sample_rate": 48000,
+        "channels": 2,
+        "bits_per_raw_sample": 24,
+        "duration": 8.682646,
+        "start_time": 0.0
+      },
+      "file_id": "b69a7b98-ba90-4415-9100-644a03a1fec2",
+      "status": "success",
+      "result": "[00:00:00]: This is a local audio compatibility test.\n\n[00:00:02]: The 1st marker is Apple.\n\n[00:00:04]: The 2nd marker is orange.\n\n[00:00:06]: This test contains no personal information."
+    }
+  ],
+  "timeline": {
+    "method": "Same 16k mono FLAC baseline and second file with exactly32000 samples of actual leading silence. Named markers are compared in whole-second service timestamps; local signal alignment is tested separately.",
+    "baseline_markers_seconds": {
+      "apple": 2,
+      "orange": 4
+    },
+    "delayed_markers_seconds": {
+      "apple": 4,
+      "orange": 6
+    },
+    "expected_shift_seconds": 2,
+    "actual_shift_seconds": {
+      "apple": 2,
+      "orange": 2
+    },
+    "asr_accuracy_claim": false
+  },
+  "final_toolkit": {
+    "ffmpeg_version": "9.0.2",
+    "source_sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+    "profile_sha256": "cdf603195eb41ae10572d8a66efe763c5699d6e5d60838fb802d2b8758e5a760",
+    "target": "macos-arm64"
+  }
+}

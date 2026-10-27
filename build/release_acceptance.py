@@ -18,7 +18,7 @@ import threading
 import urllib.parse
 import urllib.request
 
-from release_assets import TARGETS, archive_name, executable, inspect_archive
+from release_assets import TARGETS, archive_name, executable, inspect_archive, validate_legacy_identity
 
 BUILD = Path(__file__).resolve().parent
 ROOT = BUILD.parent
@@ -67,7 +67,25 @@ def file_hash(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def verify_archive(archive, manifest, target, version, sha):
+def release_smoke_options(root, sha, version=None):
+    # The exact verified tag determines command and payload contracts. An absent
+    # toolkit is historical only for the frozen, actually published release pin.
+    doctor = 'src/Infrastructure/Console/Command/DoctorCommand.php'
+    media_paths = {'build/media/config.json', 'build/media/toolkit.py', 'build/media/build.py'}
+    result = subprocess.run(['git', 'ls-tree', '-r', '--name-only', sha, '--', doctor, *sorted(media_paths)],
+                            cwd=root, check=True, capture_output=True, text=True, timeout=30)
+    present = set(result.stdout.splitlines())
+    options = [] if doctor in present else ['--without-doctor']
+    markers = present & media_paths
+    if markers and markers != media_paths:
+        raise ValueError('Tagged source has an incomplete/partial media payload contract')
+    if not markers:
+        validate_legacy_identity(version, sha)
+        options.append('--without-media')
+    return options
+
+
+def verify_archive(archive, manifest, target, version, sha, *, require_media=True):
     records = {}
     for line in Path(manifest).read_text(encoding="utf-8").splitlines():
         match = re.fullmatch(r"([0-9a-fA-F]{64}) [ *]([^\s]+)", line)
@@ -78,7 +96,7 @@ def verify_archive(archive, manifest, target, version, sha):
         raise ValueError("Invalid checksum manifest: expected all four release archives")
     if file_hash(archive) != records[Path(archive).name]:
         raise ValueError("Release archive checksum differs: " + Path(archive).name)
-    inspect_archive(archive, target, version, sha)
+    inspect_archive(archive, target, version, sha, require_media=require_media)
 
 
 def download(url, destination):
@@ -109,7 +127,7 @@ def isolated_environment(workspace, inherited=None):
     return env
 
 
-def verify_installation(install, notices, verified, target):
+def verify_installation(install, notices, verified, target, *, complete_package=False):
     binary = executable(target)
     for source in verified.rglob("*"):
         if source.is_file():
@@ -117,6 +135,26 @@ def verify_installation(install, notices, verified, target):
             installed = install / binary if relative.as_posix() == binary else notices / relative
             if not installed.is_file() or file_hash(installed) != file_hash(source):
                 raise ValueError("Installed file differs from verified release: " + str(relative))
+            if complete_package and relative.as_posix() == binary:
+                packaged = notices / binary
+                if not packaged.is_file() or file_hash(packaged) != file_hash(source):
+                    raise ValueError("Versioned package executable differs from verified release")
+
+
+def verify_release_installation(install, legacy_notices, verified, target, version, sha, *, require_media):
+    package = install / '.rarus-echo/packages' / (version + '-' + sha)
+    if require_media:
+        verify_installation(install, package, verified, target, complete_package=True)
+        return
+    validate_legacy_identity(version, sha)
+    # Both authentic main-installer generations exist for this one frozen release.
+    # A present immutable payload must be complete; a partial/broken tree cannot
+    # fall back to the older notice-copy layout.
+    if package.is_symlink():
+        raise ValueError('Versioned package must be a regular directory')
+    if package.exists():
+        verify_installation(install, package, verified, target, complete_package=True)
+    verify_installation(install, legacy_notices, verified, target)
 
 
 def verify_files_unchanged(snapshot, label):
@@ -262,6 +300,8 @@ def preserved_user_state(env, target):
 
 def accept_release(version, sha, target):
     resolve_main_tag(ROOT, version, sha)
+    smoke_options = release_smoke_options(ROOT, sha, version)
+    require_media = '--without-media' not in smoke_options
     if target != native_target():
         raise ValueError("Requested target differs from the native runner")
     with tempfile.TemporaryDirectory(prefix="echo-public-release-") as temporary:
@@ -275,7 +315,7 @@ def accept_release(version, sha, target):
         release_url = PUBLIC_REPOSITORY + "/releases/download/" + urllib.parse.quote(version, safe="") + "/"
         download(release_url + "SHA256SUMS", manifest)
         download(release_url + archive.name, archive)
-        verify_archive(archive, manifest, target, version, sha)
+        verify_archive(archive, manifest, target, version, sha, require_media=require_media)
         installer_name = "install.ps1" if target.startswith("windows") else "install.sh"
         installer = workspace / installer_name
         download(PUBLIC_MAIN + installer_name, installer)
@@ -283,7 +323,7 @@ def accept_release(version, sha, target):
         # Reuse the existing validated extractor; never execute an unchecked archive.
         verified = workspace / "verified package"
         verified.mkdir()
-        extract_archive(archive, verified, version, sha)
+        extract_archive(archive, verified, version, sha, require_media=require_media)
         install = workspace / "установленный CLI"
         if target.startswith("windows"):
             powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
@@ -293,17 +333,25 @@ def accept_release(version, sha, target):
         else:
             command = ["sh", str(installer), "--version", version, "--install-dir", str(install), "--no-modify-path"]
             notices = Path(env["HOME"]) / ".local/share/rarus-echo/package"
+        legacy_notices = notices
+        notices = install / '.rarus-echo/packages' / (version + '-' + sha)
         with configuration_fixture(workspace, env, target) as configs, preserved_user_state(env, target) as check_user_state:
             for attempt in ("fresh", "repeat"):
                 print("Accepting " + attempt + " public installation for " + target, flush=True)
                 subprocess.run(command, cwd=cwd, env=env, check=True, timeout=900)
                 check_user_state()
                 verify_files_unchanged(configs, "Configuration")
-                verify_installation(install, notices, verified, target)
+                verify_release_installation(install, legacy_notices, verified, target, version, sha,
+                                            require_media=require_media)
                 check_configuration(install / executable(target), cwd, env, configs)
-                subprocess.run([sys.executable, str(BUILD / "tests/smoke.py"), str(install),
-                                "--version", version, "--source-sha", sha],
+                subprocess.run([sys.executable, str(BUILD / "tests/smoke.py"), str(notices if require_media else install),
+                                "--version", version, "--source-sha", sha,
+                                *smoke_options],
                                cwd=cwd, env=env, check=True, timeout=180)
+                if require_media:
+                    subprocess.run([sys.executable, str(BUILD / 'tests/installed-media-check.py'),
+                                    '--binary', str(install / executable(target))],
+                                   cwd=cwd, env=env, check=True, timeout=180)
                 verify_files_unchanged(configs, "Configuration")
                 check_user_state()
         print("Accepted public release: " + version + " " + sha + " " + target)

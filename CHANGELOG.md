@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-rc-2] - 2026-10-28
+
+Second release candidate for 0.5.0, adding automatic video audio preparation, bundled compact FFmpeg/ffprobe and doctor. Native packages are built from the tagged main commit; prerelease publication preserves Latest stable.
+
+### Added
+- Compact source-pinned FFmpeg/ffprobe toolkit for Docker and standalone CLI packages, with offline provenance/source materials and coordinated installer updates (#60).
+- Automatic CLI audio preparation for local video, deterministic stream selection, verified copy/lossless output routes, timeline preservation and bounded cleanup; optional `--audio-stream`, `--no-extract-audio` and `--media-timeout` controls (#60).
+- CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
+
 ### Fixed
+- Preserve toolkit-free submission of audio-only WebM when fileinfo reports the shared video/webm MIME; bounded container inspection keeps actual video on the preparation path (#60, #69).
 - Bootstrap the Windows installer with Unicode temporary paths without invoking the PowerShell 5.1 CodeDOM compiler (#59).
+- Select historical release smoke commands from the verified tagged source, keeping doctor mandatory for new builds while accepting the earlier RC (#59).
 
 ## [0.5.0-rc-1] - 2026-10-27
 

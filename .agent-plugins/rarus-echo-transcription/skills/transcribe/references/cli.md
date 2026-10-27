@@ -14,6 +14,7 @@ Refresh it after CLI command or option changes:
 | Command | Description |
 | --- | --- |
 | `install` | Configure and save a private RARUS Echo connection interactively. |
+| `doctor` | Check configuration, authenticated Echo access and ffmpeg readiness. |
 | `queue` | Show aggregated transcription queue information. |
 | `submit` | Submit one or more files for transcription. |
 | `status` | Show transcription status for one file. |
@@ -37,6 +38,27 @@ None.
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
+
+## doctor
+
+Check configuration, authenticated Echo access and ffmpeg readiness.
+
+### Usage
+
+```text
+doctor [--json]
+```
+
+### Arguments
+
+None.
+
+### Options
+
+| Option | Accepts Value | Value Required | Multiple | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--json` | no | no | no | `false` | Write diagnostic report as JSON. |
 | `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 
 ## queue
@@ -67,7 +89,7 @@ Submit one or more files for transcription.
 ### Usage
 
 ```text
-submit [--json] [--task-type TASK-TYPE] [--language LANGUAGE] [--censor] [--speakers-correction] [--timestamps-extended] [--no-store-file] [--low-priority] [--request-source REQUEST-SOURCE] [--wait] [--poll-interval POLL-INTERVAL] [--timeout TIMEOUT] [--raw-result] [--output OUTPUT] [--] <files>...
+submit [--json] [--task-type TASK-TYPE] [--language LANGUAGE] [--censor] [--speakers-correction] [--timestamps-extended] [--no-store-file] [--low-priority] [--request-source REQUEST-SOURCE] [--wait] [--poll-interval POLL-INTERVAL] [--timeout TIMEOUT] [--raw-result] [--output OUTPUT] [--audio-stream AUDIO-STREAM] [--no-extract-audio] [--media-timeout MEDIA-TIMEOUT] [--] <files>...
 ```
 
 ### Arguments
@@ -90,6 +112,9 @@ submit [--json] [--task-type TASK-TYPE] [--language LANGUAGE] [--censor] [--spea
 | `--no-store-file` | no | no | no | `false` | Do not store submitted files after processing. |
 | `--low-priority` | no | no | no | `false` | Submit with low processing priority. |
 | `--request-source` | yes | yes | no | `null` | Optional request source header. |
+| `--audio-stream` | yes | yes | no | `null` | Absolute non-negative audio stream index for one video input. |
+| `--no-extract-audio` | no | no | no | `false` | Upload original inputs using existing SDK validation. |
+| `--media-timeout` | yes | yes | no | `"600"` | Combined probe and preparation deadline in seconds per input. |
 | `--wait` | no | no | no | `false` | Poll until submitted transcript results reach a terminal state. |
 | `--poll-interval` | yes | yes | no | `"30"` | Polling interval in seconds when using --wait. |
 | `--timeout` | yes | yes | no | `"7200"` | Maximum wait time in seconds when using --wait. |

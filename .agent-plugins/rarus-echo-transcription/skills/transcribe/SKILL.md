@@ -79,6 +79,25 @@ For Docker submissions:
 4. Use the mounted container paths in `submit`.
 5. Include `--json` for machine-readable output unless the user requested raw transcript text.
 
+The media-capable CLI includes its compact FFmpeg and ffprobe toolkit. Pass a local
+video directly to `submit`; the CLI chooses an audio stream, prepares audio and
+uploads it automatically. Do not ask the user to extract audio or install a host
+FFmpeg when using the complete Docker or standalone distribution. Existing audio
+files keep their original upload path.
+
+For a single video, `--audio-stream=<index>` selects an absolute probe stream index;
+otherwise the only default audio stream is chosen, or the first by index.
+`--no-extract-audio` explicitly requests original-file upload and conflicts with
+`--audio-stream`; never add it silently to work around preparation failures.
+`--media-timeout=<seconds>` limits probe/preparation per input (default 600),
+independently of `--timeout` for polling. Temporary prepared audio is limited to
+500 MiB per file and 1 GiB per invocation. Keep preparation progress on stderr.
+
+Standalone users must keep the complete extracted/installed package, including
+`libexec` and media metadata. Composer-only video usage requires a compatible
+explicit pair `RARUS_ECHO_FFMPEG_PATH` and `RARUS_ECHO_FFPROBE_PATH`; do not infer
+tool locations from the current directory or install dependencies automatically.
+
 When showing a command to the user, redact secret-bearing parts or describe them structurally, for example `-e RARUS_ECHO_API_KEY` rather than `-e RARUS_ECHO_API_KEY=<value>`.
 
 ## Workflows

@@ -6,14 +6,18 @@ on:
     paths:
       - install.sh
       - install.ps1
-      - build/tests/*installer*
+      - build/**
+      - docker/standalone/**
+      - .github/workflows/standalone.yml
       - .github/workflows/installer.yml
   push:
     branches: [main, dev]
     paths:
       - install.sh
       - install.ps1
-      - build/tests/*installer*
+      - build/**
+      - docker/standalone/**
+      - .github/workflows/standalone.yml
       - .github/workflows/installer.yml
   workflow_dispatch:
 

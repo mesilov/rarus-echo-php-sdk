@@ -127,6 +127,32 @@ The worktree directory, its copied `vendor/`, and the `.env.local` symlink are r
 
 ## Development Workflow
 
+### Media builds and acceptance
+
+The CLI video workflow uses the pinned compact FFmpeg/ffprobe profile in
+`build/media/config.json`. Changes to the source pin, toolchain/profile, media
+fixtures, archive layout or installer behavior require both Docker architectures
+and all four native standalone/installer targets. See `build/media/README.md` for
+source verification, native build and acceptance commands. A host FFmpeg may
+regenerate the original CC0 fixtures, but it is not evidence that the distributed
+toolkit works.
+
+Run the Python archive/media contracts as well as PHP unit/lint gates. Keep
+`tests/Fixtures/Media/manifest.json` aligned with committed fixture bytes. Live
+Echo compatibility evidence in `echo-acceptance.json` must describe non-sensitive
+test inputs, actual service results and a date; local mocks alone cannot enable
+new output routes. Never commit credentials or temporary live-test recordings.
+
+Installers retain complete immutable payloads in
+`<install-dir>/.rarus-echo/packages/<version>-<source-sha>/` and update the matching
+native entrypoint. Old directories are retained for older running commands;
+remove an obsolete installer-owned version only after its commands have finished.
+Keep connection configuration and unrelated user files outside package cleanup.
+If Windows locks an active CLI executable, finish that command and repeat the
+update; the previous complete installation remains active on failure. Use the
+installer matching a release's complete archive format; a missing toolkit fails
+installation rather than being downloaded during `submit`.
+
 ### 1. Create a Feature Branch
 
 ```bash

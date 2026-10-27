@@ -25,6 +25,7 @@ final class ApplicationFactoryTest extends TestCase
         $this->assertTrue($application->has('transcript'));
         $this->assertTrue($application->has('submit'));
         $this->assertTrue($application->has('install'));
+        $this->assertTrue($application->has('doctor'));
     }
 
     public function testTopLevelHelpDoesNotCreateClient(): void

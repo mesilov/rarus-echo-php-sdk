@@ -3,6 +3,17 @@
 
 ini_set('memory_limit', '4G');
 
+// Capture micro's physical executable before Windows switches to a temporary PHAR.
+// This documented helper resolves the native file rather than PHP_BINARY or PHAR __DIR__.
+$physicalExecutable = function_exists('micro_get_self_filename')
+    ? micro_get_self_filename()
+    : realpath($_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
+if (!is_string($physicalExecutable) || $physicalExecutable === '') {
+    throw new RuntimeException('Cannot determine physical CLI executable location.');
+}
+define('RARUS_ECHO_EXECUTABLE', $physicalExecutable);
+unset($physicalExecutable);
+
 // Windows micro stream hooks are bypassed by loading the payload as a regular PHAR.
 if ('__ECHO_PAYLOAD_STRATEGY__' === 'temporary-phar' && function_exists('micro_open_self')) {
     $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rarus-echo-payload-' . bin2hex(random_bytes(16));

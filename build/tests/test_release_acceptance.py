@@ -8,14 +8,18 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
+import stat
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release_acceptance
 import release_assets
+from media import toolkit
 
 VERSION = "0.5.0-rc-1"
 SHA = "a" * 40
+LEGACY_SHA = release_assets.LEGACY_MEDIALESS_RELEASES[VERSION]
 
 
 class AcceptanceTests(unittest.TestCase):
@@ -24,23 +28,36 @@ class AcceptanceTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def package(self, target="linux-amd64", version=VERSION, sha=SHA):
-        package = self.root / "verified package"
+    def package(self, target="linux-amd64", version=VERSION, sha=SHA, media=True):
+        package = self.root / ("verified package" if media else "legacy package")
         package.mkdir()
-        for name in release_assets.REQUIRED + [release_assets.executable(target)]:
+        for name in (release_assets.REQUIRED if media else release_assets.LEGACY_REQUIRED) + [release_assets.executable(target)]:
             path = package / name
-            if name == "runtime-licenses":
+            if name in {"runtime-licenses", "media-licenses", "libexec"}:
                 path.mkdir()
-                (path / "PHP.txt").write_bytes(b"PHP license\n")
+                if name != "libexec":
+                    (path / "LICENSE.txt").write_bytes(b"license\n")
             elif name == "build-info.json":
                 path.write_text(json.dumps({"version": version, "source_sha": sha, "target": target}),
                                 encoding="utf-8")
             else:
                 path.write_bytes(name.encode("utf-8"))
+        if media:
+            for name in toolkit.manifest_paths(target)[2:]:
+                (package / name).write_bytes(name.encode())
+            toolkit.write_metadata(package, target, toolkit.CONFIG['configure_args'], 'fixture compiler', 'fixture')
+            info = json.loads((package / 'build-info.json').read_text())
+            info['media'] = toolkit.identity()
+            (package / 'build-info.json').write_text(json.dumps(info))
         return package
 
-    def archive(self, target="linux-amd64", version=VERSION, sha=SHA):
-        path = release_assets.pack(self.package(target, version, sha), target, self.root / "assets")
+    def archive(self, target="linux-amd64", version=VERSION, sha=SHA, media=True):
+        package = self.package(target, version, sha, media)
+        if media:
+            path = release_assets.pack(package, target, self.root / "assets")
+        else:
+            path = self.root / release_assets.archive_name(target)
+            release_assets._pack_files(sorted(p for p in package.rglob('*') if p.is_file()), package, path, target)
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         manifest = self.root / "SHA256SUMS"
         manifest.write_text("".join(
@@ -71,6 +88,45 @@ class AcceptanceTests(unittest.TestCase):
     def test_accepts_native_archive_with_exact_checksum_and_identity(self):
         archive, manifest = self.archive()
         release_acceptance.verify_archive(archive, manifest, "linux-amd64", VERSION, SHA)
+
+    def test_legacy_archive_requires_explicit_tag_source_contract(self):
+        archive, manifest = self.archive(media=False, sha=LEGACY_SHA)
+        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+            release_acceptance.verify_archive(archive, manifest, 'linux-amd64', VERSION, LEGACY_SHA)
+        release_acceptance.verify_archive(archive, manifest, 'linux-amd64', VERSION, LEGACY_SHA, require_media=False)
+        destination = self.root / 'extracted historical'
+        destination.mkdir()
+        release_acceptance.extract_archive(archive, destination, VERSION, LEGACY_SHA, require_media=False)
+        self.assertTrue((destination / 'rarus-echo').is_file())
+        self.assertFalse((destination / 'media-build-info.json').exists())
+
+    def test_legacy_schema_cannot_accept_a_new_media_archive(self):
+        archive, manifest = self.archive(sha=LEGACY_SHA)
+        with self.assertRaisesRegex(ValueError, 'unexpected|Unexpected'):
+            release_acceptance.verify_archive(archive, manifest, 'linux-amd64', VERSION, LEGACY_SHA, require_media=False)
+
+    def test_unknown_version_or_source_cannot_select_legacy_shape(self):
+        archive, manifest = self.archive(media=False, sha=LEGACY_SHA)
+        for version, sha in [('0.5.0-future', LEGACY_SHA), (VERSION, 'b' * 40)]:
+            with self.subTest(version=version, sha=sha), self.assertRaisesRegex(ValueError, 'approved published legacy'):
+                release_acceptance.verify_archive(archive, manifest, 'linux-amd64', version, sha, require_media=False)
+
+    def test_frozen_windows_zip_accepts_its_actual_ntfs_producer_modes_only(self):
+        archive, manifest = self.archive(target='windows-amd64', media=False, sha=LEGACY_SHA)
+        native = self.root / 'native.zip'
+        with zipfile.ZipFile(archive) as source, zipfile.ZipFile(native, 'w') as target:
+            for member in source.infolist():
+                member.create_system = 0
+                permission = 0o777 if member.filename == 'rarus-echo.exe' else 0o666
+                member.external_attr = (stat.S_IFREG | permission) << 16
+                target.writestr(member, source.read(member.filename))
+        native.replace(archive)
+        records = manifest.read_text().splitlines()
+        manifest.write_text('\n'.join(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name
+                                     if line.endswith('  ' + archive.name) else line for line in records) + '\n')
+        release_acceptance.verify_archive(archive, manifest, 'windows-amd64', VERSION, LEGACY_SHA, require_media=False)
+        with self.assertRaisesRegex(ValueError, 'permission'):
+            release_acceptance.verify_archive(archive, manifest, 'windows-amd64', VERSION, LEGACY_SHA)
 
     def test_rejects_missing_duplicate_and_malformed_checksum_records(self):
         archive, manifest = self.archive()
@@ -132,6 +188,38 @@ class AcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "installer differs"):
             release_acceptance.verify_installer(public, source)
 
+    def test_smoke_commands_follow_tagged_source_instead_of_current_checkout(self):
+        self.git('init', '-b', 'main')
+        (self.root / 'source').write_text('before doctor\n', encoding='utf-8')
+        self.git('add', 'source')
+        self.git('commit', '-m', 'historical CLI')
+        historical = self.git('rev-parse', 'HEAD')
+        doctor = self.root / 'src/Infrastructure/Console/Command/DoctorCommand.php'
+        doctor.parent.mkdir(parents=True)
+        doctor.write_text('<?php // doctor introduced\n', encoding='utf-8')
+        self.git('add', 'src')
+        self.git('commit', '-m', 'current CLI with doctor')
+        current = self.git('rev-parse', 'HEAD')
+        with patch.dict(release_assets.LEGACY_MEDIALESS_RELEASES, {VERSION: historical}, clear=True):
+            self.assertEqual(['--without-doctor', '--without-media'],
+                             release_acceptance.release_smoke_options(self.root, historical, VERSION))
+        with self.assertRaisesRegex(ValueError, 'approved published legacy'):
+            release_acceptance.release_smoke_options(self.root, current, VERSION)
+        media = self.root / 'build/media'
+        media.mkdir(parents=True)
+        (media / 'config.json').write_text('{}')
+        self.git('add', 'build')
+        self.git('commit', '-m', 'incomplete media source must fail closed')
+        with self.assertRaisesRegex(ValueError, 'partial|incomplete'):
+            release_acceptance.release_smoke_options(self.root, self.git('rev-parse', 'HEAD'), VERSION)
+        for name in ['toolkit.py', 'build.py']:
+            (media / name).write_text('# complete media contract marker\n')
+        self.git('add', 'build')
+        self.git('commit', '-m', 'current complete bundled media source')
+        self.assertEqual([], release_acceptance.release_smoke_options(self.root, self.git('rev-parse', 'HEAD'), VERSION))
+        with self.assertRaises(subprocess.CalledProcessError):
+            release_acceptance.release_smoke_options(self.root, 'f' * 40, VERSION)
+
     def test_isolates_user_directories_and_removes_ambient_api_credentials(self):
         env = release_acceptance.isolated_environment(self.root, {
             "PATH": os.defpath, "HOME": "/real/home", "APPDATA": "/real/config",
@@ -151,13 +239,54 @@ class AcceptanceTests(unittest.TestCase):
         shutil.copytree(package, notices)
         shutil.move(str(notices / "rarus-echo"), install / "rarus-echo")
         release_acceptance.verify_installation(install, notices, package, "linux-amd64")
-        (notices / "runtime-licenses/PHP.txt").write_bytes(b"changed license")
+        (notices / "runtime-licenses/LICENSE.txt").write_bytes(b"changed license")
         with self.assertRaisesRegex(ValueError, "Installed file differs"):
             release_acceptance.verify_installation(install, notices, package, "linux-amd64")
-        shutil.copy2(package / "runtime-licenses/PHP.txt", notices / "runtime-licenses/PHP.txt")
+        shutil.copy2(package / "runtime-licenses/LICENSE.txt", notices / "runtime-licenses/LICENSE.txt")
         (install / "rarus-echo").write_bytes(b"different executable")
         with self.assertRaisesRegex(ValueError, "Installed file differs"):
             release_acceptance.verify_installation(install, notices, package, "linux-amd64")
+
+    def test_versioned_package_requires_matching_cli_as_well_as_entrypoint(self):
+        package = self.package()
+        install, versioned = self.root / 'installed', self.root / 'versioned payload'
+        install.mkdir()
+        shutil.copytree(package, versioned)
+        shutil.copy2(package / 'rarus-echo', install / 'rarus-echo')
+        release_acceptance.verify_installation(install, versioned, package, 'linux-amd64', complete_package=True)
+        (versioned / 'rarus-echo').write_bytes(b'wrong immutable package executable')
+        with self.assertRaisesRegex(ValueError, 'Versioned package executable'):
+            release_acceptance.verify_installation(install, versioned, package, 'linux-amd64', complete_package=True)
+
+    def test_only_frozen_legacy_can_use_old_main_layout_and_partial_package_fails(self):
+        self.assertTrue(hasattr(release_acceptance, 'verify_release_installation'),
+                        'verified historical installation layouts must be distinguished explicitly')
+        package = self.package(media=False, sha=LEGACY_SHA)
+        install, notices = self.root / 'installed', self.root / 'old main notices'
+        install.mkdir()
+        shutil.copytree(package, notices)
+        shutil.copy2(package / 'rarus-echo', install / 'rarus-echo')
+        release_acceptance.verify_release_installation(install, notices, package, 'linux-amd64',
+                                                       VERSION, LEGACY_SHA, require_media=False)
+        immutable = install / '.rarus-echo/packages' / (VERSION + '-' + LEGACY_SHA)
+        immutable.mkdir(parents=True)
+        with self.assertRaisesRegex(ValueError, 'Installed file differs|Versioned package'):
+            release_acceptance.verify_release_installation(install, notices, package, 'linux-amd64',
+                                                           VERSION, LEGACY_SHA, require_media=False)
+        with self.assertRaisesRegex(ValueError, 'approved published legacy'):
+            release_acceptance.verify_release_installation(install, notices, package, 'linux-amd64',
+                                                           VERSION, 'b' * 40, require_media=False)
+
+    def test_new_release_cannot_fall_back_to_old_main_notice_layout(self):
+        self.assertTrue(hasattr(release_acceptance, 'verify_release_installation'))
+        package = self.package()
+        install, notices = self.root / 'installed', self.root / 'old main notices'
+        install.mkdir()
+        shutil.copytree(package, notices)
+        shutil.copy2(package / 'rarus-echo', install / 'rarus-echo')
+        with self.assertRaisesRegex(ValueError, 'Installed file differs|Versioned package'):
+            release_acceptance.verify_release_installation(install, notices, package, 'linux-amd64',
+                                                           VERSION, SHA, require_media=True)
 
     def test_seeds_private_default_and_unicode_json_and_detects_configuration_changes(self):
         env = release_acceptance.isolated_environment(self.root)

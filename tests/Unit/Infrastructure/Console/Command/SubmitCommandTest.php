@@ -32,7 +32,7 @@ final class SubmitCommandTest extends TestCase
         $client = $this->clientWithSubmitResult();
         $tester = new CommandTester($this->submitCommand($client));
 
-        $this->assertSame(Command::SUCCESS, $tester->execute(['files' => ['audio.ogg']]));
+        $this->assertSame(Command::SUCCESS, $tester->execute(['--no-extract-audio' => true, 'files' => ['audio.ogg']]));
         $this->assertSame(
             implode("\n", [
                 'file_ids:',
@@ -63,6 +63,7 @@ final class SubmitCommandTest extends TestCase
         $this->assertSame(
             Command::SUCCESS,
             $tester->execute([
+                '--no-extract-audio' => true,
                 'files' => ['audio.ogg', 'video.mp4'],
                 '--task-type' => 'diarization',
                 '--language' => 'ru',
@@ -119,7 +120,7 @@ final class SubmitCommandTest extends TestCase
         $client = $this->clientWithSubmitResult();
         $tester = new CommandTester($this->submitCommand($client));
 
-        $this->assertSame(Command::SUCCESS, $tester->execute(['files' => ['audio.ogg'], '--json' => true]));
+        $this->assertSame(Command::SUCCESS, $tester->execute(['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--json' => true]));
         $this->assertSame(
             ['file_ids' => [self::FILE_ID]],
             json_decode($tester->getDisplay(), true, flags: JSON_THROW_ON_ERROR)
@@ -142,7 +143,8 @@ final class SubmitCommandTest extends TestCase
             Command::SUCCESS,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--json' => true,
                     '--poll-interval' => '1',
@@ -192,7 +194,8 @@ final class SubmitCommandTest extends TestCase
             Command::SUCCESS,
             $tester->execute(
                 [
-                    'files' => ['audio-1.ogg', 'audio-2.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio-1.ogg', 'audio-2.ogg'],
                     '--wait' => true,
                     '--json' => true,
                     '--poll-interval' => '1',
@@ -240,7 +243,8 @@ final class SubmitCommandTest extends TestCase
             Command::SUCCESS,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--raw-result' => true,
                     '--poll-interval' => '1',
@@ -267,7 +271,8 @@ final class SubmitCommandTest extends TestCase
                 Command::SUCCESS,
                 $tester->execute(
                     [
-                        'files' => ['audio.ogg'],
+                        '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                         '--wait' => true,
                         '--output' => $outputPath,
                         '--poll-interval' => '1',
@@ -291,27 +296,27 @@ final class SubmitCommandTest extends TestCase
     {
         $cases = [
             [
-                ['files' => ['audio.ogg'], '--raw-result' => true],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--raw-result' => true],
                 '--raw-result requires --wait',
             ],
             [
-                ['files' => ['audio.ogg'], '--output' => 'transcript.txt'],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--output' => 'transcript.txt'],
                 '--output requires --wait',
             ],
             [
-                ['files' => ['audio-1.ogg', 'audio-2.ogg'], '--wait' => true, '--raw-result' => true],
+                ['--no-extract-audio' => true, 'files' => ['audio-1.ogg', 'audio-2.ogg'], '--wait' => true, '--raw-result' => true],
                 '--raw-result supports only one submitted file',
             ],
             [
-                ['files' => ['audio-1.ogg', 'audio-2.ogg'], '--wait' => true, '--output' => 'transcript.txt'],
+                ['--no-extract-audio' => true, 'files' => ['audio-1.ogg', 'audio-2.ogg'], '--wait' => true, '--output' => 'transcript.txt'],
                 '--output supports only one submitted file',
             ],
             [
-                ['files' => ['audio.ogg'], '--wait' => true, '--poll-interval' => '0'],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--wait' => true, '--poll-interval' => '0'],
                 '--poll-interval must be a positive integer',
             ],
             [
-                ['files' => ['audio.ogg'], '--wait' => true, '--timeout' => '0'],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--wait' => true, '--timeout' => '0'],
                 '--timeout must be a positive integer',
             ],
         ];
@@ -347,7 +352,8 @@ final class SubmitCommandTest extends TestCase
             Command::FAILURE,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--json' => true,
                     '--poll-interval' => '1',
@@ -379,7 +385,8 @@ final class SubmitCommandTest extends TestCase
             Command::FAILURE,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--json' => true,
                     '--poll-interval' => '1',
@@ -407,7 +414,8 @@ final class SubmitCommandTest extends TestCase
             Command::FAILURE,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--poll-interval' => '1',
                     '--timeout' => '5',
@@ -433,7 +441,8 @@ final class SubmitCommandTest extends TestCase
             Command::FAILURE,
             $tester->execute(
                 [
-                    'files' => ['audio.ogg'],
+                    '--no-extract-audio' => true,
+                'files' => ['audio.ogg'],
                     '--wait' => true,
                     '--poll-interval' => '1',
                     '--timeout' => '5',
@@ -473,7 +482,7 @@ final class SubmitCommandTest extends TestCase
         $this->assertSame(
             Command::FAILURE,
             $tester->execute(
-                ['files' => ['audio.ogg'], '--task-type' => 'unknown'],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--task-type' => 'unknown'],
                 ['capture_stderr_separately' => true]
             )
         );
@@ -491,7 +500,7 @@ final class SubmitCommandTest extends TestCase
         $this->assertSame(
             Command::FAILURE,
             $tester->execute(
-                ['files' => ['audio.ogg'], '--language' => 'xx'],
+                ['--no-extract-audio' => true, 'files' => ['audio.ogg'], '--language' => 'xx'],
                 ['capture_stderr_separately' => true]
             )
         );
@@ -508,7 +517,7 @@ final class SubmitCommandTest extends TestCase
 
         $this->assertSame(
             Command::FAILURE,
-            $tester->execute(['files' => ['audio.ogg']], ['capture_stderr_separately' => true])
+            $tester->execute(['--no-extract-audio' => true, 'files' => ['audio.ogg']], ['capture_stderr_separately' => true])
         );
         $this->assertSame('', $tester->getDisplay(true));
         $this->assertStringContainsString('Error: Service unavailable', $tester->getErrorOutput(true));

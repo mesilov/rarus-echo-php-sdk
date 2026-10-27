@@ -65,6 +65,7 @@ final class ConnectionConfigResolverTest extends TestCase
     {
         $this->savedConfig();
         self::assertSame('https://saved.example', $this->resolver()->resolve()->getBaseUrl());
+        self::assertSame('default_config', $this->resolver()->resolveConnection()->source);
     }
 
     public function testExplicitConfigIgnoresAmbientCredentialsAndDotenv(): void
@@ -73,6 +74,7 @@ final class ConnectionConfigResolverTest extends TestCase
         $_ENV['RARUS_ECHO_API_KEY'] = 'RecognizableFixtureSecret';
         file_put_contents($this->directory . '/.env', 'MALFORMED="unterminated');
         self::assertSame('https://saved.example', $this->resolver()->resolve($path)->getBaseUrl());
+        self::assertSame('explicit_config', $this->resolver()->resolveConnection($path)->source);
     }
 
     public function testPartialEnvironmentNeverBorrowsFromDefaultConfig(): void
@@ -89,6 +91,7 @@ final class ConnectionConfigResolverTest extends TestCase
         $this->savedConfig();
         file_put_contents($this->directory . '/.env', "RARUS_ECHO_API_KEY=33333333-3333-4333-8333-333333333333\nRARUS_ECHO_USER_ID=44444444-4444-4444-8444-444444444444\nRARUS_ECHO_BASE_URL=https://env.example\n");
         self::assertSame('https://env.example', $this->resolver()->resolve()->getBaseUrl());
+        self::assertSame('environment', $this->resolver()->resolveConnection()->source);
     }
 
     public function testExplicitMissingFileNeverFallsBack(): void
