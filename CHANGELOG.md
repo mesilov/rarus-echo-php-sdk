@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned cumulative scope for 0.5.0, including the features first shipped in 0.5.0-rc-1. Stable publication awaits 0.5.0-rc-2 and manual installation/use acceptance (#68). Video audio preparation and bundled FFmpeg (#60 / #67) are still under review and are not included in this merged scope.
+
 ### Added
+- Standalone CLI with embedded PHP for Linux amd64/arm64, macOS arm64 and Windows amd64; release archives include version/source identity, build metadata, licenses and SHA256SUMS (#53).
+- One-line user-scoped CLI installers with explicit prerelease selection, checksum verification, repeat installation and optional PATH activation (#57).
+- Interactive CLI `install`, private saved connection configuration, global `--config PATH` and existing env/dotenv compatibility (#55).
+- Native acceptance of public release assets through the published installers on all four supported platforms (#59).
 - CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
 
+### Changed
+- README now starts with standalone binary installation and local CLI usage, retaining Composer/PHP SDK setup and removing the Docker walkthrough and image-size history (#68).
+- CLI `--version` reports embedded version/source identity for standalone packages and the installed Composer package version otherwise (#53).
+
 ### Fixed
+- Preserve raw expandable Windows user PATH entries and registry value type during installer updates and rollback (#59).
+- Disable automatic Git maintenance in temporary packaging-test repositories to prevent cleanup races on CI runners (#55).
 - Bootstrap the Windows installer with Unicode temporary paths without invoking the PowerShell 5.1 CodeDOM compiler (#59).
 - Select historical release smoke commands from the verified tagged source, keeping doctor mandatory for new builds while accepting the earlier RC (#59).
 

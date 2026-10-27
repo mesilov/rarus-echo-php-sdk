@@ -18,62 +18,126 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 - PSR-совместимость (PSR-3, PSR-7, PSR-17, PSR-18)
 - Автоматическое обнаружение HTTP клиента (php-http/discovery)
 
-## Требования
+## Установка CLI
 
-- PHP 8.4 или 8.5
-- Composer 2.x
-- Расширения: json, curl, mbstring, fileinfo
+Готовый бинарник включает PHP и работает без Composer и Docker. Поддерживаются Linux x86-64/ARM64, macOS Apple Silicon и Windows x86-64.
 
-## Установка
+### Однострочная установка
+
+Для проверки prerelease `0.5.0-rc-1` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-1
+```
+
+Windows x86-64, PowerShell 5.1 или новее:
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-1
+```
+
+`0.5.0-rc-1` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-1). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
+
+Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
+
+| Параметр | POSIX sh | PowerShell |
+| --- | --- | --- |
+| Конкретный tag, включая prerelease | `--version TAG` | `-Version TAG` |
+| Абсолютный каталог бинарника | `--install-dir PATH` | `-InstallDir PATH` |
+| Не менять постоянный PATH | `--no-modify-path` | `-NoModifyPath` |
+
+Параметры передаются скрипту так (замените `TAG` существующим tag с архивами):
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version TAG --install-dir "$HOME/.local/bin" --no-modify-path
+```
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
+```
+
+На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Каталог `package` целиком принадлежит установщику и заменяется при обновлении; храните свои файлы вне него. Если целевой бинарник или файл активации уже является symlink, установка завершается с ошибкой, сохраняя ссылку. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
+
+```bash
+. "$HOME/.local/share/rarus-echo/env"
+rarus-echo --version
+```
+
+На Windows бинарник по умолчанию находится в `%LOCALAPPDATA%\rarus-echo\bin`, лицензии — в `%LOCALAPPDATA%\rarus-echo\package`; с `-InstallDir` лицензии сохраняются в подкаталоге `package` выбранного каталога. Установщик обновляет пользовательский PATH и печатает команду активации для текущей сессии; уже открытые терминалы могут требовать перезапуска. Повторный запуск обновляет бинарник и лицензии; конфигурация подключения сохраняется. Установка бинарника и команда `rarus-echo install` для настройки подключения — отдельные шаги.
+
+### Ручная установка
+
+В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Архивы доступны начиная с `0.5.0-rc-1`; выбирайте архив и контрольные суммы одного tag.
+
+| Платформа | Архив | Исполняемый файл |
+| --- | --- | --- |
+| Linux x86-64 | `rarus-echo-linux-amd64.tar.gz` | `rarus-echo` |
+| Linux ARM64 | `rarus-echo-linux-arm64.tar.gz` | `rarus-echo` |
+| macOS Apple Silicon | `rarus-echo-macos-arm64.tar.gz` | `rarus-echo` |
+| Windows x86-64 | `rarus-echo-windows-amd64.zip` | `rarus-echo.exe` |
+
+Linux, проверка скачанного архива и запуск:
+
+```bash
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf rarus-echo-linux-amd64.tar.gz
+./rarus-echo --version
+./rarus-echo --help
+```
+
+На macOS проверьте строку своего архива командой `grep '  rarus-echo-macos-arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c`, затем распакуйте его: `tar -xzf rarus-echo-macos-arm64.tar.gz`.
+
+Windows PowerShell:
+
+```powershell
+$archive = 'rarus-echo-windows-amd64.zip'
+$line = (Select-String -Path .\SHA256SUMS -Pattern ('  ' + [regex]::Escape($archive) + '$')).Line
+$expected = ($line -split '  ')[0]
+if (!$expected -or (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+    throw 'SHA256 mismatch'
+}
+Expand-Archive $archive -DestinationPath .\rarus-echo
+.\rarus-echo\rarus-echo.exe --version
+.\rarus-echo\rarus-echo.exe --help
+```
+
+`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для запуска нужен только исполняемый файл; остальные файлы архива содержат сведения о сборке и лицензии. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
+
+macOS-сборка имеет ad-hoc подпись без notarization, Windows-сборка не подписана Authenticode; система может запросить подтверждение запуска скачанного файла.
+
+## Быстрый старт CLI
+
+После установки активируйте PATH указанной выше командой или откройте новый терминал. Сохраните подключение и проверьте очередь:
+
+```bash
+rarus-echo --version
+rarus-echo install
+rarus-echo queue --json
+```
+
+Для Windows используйте `rarus-echo.exe`. Команда `install` запросит API key и User ID; подробности — в разделе [Сохранение подключения](#сохранение-подключения).
+
+Отправить один файл и дождаться текста:
+
+```bash
+rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
+```
+
+В сборках после `0.5.0-rc-1` после настройки также выполните `rarus-echo doctor`: команда проверяет конфиг, доступ к Echo и ffmpeg. В опубликованном rc-1 её ещё нет. Следующий кандидат `0.5.0-rc-2` ожидает публикации и ручной проверки; актуальный статус подготовки 0.5.0 — в [issue #68](https://github.com/mesilov/rarus-echo-php-sdk/issues/68).
+
+## PHP SDK
+
+### Требования и установка
+
+Для использования SDK как PHP-библиотеки нужны PHP 8.4 или 8.5, Composer 2.x и расширения json, curl, mbstring, fileinfo.
 
 ```bash
 composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-1
 ```
 
-## Быстрый старт
+Пример использует опубликованный release candidate. Стабильный `0.5.0` ещё не выпущен.
 
-### CLI через Docker image
-
-Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image. Docker использует локально закешированный tag, если он уже загружен; добавьте `--pull=always` к `docker run`, если нужно принудительно получить актуальный опубликованный image.
-
-```bash
-docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
-```
-
-Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
-
-```bash
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
-
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
-    --task-type=diarization \
-    --language=ru \
-    --speakers-correction \
-    --timestamps-extended \
-    --wait \
-    --json
-
-docker run --rm \
-  --env-file .env.local \
-  -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
-    --language=ru \
-    --wait \
-    --raw-result > transcript.txt
-```
-
-GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
-
-Image собирается на официальной runtime-базе `php:8.4-cli-alpine`. По сравнению с прежней базой `php:8.4-cli-bookworm` это уменьшает опубликованный image примерно с `769MB` до `~179MB` по `docker images` и примерно со `~180MB` до `~46MB` по сжатому pull size. Поведение `rarus-echo`, расширения `curl`/`fileinfo`/`mbstring`, PHP-лимиты для локальных аудио-smoke и multi-arch публикация сохранены.
-
-### PHP SDK
+### Быстрый старт
 
 ```php
 <?php
@@ -154,96 +218,7 @@ try {
 
 ## CLI
 
-После установки через Composer доступен исполняемый файл:
-
-```bash
-vendor/bin/rarus-echo --help
-```
-
-### Standalone: без PHP, Composer и Docker
-
-#### Однострочная установка
-
-Для проверки prerelease `0.5.0-rc-1` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
-
-```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-1
-```
-
-Windows x86-64, PowerShell 5.1 или новее:
-
-```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-1
-```
-
-`0.5.0-rc-1` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-1). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
-
-Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
-
-| Параметр | POSIX sh | PowerShell |
-| --- | --- | --- |
-| Конкретный tag, включая prerelease | `--version TAG` | `-Version TAG` |
-| Абсолютный каталог бинарника | `--install-dir PATH` | `-InstallDir PATH` |
-| Не менять постоянный PATH | `--no-modify-path` | `-NoModifyPath` |
-
-Параметры передаются скрипту так (замените `TAG` существующим tag с архивами):
-
-```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version TAG --install-dir "$HOME/.local/bin" --no-modify-path
-```
-
-```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
-```
-
-На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Каталог `package` целиком принадлежит установщику и заменяется при обновлении; храните свои файлы вне него. Если целевой бинарник или файл активации уже является symlink, установка завершается с ошибкой, сохраняя ссылку. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
-
-```bash
-. "$HOME/.local/share/rarus-echo/env"
-rarus-echo --version
-```
-
-На Windows бинарник по умолчанию находится в `%LOCALAPPDATA%\rarus-echo\bin`, лицензии — в `%LOCALAPPDATA%\rarus-echo\package`; с `-InstallDir` лицензии сохраняются в подкаталоге `package` выбранного каталога. Установщик обновляет пользовательский PATH и печатает команду активации для текущей сессии; уже открытые терминалы могут требовать перезапуска. Повторный запуск обновляет бинарник и лицензии; конфигурация подключения сохраняется. Установка бинарника и команда `rarus-echo install` для настройки подключения — отдельные шаги.
-
-#### Ручная установка
-
-В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Артефакты появятся начиная с первого релиза, собранного новым standalone workflow.
-
-| Платформа | Архив | Исполняемый файл |
-| --- | --- | --- |
-| Linux x86-64 | `rarus-echo-linux-amd64.tar.gz` | `rarus-echo` |
-| Linux ARM64 | `rarus-echo-linux-arm64.tar.gz` | `rarus-echo` |
-| macOS Apple Silicon | `rarus-echo-macos-arm64.tar.gz` | `rarus-echo` |
-| Windows x86-64 | `rarus-echo-windows-amd64.zip` | `rarus-echo.exe` |
-
-Linux, проверка скачанного архива и запуск:
-
-```bash
-sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf rarus-echo-linux-amd64.tar.gz
-./rarus-echo --version
-./rarus-echo --help
-```
-
-На macOS проверьте строку своего архива командой `grep '  rarus-echo-macos-arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c`, затем распакуйте его: `tar -xzf rarus-echo-macos-arm64.tar.gz`.
-
-Windows PowerShell:
-
-```powershell
-$archive = 'rarus-echo-windows-amd64.zip'
-$line = (Select-String -Path .\SHA256SUMS -Pattern ('  ' + [regex]::Escape($archive) + '$')).Line
-$expected = ($line -split '  ')[0]
-if (!$expected -or (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
-    throw 'SHA256 mismatch'
-}
-Expand-Archive $archive -DestinationPath .\rarus-echo
-.\rarus-echo\rarus-echo.exe --version
-.\rarus-echo\rarus-echo.exe --help
-```
-
-`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для запуска нужен только исполняемый файл; остальные файлы архива содержат сведения о сборке и лицензии. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
-
-macOS-сборка имеет ad-hoc подпись без notarization, Windows-сборка не подписана Authenticode; система может запросить подтверждение запуска скачанного файла. Docker остаётся основным quick start выше.
+Примеры ниже используют установленный бинарник `rarus-echo`; на Windows — `rarus-echo.exe`. После установки SDK через Composer та же CLI доступна как `vendor/bin/rarus-echo`.
 
 ### Сохранение подключения
 
@@ -254,7 +229,7 @@ rarus-echo install
 rarus-echo queue --json
 ```
 
-Для Composer-установки используйте `vendor/bin/rarus-echo`, для Windows — `rarus-echo.exe`. Команда запрашивает API key (ввод скрыт), User ID и URL сервиса; по умолчанию используется `https://production-ai-ui-api.ai.rarus-cloud.ru`. При замене существующего файла требуется подтверждение, по умолчанию замена отменяется. `install --no-interaction` завершается с кодом `2` без записи.
+Для Composer-установки используйте `rarus-echo`, для Windows — `rarus-echo.exe`. Команда запрашивает API key (ввод скрыт), User ID и URL сервиса; по умолчанию используется `https://production-ai-ui-api.ai.rarus-cloud.ru`. При замене существующего файла требуется подтверждение, по умолчанию замена отменяется. `install --no-interaction` завершается с кодом `2` без записи.
 
 Расположение файла не зависит от текущей директории или расположения бинарника:
 
@@ -286,7 +261,7 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 2. Без `--config` загружается `.env` текущей директории по прежним правилам Symfony Dotenv. Если API key или User ID заданы, используется и проверяется весь набор из окружения; недостающие поля не берутся из файла.
 3. Если оба credentials отсутствуют, читается конфиг по стандартному пути. Один `RARUS_ECHO_BASE_URL` не заменяет URL сохранённого подключения.
 
-`help`, `--version` и `install` работают без готового подключения. В Docker сохраните файл в смонтированном каталоге и передавайте путь внутри контейнера через `--config`; для интерактивного `install` запускайте контейнер с `-it`.
+`help`, `--version` и `install` работают без готового подключения.
 
 ### Диагностика окружения
 
@@ -302,7 +277,7 @@ rarus-echo doctor --json
 
 Команда показывает путь и состояние файла, выбранный источник подключения (`explicit_config`, `environment` или `default_config`), результат запроса очереди и путь/версию ffmpeg. Она использует существующие правила выбора подключения. При валидных env/`.env` credentials отсутствие или ошибка неиспользуемого стандартного конфига дают предупреждение; при невалидных активных настройках проверка сервера пропускается. Проверка ffmpeg выполняется независимо.
 
-Сетевой запрос ограничен десятью секундами, не следует редиректам и не создаёт задания. Проверка `ffmpeg -version` ограничена пятью секундами. В Docker ffmpeg ищется внутри контейнера: при его отсутствии установите компонент в окружении, где запускается CLI. `doctor` не меняет конфиг, не устанавливает зависимости и не извлекает аудио.
+Сетевой запрос ограничен десятью секундами, не следует редиректам и не создаёт задания. Проверка `ffmpeg -version` ограничена пятью секундами. `doctor` не меняет конфиг, не устанавливает зависимости и не извлекает аудио.
 
 Статусы проверок: `ok`, `warning`, `error`, `skipped`. Общий статус — `error` при любой ошибке/пропуске, `warning` при одних предупреждениях, иначе `ok`. Код завершения — `1` при общем `error`, `0` при `ok`/`warning`; ошибки синтаксиса команды обрабатываются Symfony Console и завершаются с кодом `1`.
 
@@ -335,20 +310,20 @@ export RARUS_ECHO_HTTP_TIMEOUT=1200 # опционально, по умолча�
 ### Команды
 
 ```bash
-vendor/bin/rarus-echo doctor
-vendor/bin/rarus-echo queue
-vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait
+rarus-echo doctor
+rarus-echo queue
+rarus-echo status 11111111-1111-1111-1111-111111111111
+rarus-echo transcript 11111111-1111-1111-1111-111111111111
+rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
+rarus-echo submit /path/to/audio.ogg --language=ru --wait
 ```
 
 Для автоматизации добавьте `--json`:
 
 ```bash
-vendor/bin/rarus-echo queue --json
-vendor/bin/rarus-echo submit /path/to/audio.ogg --json
-vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --json
+rarus-echo queue --json
+rarus-echo submit /path/to/audio.ogg --json
+rarus-echo submit /path/to/audio.ogg --wait --json
 ```
 
 `submit --wait` после отправки файла опрашивает результат транскрибации до терминального статуса. Финальный JSON содержит `file_ids` и `results`, а прогресс вида `submitted: ...`, `polling: ...` и `completed: ...` пишется в stderr, поэтому stdout остается безопасным для `jq`, редиректа и пайпов.
@@ -358,14 +333,14 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --json
 Для сырого текста одного файла:
 
 ```bash
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --raw-result > transcript.txt
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
+rarus-echo submit /path/to/audio.ogg --language=ru --wait --raw-result > transcript.txt
+rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
 ```
 
 Интервал и общий лимит ожидания задаются в секундах:
 
 ```bash
-vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --timeout=3600 --json
+rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --timeout=3600 --json
 ```
 
 Полный список ключей всех команд — в разделе [Справочник команд и опций](#справочник-команд-и-опций). Основной результат пишется в stdout, прогресс и ошибки — в stderr, успешные команды завершаются с кодом `0`.
@@ -390,21 +365,21 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --time
 | `--ansi`, `--no-ansi` | флаг | Принудительно включить/выключить ANSI-раскраску. |
 | `-n`, `--no-interaction` | флаг | Не задавать интерактивных вопросов. |
 
-`--json` добавляется командой `doctor` и сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
+`--json` добавляется командой `doctor` и сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в standalone-сборке он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
 
 #### `install`
 
 Запросить параметры подключения и сохранить приватный конфиг. Существующий файл заменяется только после подтверждения.
 
 ```text
-vendor/bin/rarus-echo install [--config=PATH]
+rarus-echo install [--config=PATH]
 ```
 
 #### `doctor`
 
 ```bash
-vendor/bin/rarus-echo doctor [--json]
-vendor/bin/rarus-echo --config "/path/to/config.json" doctor
+rarus-echo doctor [--json]
+rarus-echo --config "/path/to/config.json" doctor
 ```
 
 Обязательных аргументов нет. Показывает все проверки и общий итог; `--json` включает структурированный отчёт версии 1. Глобальный `--config PATH` выбирает диагностируемый файл. Статусы, таймауты и коды завершения описаны в разделе «Диагностика окружения» выше.
@@ -414,7 +389,7 @@ vendor/bin/rarus-echo --config "/path/to/config.json" doctor
 Показать агрегированную информацию по очереди транскрибации. Аргументов и собственных опций, кроме глобальных, нет.
 
 ```text
-vendor/bin/rarus-echo queue [--json]
+rarus-echo queue [--json]
 ```
 
 #### `submit`
@@ -422,7 +397,7 @@ vendor/bin/rarus-echo queue [--json]
 Отправить один или несколько файлов на транскрибацию.
 
 ```text
-vendor/bin/rarus-echo submit [опции] [--] <files>...
+rarus-echo submit [опции] [--] <files>...
 ```
 
 Аргумент:
@@ -456,7 +431,7 @@ vendor/bin/rarus-echo submit [опции] [--] <files>...
 Показать статус транскрибации одного файла.
 
 ```text
-vendor/bin/rarus-echo status [--json] [--] <file-id>
+rarus-echo status [--json] [--] <file-id>
 ```
 
 Аргумент:
@@ -470,7 +445,7 @@ vendor/bin/rarus-echo status [--json] [--] <file-id>
 Показать результат транскрибации одного файла.
 
 ```text
-vendor/bin/rarus-echo transcript [--json] [--] <file-id>
+rarus-echo transcript [--json] [--] <file-id>
 ```
 
 Аргумент:
