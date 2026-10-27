@@ -9,8 +9,8 @@
 
 ## 2. Promote to main
 
-- [ ] 2.1 Open the dev-based #69 release PR into main; verify all applicable CI checks and handle inline/top-level agent feedback before merging the checked source.
-- [ ] 2.2 Verify main contains the release source and create exact 0.5.0-rc-2 tag; verify the tag points to that full main SHA without replacing earlier tags.
+- [x] 2.1 Open the dev-based #69 release PR into main; verify all applicable CI checks and handle inline/top-level agent feedback before merging the checked source.
+- [x] 2.2 Verify main contains the release source and create exact 0.5.0-rc-2 tag; verify the tag points to that full main SHA without replacing earlier tags.
 
 ## 3. Publish and accept
 

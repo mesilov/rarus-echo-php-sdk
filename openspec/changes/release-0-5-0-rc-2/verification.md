@@ -27,4 +27,4 @@ The first Windows PR build failed during FFmpeg HTTPS source acquisition with an
 
 ## Publication evidence
 
-The exact main/tag SHA, release PR, native publication, public-asset acceptance and macOS checksum/handoff are recorded at closeout after those steps succeed. The active tasks deliberately keep these gates open before publication.
+Release PR #70 merged verified head 63a0ca8d70927a40c9b465de8fe49d5ebd160da7 after all six workflows passed, including native matrix run 40564546109. The exact main merge SHA is ba667107bb7611cbc0f3f47859cb63e970a635b9; its tree equals the reviewed source. Lightweight tag 0.5.0-rc-2 points to that exact main commit. Tag publication workflow 40568365590 is running. Native publication, public-asset acceptance and macOS checksum/handoff are recorded at closeout after they succeed. The active tasks deliberately keep these gates open before publication.
