@@ -87,6 +87,7 @@ def main():
         if args.target == "macos-arm64":
             from macos import finalize
             finalize(binary, payload)
+        run([sys.executable, ROOT / "build/tests/linkage-check.py", binary], env=env)
     licenses = spc / "buildroot/license"
     if not licenses.is_dir():
         licenses = spc / "buildroot/licenses"

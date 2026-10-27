@@ -63,6 +63,7 @@ build/tests/smoke.py against the extracted archive. It copies the executable
 to a Cyrillic/spaced temporary directory, clears PATH and real credentials,
 checks the embedded runtime probe, exercises help and invalid inputs,
 reads current-directory .env and submits a generated WAV to a local HTTP server.
+A linkage gate rejects Linux dynamic imports, non-system macOS libraries, and external Windows PHP/VC runtime DLLs.
 Linux CI repeats archive acceptance in a container with Python and no PHP.
 The probe is an acceptance artifact and is not shipped to users.
 

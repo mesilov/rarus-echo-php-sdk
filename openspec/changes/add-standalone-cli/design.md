@@ -27,7 +27,7 @@ Non-goals: release a new SDK version for this issue, change API services, replac
 - Unnotarized macOS/unsigned Windows files may trigger OS trust prompts → document this honestly.
 - Toolchain source libraries can drift even with pinned SPC → include the exact source lock and notices with every artifact; no claim of bit-for-bit reproducibility.
 - SDK dependency extensions change → platform checks and embedded runtime probe fail before publishing.
-- Linux runtime must remain portable → force musl and test the executable in a PHP-free container in addition to native acceptance.
+- Linux runtime must remain portable → force musl and check native imports and test the executable in a PHP-free container in addition to native acceptance.
 
 ## Migration Plan
 
