@@ -33,7 +33,7 @@ final class TranscriptCommand extends AbstractEchoCommand
         }
 
         try {
-            $transcript = $this->clientFactory->create()->getTranscript($fileId);
+            $transcript = $this->createClient($input)->getTranscript($fileId);
         } catch (\Throwable $exception) {
             return $this->writeError($output, $exception);
         }

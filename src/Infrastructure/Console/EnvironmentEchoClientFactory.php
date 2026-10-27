@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Infrastructure\Console;
 
-use Rarus\Echo\Contracts\EchoClientFactoryInterface;
 use Rarus\Echo\Contracts\EchoClientInterface;
+use Rarus\Echo\Infrastructure\Console\Configuration\ConnectionConfigResolver;
 use Rarus\Echo\Services\ServiceFactory;
-use Symfony\Component\Dotenv\Dotenv;
 
-final readonly class EnvironmentEchoClientFactory implements EchoClientFactoryInterface
+final readonly class EnvironmentEchoClientFactory implements ConfigurableEchoClientFactoryInterface
 {
     public function __construct(private string $workingDirectory)
     {
@@ -18,19 +17,14 @@ final readonly class EnvironmentEchoClientFactory implements EchoClientFactoryIn
     #[\Override]
     public function create(): EchoClientInterface
     {
-        $this->loadDotEnv();
-
-        return new SdkEchoClient(ServiceFactory::fromEnvironment());
+        return $this->createWithConfig(null);
     }
 
-    private function loadDotEnv(): void
+    #[\Override]
+    public function createWithConfig(?string $path): EchoClientInterface
     {
-        $envPath = $this->workingDirectory . '/.env';
+        $credentials = (new ConnectionConfigResolver($this->workingDirectory))->resolve($path);
 
-        if (!is_file($envPath)) {
-            return;
-        }
-
-        (new Dotenv())->usePutenv()->loadEnv($envPath);
+        return new SdkEchoClient(new ServiceFactory($credentials));
     }
 }

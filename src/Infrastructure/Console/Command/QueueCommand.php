@@ -24,7 +24,7 @@ final class QueueCommand extends AbstractEchoCommand
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
-            $queueInfo = $this->clientFactory->create()->getQueueInfo();
+            $queueInfo = $this->createClient($input)->getQueueInfo();
         } catch (\Throwable $exception) {
             return $this->writeError($output, $exception);
         }

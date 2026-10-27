@@ -13,10 +13,31 @@ Refresh it after CLI command or option changes:
 
 | Command | Description |
 | --- | --- |
+| `install` | Configure and save a private RARUS Echo connection interactively. |
 | `queue` | Show aggregated transcription queue information. |
 | `submit` | Submit one or more files for transcription. |
 | `status` | Show transcription status for one file. |
 | `transcript` | Show transcription result for one file. |
+
+## install
+
+Configure and save a private RARUS Echo connection interactively.
+
+### Usage
+
+```text
+install
+```
+
+### Arguments
+
+None.
+
+### Options
+
+| Option | Accepts Value | Value Required | Multiple | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 
 ## queue
 
@@ -36,6 +57,7 @@ None.
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 | `--json` | no | no | no | `false` | Write command result as JSON. |
 
 ## submit
@@ -58,6 +80,7 @@ submit [--json] [--task-type TASK-TYPE] [--language LANGUAGE] [--censor] [--spea
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 | `--json` | no | no | no | `false` | Write command result as JSON. |
 | `--task-type` | yes | yes | no | `"transcription"` | Task type: transcription, timestamps, diarization, raw_transcription |
 | `--language` | yes | yes | no | `"auto"` | Language code: auto, ru, en, de, fr, es, pt, hy, ja, tr, ar, zh, he, vi |
@@ -93,6 +116,7 @@ status [--json] [--] <file-id>
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 | `--json` | no | no | no | `false` | Write command result as JSON. |
 
 ## transcript
@@ -115,4 +139,5 @@ transcript [--json] [--] <file-id>
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 | `--json` | no | no | no | `false` | Write command result as JSON. |

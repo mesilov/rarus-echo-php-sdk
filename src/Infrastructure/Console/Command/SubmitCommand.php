@@ -117,7 +117,7 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
         }
 
         try {
-            $client = $this->clientFactory->create();
+            $client = $this->createClient($input);
             $submitResult = $client->submit($files, $options);
         } catch (\Throwable $exception) {
             return $this->writeError($output, $exception);
