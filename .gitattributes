@@ -4,8 +4,9 @@
 # receive only the runtime SDK: src/, composer.json, LICENSE, README, CHANGELOG
 # and the published CLI in bin/.
 
-# Always check out shell scripts with LF endings.
+# Keep public installer bytes identical to raw main on every native platform.
 *.sh text eol=lf
+*.ps1 text eol=lf
 
 # Build identity hashes raw bytes and must agree across native platforms.
 /build/config.json text eol=lf
@@ -33,6 +34,8 @@
 /CONTRIBUTING.md       export-ignore
 /Makefile              export-ignore
 /docker-compose.yaml   export-ignore
+/install.sh            export-ignore
+/install.ps1           export-ignore
 /phpstan.neon.dist     export-ignore
 /phpunit.xml.dist      export-ignore
 /rector.php            export-ignore

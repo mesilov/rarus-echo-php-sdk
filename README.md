@@ -27,7 +27,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk:^0.4
+composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-1
 ```
 
 ## Быстрый старт
@@ -161,6 +161,51 @@ vendor/bin/rarus-echo --help
 ```
 
 ### Standalone: без PHP, Composer и Docker
+
+#### Однострочная установка
+
+Для проверки prerelease `0.5.0-rc-1` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-1
+```
+
+Windows x86-64, PowerShell 5.1 или новее:
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-1
+```
+
+`0.5.0-rc-1` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-1). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
+
+Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
+
+| Параметр | POSIX sh | PowerShell |
+| --- | --- | --- |
+| Конкретный tag, включая prerelease | `--version TAG` | `-Version TAG` |
+| Абсолютный каталог бинарника | `--install-dir PATH` | `-InstallDir PATH` |
+| Не менять постоянный PATH | `--no-modify-path` | `-NoModifyPath` |
+
+Параметры передаются скрипту так (замените `TAG` существующим tag с архивами):
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version TAG --install-dir "$HOME/.local/bin" --no-modify-path
+```
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
+```
+
+На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Каталог `package` целиком принадлежит установщику и заменяется при обновлении; храните свои файлы вне него. Если целевой бинарник или файл активации уже является symlink, установка завершается с ошибкой, сохраняя ссылку. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
+
+```bash
+. "$HOME/.local/share/rarus-echo/env"
+rarus-echo --version
+```
+
+На Windows бинарник по умолчанию находится в `%LOCALAPPDATA%\rarus-echo\bin`, лицензии — в `%LOCALAPPDATA%\rarus-echo\package`; с `-InstallDir` лицензии сохраняются в подкаталоге `package` выбранного каталога. Установщик обновляет пользовательский PATH и печатает команду активации для текущей сессии; уже открытые терминалы могут требовать перезапуска. Повторный запуск обновляет бинарник и лицензии; конфигурация подключения сохраняется. Установка бинарника и команда `rarus-echo install` для настройки подключения — отдельные шаги.
+
+#### Ручная установка
 
 В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Артефакты появятся начиная с первого релиза, собранного новым standalone workflow.
 

@@ -1,0 +1,63 @@
+name: CLI installers
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - install.sh
+      - install.ps1
+      - build/tests/*installer*
+      - .github/workflows/installer.yml
+  push:
+    branches: [main, dev]
+    paths:
+      - install.sh
+      - install.ps1
+      - build/tests/*installer*
+      - .github/workflows/installer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  posix:
+    name: Install ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: macos-arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install zsh for shell activation acceptance
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Check syntax and offline release installation
+        run: |
+          sh -n install.sh
+          python3 build/tests/shell-installer-check.py
+
+  windows:
+    name: Install windows-amd64
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Windows PowerShell 5.1 offline release installation
+        shell: powershell
+        run: ./build/tests/windows-installer-check.ps1
