@@ -10,6 +10,7 @@ use Rarus\Echo\Infrastructure\Console\Media\MediaOptions;
 use Rarus\Echo\Infrastructure\Console\Media\MediaPreparer;
 use Rarus\Echo\Infrastructure\Console\Media\PreparationPolicy;
 use Rarus\Echo\Infrastructure\Console\Media\ToolkitLocator;
+use Rarus\Echo\Infrastructure\Console\Media\ToolkitUnavailableException;
 use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 
 final class MediaPreparerTest extends TestCase
@@ -34,6 +35,38 @@ final class MediaPreparerTest extends TestCase
         });
         self::assertSame(['video.mp4'], $prepared->paths());
         $prepared->cleanup();
+    }
+
+    public function testActualAudioOnlyWebmRetainsOriginalPathAndBytesWithoutTools(): void
+    {
+        $path = dirname(__DIR__, 4) . '/Fixtures/Media/audio-only.webm';
+        $hash = hash_file('sha256', $path);
+        $prepared = (new MediaPreparer(locator: new ToolkitLocator(environment: [])))->prepare([$path], new MediaOptions(), static function (string $message): never {
+            self::fail('Audio-only WebM must not start media preparation.');
+        });
+
+        try {
+            self::assertSame([$path], $prepared->paths());
+            self::assertSame($hash, hash_file('sha256', $path));
+        } finally {
+            $prepared->cleanup();
+        }
+        self::assertFileExists($path);
+        self::assertSame($hash, hash_file('sha256', $path));
+    }
+
+    public function testActualAudioOnlyWebmRejectsManualSelectionBeforeTools(): void
+    {
+        $this->expectExceptionMessage('--audio-stream requires an input with video.');
+        (new MediaPreparer(locator: new ToolkitLocator(environment: [])))->prepare([dirname(__DIR__, 4) . '/Fixtures/Media/audio-only.webm'], new MediaOptions(audioStream: 0), static function (string $message): void {
+        });
+    }
+
+    public function testActualVideoWebmStillRequiresTools(): void
+    {
+        $this->expectException(ToolkitUnavailableException::class);
+        (new MediaPreparer(locator: new ToolkitLocator(environment: [])))->prepare([dirname(__DIR__, 4) . '/Fixtures/Media/video-opus.webm'], new MediaOptions(), static function (string $message): void {
+        });
     }
 
     public function testManualSelectionRequiresActualVideoAndRejectsAudioBeforeTools(): void

@@ -49,7 +49,8 @@ final readonly class MediaPreparer implements MediaPreparationInterface
                     throw new \RuntimeException('Media source must be a readable non-empty regular file: ' . $file);
                 }
                 $mime = $this->files->getMimeType($absolute);
-                if (in_array($mime, ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/x-pn-wav', 'audio/ogg', 'audio/flac', 'audio/x-flac', 'audio/aac', 'audio/m4a', 'audio/x-m4a', 'audio/webm'], true)) {
+                if (in_array($mime, ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/x-pn-wav', 'audio/ogg', 'audio/flac', 'audio/x-flac', 'audio/aac', 'audio/m4a', 'audio/x-m4a', 'audio/webm'], true)
+                    || ($mime === 'video/webm' && WebmAudioInspector::isAudioOnly($absolute))) {
                     if ($options->audioStream !== null) {
                         throw new \RuntimeException('--audio-stream requires an input with video.');
                     }
