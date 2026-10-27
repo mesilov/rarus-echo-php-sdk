@@ -93,7 +93,8 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
         $toolMode = ''
         if ($Mode -eq ('wrong-' + $tool) -or ($tool -eq 'ffmpeg' -and $Mode -eq 'conversion-failure')) { $toolMode = $Mode }
         $fixture = Join-Path $root ($tool + $toolMode + '.exe')
-        if ($script:isNativeWindows -and -not (Test-Path -LiteralPath $fixture)) { New-MediaFixture $fixture $tool $toolMode }
+        # Bootstrap archive checks need payload bytes, not compiled console fixtures.
+        if ($script:isNativeWindows -and -not $BootstrapOnly -and -not (Test-Path -LiteralPath $fixture)) { New-MediaFixture $fixture $tool $toolMode }
         if (Test-Path -LiteralPath $fixture) { $files['libexec/' + $tool + '.exe'] = [IO.File]::ReadAllBytes($fixture) }
         else { $files['libexec/' + $tool + '.exe'] = [Text.Encoding]::UTF8.GetBytes('portable media fixture') }
     }
