@@ -17,8 +17,9 @@
 ## 4. Integration verification
 
 - [x] 4.1 Run make test-unit, make lint-all and git diff --check; verify CLI smoke reports and include doctor in native archive acceptance.
-- [ ] 4.2 Open PR targeting dev with Closes #61; verify required CI and process agent review comments.
+- [x] 4.2 Open PR targeting dev with Closes #61 and inspect initial CI/review state; verified PR #63 and no initial agent review threads.
 
 ## Workflow follow-up
 
+- Require green CI and process any later agent review comments on PR #63 before reporting issue work complete.
 - Archive add-cli-doctor only after the linked PR merges.
