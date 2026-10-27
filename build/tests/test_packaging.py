@@ -1,5 +1,6 @@
 """Contract tests for archives and source identity; no compiler or API access."""
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -99,6 +100,31 @@ class ArchiveTests(unittest.TestCase):
 
 
 class SourceTests(unittest.TestCase):
+    def test_provenance_inputs_keep_canonical_bytes_in_autocrlf_checkout(self):
+        project = Path(__file__).resolve().parents[2]
+        config = json.loads((project / "build/config.json").read_text())
+        inputs = [config["dependency_lock"], *config["toolchain_patches"]]
+        with tempfile.TemporaryDirectory() as temp:
+            fixture, checkout = Path(temp) / "fixture", Path(temp) / "checkout"
+            fixture.mkdir()
+            for name in [".gitattributes", *inputs]:
+                destination = fixture / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(project / name, destination)
+            def git(*args):
+                return subprocess.check_output(["git", "-C", str(fixture), *args], text=True).strip()
+            git("init", "-q")
+            git("config", "core.autocrlf", "false")
+            git("config", "user.name", "Packaging test")
+            git("config", "user.email", "test@example.invalid")
+            git("add", ".")
+            git("commit", "-qm", "fixture")
+            subprocess.run(["git", "clone", "-q", "-c", "core.autocrlf=true",
+                            str(fixture), str(checkout)], check=True)
+            for name in inputs:
+                self.assertEqual(hashlib.sha256((fixture / name).read_bytes()).hexdigest(),
+                                 hashlib.sha256((checkout / name).read_bytes()).hexdigest(), name)
+
     def test_rejects_dirty_checkout_mismatch_and_ignored_application_files(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

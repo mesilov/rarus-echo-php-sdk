@@ -70,6 +70,7 @@ def main():
     env["COMPOSER_CACHE_DIR"] = str(work / "composer-cache")
     env["COMPOSER_ROOT_VERSION"] = args.version or "dev-dev"
     env["ECHO_PAYLOAD_STRATEGY"] = "temporary-phar" if os.name == "nt" else "in-place"
+    run(["php", "-d", "phar.readonly=0", ROOT / "build/tests/phar-cleanup-check.php"], env=env)
     app = stage(work, info, env)
     for name, mode in [("rarus-echo", "application"), ("runtime-probe", "probe")]:
         run(["php", "-d", "phar.readonly=0", ROOT / "build/package-phar.php", app, dist / (name + ".phar"), mode], env=env)

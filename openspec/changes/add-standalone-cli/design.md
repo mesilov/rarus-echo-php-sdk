@@ -13,17 +13,17 @@ Non-goals: release a new SDK version for this issue, change API services, replac
 ## Decisions
 
 1. Embed a production PHAR in statically built PHP micro. A plain PHAR still requires PHP; bundling a PHP installation creates a multi-file runtime. PHP micro reuses the existing CLI with a single executable.
-2. Pin PHP 8.5.11, static-php-cli, micro source, and reviewed patches to the reference versions. Compile curl, fileinfo, mbstring, phar, openssl, and supporting extensions; add pcntl on Unix. Record pins, patch hashes and composer.lock SHA256. Runtime libraries are identified by SPC's exported source lock. Cache only the checkout-local compiler/runtime, keyed by config and patches.
+2. Pin PHP 8.5.11, static-php-cli, micro source, and reviewed patches to the reference versions. Compile curl, fileinfo, mbstring, phar, openssl, and supporting extensions; add pcntl on Unix. Record pins, patch hashes and composer.lock SHA256. Pin LF checkout for these provenance inputs so native Windows and Unix metadata agree. Runtime libraries are identified by SPC's exported source lock. Cache only the checkout-local compiler/runtime, keyed by config and patches.
 3. Allowlist application files, create fresh staging, and install locked production packages without plugins/scripts. Explicit Nyholm factories in the SDK remain usable without Composer discovery plugins. Reject dirty source or a supplied source SHA different from HEAD.
 4. On Windows copy the embedded PHAR into a private temporary directory and remove it at shutdown, following the reference workaround for micro stream handling. Use its UTF-8 patch for Cyrillic and spaced file paths.
 5. On macOS include the PHAR inside Mach-O signature bounds and create an ad-hoc signature using the reference helper. This satisfies local loader checks but provides no Developer ID/notarization.
 6. Build on native GitHub runners for all four targets. Accept archives in a temporary directory with no checkout dependencies and a clean PATH. Test version/SHA, all command help, expected credential errors, compiled extension/protocol discovery and local HTTP upload with Cyrillic paths.
-7. A tag push builds all platforms, verifies the final archive/checksum set, then creates/updates that tag's GitHub Release. PRs build the same artifacts without publication. Workflow dispatch produces development artifacts. The existing tag workflow is independent of Docker publication.
+7. A tag push builds all platforms, verifies the final archive/checksum set, then creates/updates that tag's GitHub Release. PRs build the same artifacts without publication. Workflow dispatch produces development artifacts. Prerelease suffixes create prereleases without changing Latest. The existing tag workflow is independent of Docker publication.
 
 ## Risks / Trade-offs
 
 - Native runtime compilation is expensive → cache by pinned inputs and set bounded job timeouts; all four successful outputs remain required.
-- Windows temp space is required → use an unpredictable private directory, propagate failures, and verify cleanup.
+- Windows temp space is required → use an unpredictable private directory, propagate failures, and verify cleanup. Recheck the physical file after Phar unlink and use PHP filesystem deletion when it remains, including Unicode temporary paths.
 - Unnotarized macOS/unsigned Windows files may trigger OS trust prompts → document this honestly.
 - Toolchain source libraries can drift even with pinned SPC → include the exact source lock and notices with every artifact; no claim of bit-for-bit reproducibility.
 - SDK dependency extensions change → platform checks and embedded runtime probe fail before publishing.

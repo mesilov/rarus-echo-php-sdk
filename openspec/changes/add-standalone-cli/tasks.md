@@ -7,7 +7,7 @@
 
 ## 2. Standalone packaging
 
-- [ ] 2.1 Adapt pinned PHP micro toolchain and platform patches, including fileinfo and Linux arm64; verify config, source rejection tests, and native compilation.
+- [x] 2.1 Adapt pinned PHP micro toolchain and platform patches, including fileinfo and Linux arm64; verify config, source rejection tests, and native compilation.
 - [ ] 2.2 Stage allowlisted production dependencies and PHAR with Windows temporary payload/macOS signature support; verify PHAR isolation and native extension/upload smoke tests.
 - [x] 2.3 Package license-complete platform archives and SHA256SUMS; verify archive contents, executable permissions, checksum tamper rejection, and identity consistency in Python tests.
 - [x] 2.4 Add build/README.md, packaging attribution, runtime license copies and export exclusions; verify only intended production paths enter the PHAR.

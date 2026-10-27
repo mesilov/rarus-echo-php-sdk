@@ -7,6 +7,11 @@
 # Always check out shell scripts with LF endings.
 *.sh text eol=lf
 
+# Build identity hashes raw bytes and must agree across native platforms.
+/build/config.json text eol=lf
+/build/patches/*.json text eol=lf
+/docker/rarus-echo-cli/composer.lock text eol=lf
+
 # Development-only paths excluded from the distributed package.
 /.agent-plugins        export-ignore
 /.agents               export-ignore

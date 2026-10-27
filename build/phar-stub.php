@@ -15,6 +15,11 @@ if ('__ECHO_PAYLOAD_STRATEGY__' === 'temporary-phar' && function_exists('micro_o
             try {
                 Phar::unlinkArchive($temporary);
             } catch (Throwable) {
+                // The portable filesystem fallback below also handles open archives.
+            }
+            // Native Phar unlink may report success without deleting a Unicode path.
+            clearstatcache(true, $temporary);
+            if (is_file($temporary)) {
                 @unlink($temporary);
             }
         }

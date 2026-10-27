@@ -106,8 +106,9 @@ jobs:
         if: matrix.target == 'windows-amd64'
         with:
           arch: x64
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         if: ${{ !startsWith(matrix.target, 'linux-') }}
+        id: runtime-cache
         with:
           path: runtime/
           key: echo-${{ matrix.target }}-${{ hashFiles('build/config.json', 'build/runtime.py', 'build/patches/**') }}
@@ -123,6 +124,12 @@ jobs:
         run: |
           python build/package.py windows-amd64
           if ($LASTEXITCODE -ne 0) { throw 'Standalone Windows build/acceptance failed' }
+      - name: Save compiled native runtime
+        if: always() && !cancelled() && !startsWith(matrix.target, 'linux-') && steps.runtime-cache.outputs.cache-hit != 'true' && hashFiles('runtime/**/rarus-echo-runtime-key') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: runtime/
+          key: ${{ steps.runtime-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         with:
           name: rarus-echo-${{ matrix.target }}
@@ -175,7 +182,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           python3 build/release_assets.py dist/assets --version "$ECHO_RELEASE_VERSION" --source-sha "$ECHO_SOURCE_SHA" --verify-only
+          release_flags=()
+          if [[ "$ECHO_RELEASE_VERSION" == *-* ]]; then
+            release_flags=(--prerelease --latest=false)
+          fi
           if ! gh release view "$ECHO_RELEASE_VERSION" >/dev/null 2>&1; then
-            gh release create "$ECHO_RELEASE_VERSION" --verify-tag --generate-notes
+            gh release create "$ECHO_RELEASE_VERSION" --verify-tag --generate-notes "${release_flags[@]}"
           fi
           gh release upload "$ECHO_RELEASE_VERSION" dist/assets/* --clobber

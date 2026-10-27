@@ -6,7 +6,8 @@ The build uses the production lock at docker/rarus-echo-cli/composer.lock.
 build/config.json pins PHP 8.5.11, static-php-cli and PHP micro commits, extensions,
 and reviewed patches. build-info.json records the version, full source SHA,
 lock SHA256, runtime pins and patch SHA256 values. runtime-sources.json records
-SPC's downloaded source lock. Compiler caches live under ignored runtime/.
+SPC's downloaded source lock. Compiler caches live under ignored runtime/. Hashed inputs are checked out with LF
+endings on every platform; a regression test covers core.autocrlf=true.
 
 The starting point is mesilov/bitrix24-cli at
 f23ca85fe45b003cedd0b6fd0340da6ac850ba00. See THIRD-PARTY-NOTICES.md and
@@ -74,6 +75,7 @@ version-tag pushes. All four native jobs must pass before the aggregate job
 validates archive contents, matching identities and exactly four SHA256SUMS
 entries. PRs and branch dispatches upload only workflow artifacts.
 Only a tag-push event can create/update its GitHub Release.
+Tags with a prerelease suffix create a prerelease and do not replace Latest.
 
 Build artifacts:
 - rarus-echo-linux-amd64.tar.gz
@@ -91,7 +93,11 @@ fail the build. SHA256SUMS hashes the final compressed archive bytes.
 macOS uses an ad-hoc signature that covers the embedded PHAR; it is not
 notarized. Windows binaries are not Authenticode signed. Windows temporarily
 extracts the embedded PHAR to a random private temporary directory, removed at
-shutdown, to work around PHP micro's stream handling.
+shutdown, to work around PHP micro's stream handling. Cleanup rechecks the file
+after Phar unlink and falls back to PHP filesystem deletion for Unicode paths.
+
+Completed native runtime caches are saved even if subsequent archive acceptance
+fails; failed acceptance still prevents artifact upload and publication.
 
 Updating PHP, SPC, micro, extensions or patches invalidates runtime caches.
 After such updates, rerun all native jobs and inspect runtime-sources.json
