@@ -28,3 +28,7 @@ services:
 ## Publication boundary
 
 The latest stable GitHub Release was checked through the connected GitHub API: tag `0.4.0`, no assets. Public anonymous installer URLs on `main` and a release with all standalone assets are prerequisites for end-user installation. This issue does not create a release or tag. Native installer CI uses offline executable fixtures; existing standalone workflow checks actual runtime packages.
+
+## Merge acceptance
+
+Final head adc762073248db01e8948178f58a8c4f871e4598 passed all CI: https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40497674370 and https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40497674396. Codex bot completed review without findings; no unresolved review threads. PR #58 merged into dev at 7f41160e2e263f44c1c33c2596ebc0eed0147571 on 2026-10-27. Public release validation continues in issue #59.

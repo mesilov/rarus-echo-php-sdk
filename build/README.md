@@ -53,7 +53,7 @@ python3 build/package.py macos-arm64 --source-sha "$(git rev-parse HEAD)"
 bash build/package-linux.sh
 ```
 
-For release builds pass --version v0.5.0 (or ECHO_RELEASE_VERSION); the workflow
+For release builds pass --version 0.5.0-rc-1 (or ECHO_RELEASE_VERSION); the workflow
 takes it from the pushed tag. Untagged builds use dev-<full SHA>.
 Docker's context omits Git, so the workflow validates the real checkout first
 and forwards that exact SHA to the build. Runtime compilation is intentionally
@@ -102,3 +102,34 @@ fails; failed acceptance still prevents artifact upload and publication.
 Updating PHP, SPC, micro, extensions or patches invalidates runtime caches.
 After such updates, rerun all native jobs and inspect runtime-sources.json
 and the license dump. Toolchain pins do not guarantee bit-for-bit reproducibility.
+
+## Published release acceptance
+
+After all release assets are published, run the public acceptance workflow from
+main with the exact tag. For the first 0.5 release candidate:
+
+```bash
+gh workflow run release-acceptance.yml --ref main -f version=0.5.0-rc-1
+```
+
+The workflow runs on Linux amd64/arm64, macOS arm64 and Windows amd64. It checks
+that the tag is in main history, anonymously downloads the matching archive and
+SHA256SUMS, checks the embedded version/source SHA, and invokes the public main
+installer in isolated user directories. Fresh and repeat installs are followed
+by CLI/configuration smoke tests using a local HTTP server and synthetic data.
+No production API credentials or workflow artifact fallback are used.
+
+Smoke commands follow the verified tag's source, rather than the current checkout:
+the earlier 0.5.0-rc-1 has no doctor command. The helper selects the historical
+`--without-doctor` smoke mode only when DoctorCommand.php is absent from that
+source commit. New package builds retain mandatory doctor help and diagnostics.
+
+To repeat acceptance on one supported native machine, fetch main and tags, then:
+
+```bash
+python3 build/release_acceptance.py --version 0.5.0-rc-1 --resolve-source-sha
+python3 build/release_acceptance.py --version 0.5.0-rc-1 --source-sha FULL_TAG_COMMIT_SHA --target macos-arm64
+```
+
+Use the full SHA printed by the first command and the current machine's target.
+On Windows, run the helper with `python`; it invokes native Windows PowerShell 5.1.

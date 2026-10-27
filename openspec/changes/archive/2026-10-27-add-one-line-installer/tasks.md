@@ -14,7 +14,7 @@
 
 - [x] 3.1 Add installer CI for Linux amd64/arm64, macOS arm64 and Windows amd64; verify native fixture jobs.
 - [x] 3.2 Run `make lint-openspec`, `git diff --check`, `make test-unit`, `make lint-all` and packaging contracts; record outcomes.
-- [ ] 3.3 Push issue branch, open PR into dev with `Closes #57`, inspect CI and handle agent comments/review threads before reporting completion.
+- [x] 3.3 Push issue branch, open PR into dev with `Closes #57`, inspect CI and handle agent comments/review threads before reporting completion.
 
 ## Workflow follow-up
 

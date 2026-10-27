@@ -15,31 +15,48 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
+function Initialize-RarusEchoNativeMethods {
+    if ('RarusEchoInstallerNativeMethods' -as [type]) { return }
+    # PowerShell 5.1's CodeDOM compiler uses ANSI paths for its temporary files.
+    # Define these two fixed P/Invokes in memory so Unicode TEMP needs no compiler,
+    # environment changes, temporary assemblies or weaker directory permissions.
+    $name = [Reflection.AssemblyName]::new('RarusEchoInstallerNativeMethods')
+    if ($PSVersionTable.PSVersion.Major -le 5) {
+        $assembly = [AppDomain]::CurrentDomain.DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    } else {
+        $assembly = [Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($name, [Reflection.Emit.AssemblyBuilderAccess]::Run)
+    }
+    $module = $assembly.DefineDynamicModule($name.Name)
+    $type = $module.DefineType($name.Name, [Reflection.TypeAttributes]'Public,Abstract,Sealed')
+    $attributes = [Reflection.MethodAttributes]'Public,Static,PinvokeImpl'
+    $calling = [Reflection.CallingConventions]::Standard
+    $nativeCalling = [Runtime.InteropServices.CallingConvention]::Winapi
+    $charset = [Runtime.InteropServices.CharSet]::Unicode
+    $machineParameters = [type[]]@([IntPtr], [UInt16].MakeByRefType(), [UInt16].MakeByRefType())
+    $machine = $type.DefinePInvokeMethod('IsWow64Process2', 'kernel32.dll', 'IsWow64Process2',
+        $attributes, $calling, [bool], $machineParameters, $nativeCalling, $charset)
+    $machine.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    $notifyParameters = [type[]]@([IntPtr], [UInt32], [UIntPtr], [string], [UInt32], [UInt32], [UIntPtr].MakeByRefType())
+    $notify = $type.DefinePInvokeMethod('SendMessageTimeout', 'user32.dll', 'SendMessageTimeoutW',
+        $attributes, $calling, [IntPtr], $notifyParameters, $nativeCalling, $charset)
+    $notify.SetImplementationFlags([Reflection.MethodImplAttributes]::PreserveSig)
+    [void]$type.CreateType()
+}
+
 function Get-RarusEchoPlatform {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return 'unsupported' }
     # Process environment and GetNativeSystemInfo can report emulated x64 on ARM64.
     # IsWow64Process2 exposes the native host architecture on modern Windows.
-    if (-not ('RarusEchoInstallerPlatform' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-public static class RarusEchoInstallerPlatform {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);
-    public static ushort NativeMachine() {
-        try {
-            ushort processMachine, nativeMachine;
-            if (!IsWow64Process2(new IntPtr(-1), out processMachine, out nativeMachine))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-            return nativeMachine;
-        } catch (EntryPointNotFoundException) { return 0; }
+    Initialize-RarusEchoNativeMethods
+    $processMachine = [UInt16]0
+    $nativeMachine = [UInt16]0
+    try {
+        if (-not [RarusEchoInstallerNativeMethods]::IsWow64Process2([IntPtr](-1), [ref]$processMachine, [ref]$nativeMachine)) {
+            throw 'Windows could not determine the native OS architecture.'
+        }
+    } catch {
+        if ($_.Exception.InnerException -isnot [EntryPointNotFoundException]) { throw }
     }
-}
-'@
-    }
-    $nativeMachine = [RarusEchoInstallerPlatform]::NativeMachine()
     if ($nativeMachine -ne 0) {
         if ($nativeMachine -eq 0x8664) { return 'windows-amd64' }
         return 'unsupported'
@@ -205,6 +222,13 @@ function Get-RarusEchoIdentity([string]$Executable, [string]$Tag) {
     } finally { $process.Dispose() }
 }
 
+function Send-RarusEchoEnvironmentChange {
+    Initialize-RarusEchoNativeMethods
+    $result = [UIntPtr]::Zero
+    # Best effort: do not wait indefinitely for unresponsive top-level windows.
+    [void][RarusEchoInstallerNativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
+}
+
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
     if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Unsupported platform. This installer supports Windows amd64; Linux amd64/arm64 and macOS arm64 use install.sh.' }
     if ($Version -and $Version -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw 'Invalid release version tag.' }
@@ -240,7 +264,24 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
     $newPackageMoved = $false
     $pathChanged = $false
     $committed = $false
-    $oldUserPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $userPathExisted = $false
+    $oldUserPath = ''
+    $oldUserPathKind = [Microsoft.Win32.RegistryValueKind]::String
+    if (-not $NoModifyPath) {
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+        if ($null -ne $key) {
+            try {
+                if ($key.GetValueNames() -contains 'Path') {
+                    $userPathExisted = $true
+                    $oldUserPathKind = $key.GetValueKind('Path')
+                    if ($oldUserPathKind -notin @([Microsoft.Win32.RegistryValueKind]::String, [Microsoft.Win32.RegistryValueKind]::ExpandString)) {
+                        throw 'User PATH must be a registry string or expandable string.'
+                    }
+                    $oldUserPath = [string]$key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                }
+            } finally { $key.Dispose() }
+        }
+    }
     [void][IO.Directory]::CreateDirectory($temporary)
     try {
         $tag = $Version
@@ -287,8 +328,12 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
             if (-not $alreadyPresent) {
                 $newPath = $InstallDir
                 if ($oldUserPath) { $newPath += ';' + $oldUserPath }
-                [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-                $pathChanged = $true
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    $pathChanged = $true
+                    $key.SetValue('Path', $newPath, $oldUserPathKind)
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
             }
         }
         $committed = $true
@@ -298,13 +343,27 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         Write-Host ('For this PowerShell session, run: $env:PATH = ''' + $InstallDir.Replace("'", "''") + ';'' + $env:PATH')
     } catch {
         $failure = $_.Exception.Message
+        $committed = $false
+        $rollbackErrors = New-Object 'System.Collections.Generic.List[string]'
+        if ($pathChanged) {
+            try {
+                $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+                try {
+                    if ($userPathExisted) { $key.SetValue('Path', $oldUserPath, $oldUserPathKind) }
+                    else { $key.DeleteValue('Path', $false) }
+                } finally { $key.Dispose() }
+                Send-RarusEchoEnvironmentChange
+            } catch { $rollbackErrors.Add('User PATH: ' + $_.Exception.Message) }
+        }
         try {
-            if ($pathChanged) { [Environment]::SetEnvironmentVariable('PATH', $oldUserPath, 'User') }
             if ($newPackageMoved) { Remove-Item -LiteralPath $packageDirectory -Recurse -Force }
             if ($newExecutableMoved) { [IO.File]::Delete($executable) }
             if ($oldPackageMoved) { [IO.Directory]::Move($backupPackage, $packageDirectory) }
             if ($oldExecutableMoved) { [IO.File]::Move($backupExecutable, $executable) }
-        } catch { throw ('Installation failed: ' + $failure + ' Rollback could not finish. Previous files are retained at ' + $backupExecutable + ' and ' + $backupPackage + '.') }
+        } catch { $rollbackErrors.Add('Installed files: ' + $_.Exception.Message) }
+        if ($rollbackErrors.Count -ne 0) {
+            throw ('Installation failed: ' + $failure + ' Rollback could not finish. ' + ($rollbackErrors -join ' ') + ' Installer backup paths: ' + $backupExecutable + ' and ' + $backupPackage + '.')
+        }
         throw ('Installation failed; any previous executable and notices were preserved. ' + $failure)
     } finally {
         foreach ($path in @($temporary, $stageExecutableDirectory, $stagePackage)) {

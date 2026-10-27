@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
+
 ### Fixed
+- Bootstrap the Windows installer with Unicode temporary paths without invoking the PowerShell 5.1 CodeDOM compiler (#59).
+- Select historical release smoke commands from the verified tagged source, keeping doctor mandatory for new builds while accepting the earlier RC (#59).
+
+## [0.5.0-rc-1] - 2026-10-27
+
+First release candidate for 0.5.0. Standalone archives are built from the tagged main commit; prerelease publication does not replace Latest stable.
+
+### Fixed
+- Preserve raw expandable Windows user PATH entries and registry value type when installing or rolling back the CLI (#59).
 - Disable automatic Git maintenance in temporary packaging-test repositories to prevent cleanup races on CI runners (#55).
 
 ### Added
-- CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
+- Native acceptance of published release assets through the public main installers, with checksum/source identity verification, repeat installation and CLI smoke tests on all four supported platforms (#59).
 - One-line standalone CLI installers for Linux amd64/arm64, macOS arm64 and Windows amd64, with public-release selection, SHA-256 verification, user-scoped installation, retained licenses and optional PATH activation (#57). Public use requires scripts on main and a Release containing standalone assets.
 - Interactive CLI `install`, private per-user connection configuration and global `--config PATH`, with explicit-file isolation and legacy env/dotenv compatibility (#55).
 - Standalone CLI packaging for Linux amd64/arm64, macOS arm64, and Windows amd64, with embedded PHP, version/source SHA, build metadata, runtime licenses, final archive SHA256SUMS, native acceptance tests, and gated GitHub Release publication on version tags (#53).

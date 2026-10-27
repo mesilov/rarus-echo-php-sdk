@@ -4,8 +4,9 @@
 # receive only the runtime SDK: src/, composer.json, LICENSE, README, CHANGELOG
 # and the published CLI in bin/.
 
-# Always check out shell scripts with LF endings.
+# Keep public installer bytes identical to raw main on every native platform.
 *.sh text eol=lf
+*.ps1 text eol=lf
 
 # Build identity hashes raw bytes and must agree across native platforms.
 /build/config.json text eol=lf

@@ -1,6 +1,6 @@
 # Offline contract checks. Windows PowerShell 5.1 runs the native executable tests.
 [CmdletBinding()]
-param()
+param([switch]$BootstrapOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -32,7 +32,8 @@ $script:asset = $null
 $script:isNativeWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $originalLocal = $env:LOCALAPPDATA
 $originalRoaming = $env:APPDATA
-$originalPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+$originalJavaHome = $env:JAVA_HOME
+$originalPath = $null
 
 function Assert-True([bool]$Value, [string]$Message) {
     if (-not $Value) { throw $Message }
@@ -47,6 +48,35 @@ function Assert-Fails([scriptblock]$Body, [string]$Pattern) {
     try { & $Body } catch { $failure = $_.Exception.Message }
     Assert-True ($null -ne $failure) 'Expected installation/validation to fail.'
     Assert-True ($failure -match $Pattern) ('Unexpected failure: ' + $failure)
+}
+function Get-TestUserPathState {
+    $state = [pscustomobject]@{ Exists = $false; Value = $null; Kind = [Microsoft.Win32.RegistryValueKind]::String }
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+    if ($null -ne $key) {
+        try {
+            if ($key.GetValueNames() -contains 'Path') {
+                $state.Exists = $true
+                $state.Value = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                $state.Kind = $key.GetValueKind('Path')
+            }
+        } finally { $key.Dispose() }
+    }
+    return $state
+}
+function Set-TestUserPathState([object]$State) {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+    try {
+        if ($State.Exists) { $key.SetValue('Path', $State.Value, $State.Kind) }
+        else { $key.DeleteValue('Path', $false) }
+    } finally { $key.Dispose() }
+}
+function Assert-TestUserPathState([object]$Expected, [string]$Message) {
+    $actual = Get-TestUserPathState
+    Assert-True ($actual.Exists -eq $Expected.Exists) ($Message + ': registry value existence changed.')
+    if ($Expected.Exists) {
+        Assert-True ($actual.Kind -eq $Expected.Kind) ($Message + ': registry value kind changed.')
+        Assert-True ($actual.Value -ceq $Expected.Value) ($Message + ': raw registry value changed.')
+    }
 }
 function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = @(), [string]$Omit = '') {
     $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
@@ -105,7 +135,31 @@ function Invoke-RarusEchoDownload([string]$Uri, [string]$Destination) {
     } else { throw ('Unexpected download: ' + $Uri) }
 }
 
+if ($script:isNativeWindows) {
+    # Snapshot raw data and type; Environment.GetEnvironmentVariable expands REG_EXPAND_SZ.
+    $originalPath = Get-TestUserPathState
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class RarusEchoInstallerTestEnvironment {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
+    public static void Notify() {
+        UIntPtr result;
+        SendMessageTimeout(new IntPtr(0xffff), 0x001a, UIntPtr.Zero, "Environment", 2, 1000, out result);
+    }
+}
+'@
+}
+
 try {
+    Test-Case 'native interop definitions are available without compiler output' {
+        Initialize-RarusEchoNativeMethods
+        $native = 'RarusEchoInstallerNativeMethods' -as [type]
+        Assert-True ($native.Assembly.IsDynamic) 'Native interop must stay in memory.'
+        Assert-True ($null -ne $native.GetMethod('IsWow64Process2')) 'Missing architecture P/Invoke.'
+        Assert-True ($null -ne $native.GetMethod('SendMessageTimeout')) 'Missing environment broadcast P/Invoke.'
+    }
     Test-Case 'unsupported platform fails before any download' {
         function Get-RarusEchoPlatform { return 'linux-arm64' }
         Assert-Fails { Install-RarusEcho -NoModifyPath } 'Windows.*amd64|unsupported'
@@ -200,6 +254,49 @@ try {
         Write-Host ('PASS ' + $script:checks + ' portable checks; native Windows executable/PATH checks require Windows PowerShell 5.1.')
         return
     }
+    Test-Case 'native helpers work in a fresh process with Unicode TEMP and cwd' {
+        $temporary = Join-Path $root (([string][char]0x044F) + ' compiler files')
+        [void][IO.Directory]::CreateDirectory($temporary)
+        $probe = @'
+$ErrorActionPreference = 'Stop'
+$errors = $null
+$tokens = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:ECHO_TEST_INSTALLER, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+foreach ($definition in $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$before = @($env:TMP, $env:TEMP, $env:TMPDIR)
+foreach ($attempt in 1..2) {
+    if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Wrong native architecture in Unicode environment.' }
+    Send-RarusEchoEnvironmentChange
+}
+if (($before -join '|') -cne (@($env:TMP, $env:TEMP, $env:TMPDIR) -join '|')) { throw 'Bootstrap changed caller TEMP variables.' }
+if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Bootstrap left compiler files behind.' }
+'@
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = Join-Path $PSHOME $(if ($PSVersionTable.PSVersion.Major -le 5) { 'powershell.exe' } else { 'pwsh.exe' })
+        $start.Arguments = '-NoProfile -NonInteractive -EncodedCommand ' + [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($probe))
+        $start.UseShellExecute = $false
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.WorkingDirectory = $temporary
+        foreach ($name in @('TMP', 'TEMP', 'TMPDIR')) { $start.EnvironmentVariables[$name] = $temporary }
+        $start.EnvironmentVariables['ECHO_TEST_INSTALLER'] = $installer
+        $process = [Diagnostics.Process]::new()
+        $process.StartInfo = $start
+        try {
+            [void]$process.Start()
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Unicode bootstrap probe timed out.' }
+            Assert-True ($process.ExitCode -eq 0) ('Unicode bootstrap probe failed: ' + $stdout.Result + $stderr.Result)
+        } finally { $process.Dispose() }
+    }
+    if ($BootstrapOnly) {
+        Write-Host ('PASS ' + $script:checks + ' Windows bootstrap checks.')
+        return
+    }
     Test-Case 'native OS architecture is independent of process architecture variables' {
         $originalArchitecture = $env:PROCESSOR_ARCHITECTURE
         $originalWowArchitecture = $env:PROCESSOR_ARCHITEW6432
@@ -224,12 +321,57 @@ try {
     New-TestArchive $script:asset $fixture
     $defaultBin = Join-Path $env:LOCALAPPDATA 'rarus-echo/bin'
     $defaultPackage = Join-Path $env:LOCALAPPDATA 'rarus-echo/package'
+    $env:JAVA_HOME = Join-Path $root 'Java before'
+    $seededPath = [pscustomobject]@{
+        Exists = $true
+        Value = '%JAVA_HOME%\bin;C:\Existing Tools'
+        Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+    }
+    Set-TestUserPathState $seededPath
     Test-Case 'latest install preserves config and no-modify PATH' {
         Install-RarusEcho -NoModifyPath
         Assert-True (Test-Path -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')) 'Default executable was not installed.'
         Assert-True (Test-Path -LiteralPath (Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) 'Package notices were not installed.'
         Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Configuration changed.'
-        Assert-True ([Environment]::GetEnvironmentVariable('PATH', 'User') -eq $originalPath) 'NoModifyPath changed user PATH.'
+        Assert-TestUserPathState $seededPath 'NoModifyPath changed user PATH'
+    }
+    Test-Case 'install and repeat preserve expandable PATH references and registry kind' {
+        Install-RarusEcho -Version $script:tag
+        $expected = [pscustomobject]@{
+            Exists = $true
+            Value = $defaultBin + ';' + $seededPath.Value
+            Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+        }
+        Assert-TestUserPathState $expected 'Install must preserve REG_EXPAND_SZ and raw variable references'
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Repeat install must preserve REG_EXPAND_SZ and raw variable references'
+        $env:JAVA_HOME = Join-Path $root 'Java after'
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+        try { $expanded = [string]$key.GetValue('Path') } finally { $key.Dispose() }
+        Assert-True ($expanded -ceq ($defaultBin + ';' + $env:JAVA_HOME + '\bin;C:\Existing Tools')) 'Changing JAVA_HOME did not change the expanded PATH.'
+    }
+    Test-Case 'an expanded existing installer entry is idempotent without rewriting raw PATH' {
+        $expected = [pscustomobject]@{
+            Exists = $true
+            Value = '%LOCALAPPDATA%\rarus-echo\bin;%JAVA_HOME%\bin'
+            Kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+        }
+        Set-TestUserPathState $expected
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState $expected 'Expanded installer entry was rewritten or duplicated'
+    }
+    Test-Case 'ordinary string PATH preserves its kind and literal variable references' {
+        $raw = '%JAVA_HOME%\bin;C:\Plain Tools'
+        Set-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $raw; Kind = [Microsoft.Win32.RegistryValueKind]::String })
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $defaultBin + ';' + $raw; Kind = [Microsoft.Win32.RegistryValueKind]::String }) 'Ordinary string PATH was converted'
+    }
+    Test-Case 'missing user PATH is created once as an ordinary string' {
+        Set-TestUserPathState ([pscustomobject]@{ Exists = $false })
+        Install-RarusEcho -Version $script:tag
+        Install-RarusEcho -Version $script:tag
+        Assert-TestUserPathState ([pscustomobject]@{ Exists = $true; Value = $defaultBin; Kind = [Microsoft.Win32.RegistryValueKind]::String }) 'Missing user PATH was not installed idempotently'
+        Set-TestUserPathState $seededPath
     }
     Test-Case 'repeat pinned install adds user PATH only once' {
         $script:downloads.Clear()
@@ -263,6 +405,28 @@ try {
         Assert-True ((Get-FileHash -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')).Hash -eq $oldExecutable) 'Failure replaced existing executable.'
         Assert-True ([IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) -eq $oldNotice) 'Failure replaced notices.'
         Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Failure changed configuration.'
+    }
+    Test-Case 'handled failure after PATH write restores raw expandable value and kind' {
+        Set-TestUserPathState $seededPath
+        Assert-Fails {
+            Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
+                if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
+            }
+        } 'fixture output sink failure'
+        Assert-TestUserPathState $seededPath 'Rollback lost the original expandable PATH'
+        Assert-OldInstallation
+    }
+    Test-Case 'handled failure after PATH write restores absence of the registry value' {
+        $absent = [pscustomobject]@{ Exists = $false }
+        Set-TestUserPathState $absent
+        Assert-Fails {
+            Install-RarusEcho -Version $script:tag 6>&1 | ForEach-Object {
+                if ($_.ToString().StartsWith('Installed ')) { throw 'fixture output sink failure after PATH write' }
+            }
+        } 'fixture output sink failure'
+        Assert-TestUserPathState $absent 'Rollback created a previously absent user PATH'
+        Assert-OldInstallation
+        Set-TestUserPathState $seededPath
     }
     Test-Case 'missing stable assets preserve existing install' {
         $script:missingAsset = $true
@@ -313,8 +477,12 @@ public static class RarusEchoDirectoryLock {
     }
     Write-Host ('PASS ' + $script:checks + ' Windows installer checks.')
 } finally {
-    if ($script:isNativeWindows) { [Environment]::SetEnvironmentVariable('PATH', $originalPath, 'User') }
+    if ($script:isNativeWindows) {
+        Set-TestUserPathState $originalPath
+        [RarusEchoInstallerTestEnvironment]::Notify()
+    }
     $env:LOCALAPPDATA = $originalLocal
     $env:APPDATA = $originalRoaming
+    $env:JAVA_HOME = $originalJavaHome
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
 }
