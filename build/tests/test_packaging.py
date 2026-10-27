@@ -114,12 +114,17 @@ class SourceTests(unittest.TestCase):
             def git(*args):
                 return subprocess.check_output(["git", "-C", str(fixture), *args], text=True).strip()
             git("init", "-q")
+            # Fixture repositories are deleted immediately; background maintenance can
+            # recreate files while TemporaryDirectory is removing their .git folder.
+            git("config", "maintenance.auto", "false")
+            git("config", "gc.auto", "0")
             git("config", "core.autocrlf", "false")
             git("config", "user.name", "Packaging test")
             git("config", "user.email", "test@example.invalid")
             git("add", ".")
             git("commit", "-qm", "fixture")
-            subprocess.run(["git", "clone", "-q", "-c", "core.autocrlf=true",
+            subprocess.run(["git", "-c", "maintenance.auto=false", "-c", "gc.auto=0",
+                            "clone", "-q", "-c", "core.autocrlf=true",
                             str(fixture), str(checkout)], check=True)
             for name in inputs:
                 self.assertEqual(hashlib.sha256((fixture / name).read_bytes()).hexdigest(),
@@ -131,6 +136,8 @@ class SourceTests(unittest.TestCase):
             def git(*args):
                 return subprocess.check_output(["git", "-C", temp, *args], text=True).strip()
             git("init", "-q")
+            git("config", "maintenance.auto", "false")
+            git("config", "gc.auto", "0")
             git("config", "user.name", "Packaging test")
             git("config", "user.email", "test@example.invalid")
             (root / "build").mkdir()

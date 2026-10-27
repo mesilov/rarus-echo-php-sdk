@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Rarus\Echo\Tests\Unit\Infrastructure\Console;
 
 use PHPUnit\Framework\TestCase;
+use Rarus\Echo\Contracts\EchoClientInterface;
 use Rarus\Echo\Infrastructure\Console\ApplicationFactory;
+use Rarus\Echo\Infrastructure\Console\ConfigurableEchoClientFactoryInterface;
+use Rarus\Echo\Services\Queue\Result\QueueInfoResult;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FailingEchoClientFactory;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClient;
 use Rarus\Echo\Tests\Unit\Infrastructure\Console\Support\FakeEchoClientFactory;
@@ -21,6 +24,7 @@ final class ApplicationFactoryTest extends TestCase
         $this->assertTrue($application->has('status'));
         $this->assertTrue($application->has('transcript'));
         $this->assertTrue($application->has('submit'));
+        $this->assertTrue($application->has('install'));
     }
 
     public function testTopLevelHelpDoesNotCreateClient(): void
@@ -30,7 +34,7 @@ final class ApplicationFactoryTest extends TestCase
         $application->setAutoExit(false);
 
         $tester = new ApplicationTester($application);
-        $exitCode = $tester->run(['--help' => true]);
+        $exitCode = $tester->run(['--help' => true, '--config' => '/missing/config.json']);
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('List commands', $tester->getDisplay());
@@ -44,12 +48,39 @@ final class ApplicationFactoryTest extends TestCase
         $application->setAutoExit(false);
 
         $tester = new ApplicationTester($application);
-        $exitCode = $tester->run(['--version' => true]);
+        $exitCode = $tester->run(['--version' => true, '--config' => '/missing/config.json']);
 
         self::assertSame(0, $exitCode);
         self::assertStringContainsString('RARUS Echo CLI', $tester->getDisplay());
         self::assertStringNotContainsString('UNKNOWN', $tester->getDisplay());
         self::assertSame(0, $factory->calls);
+    }
+
+    public function testGlobalConfigReachesConfigurableClientFactory(): void
+    {
+        $factory = new class () implements ConfigurableEchoClientFactoryInterface {
+            public ?string $path = null;
+
+            public function create(): EchoClientInterface
+            {
+                throw new \LogicException('Configurable source selection was bypassed.');
+            }
+
+            public function createWithConfig(?string $path): EchoClientInterface
+            {
+                $this->path = $path;
+
+                $client = new FakeEchoClient();
+                $client->queueInfo = new QueueInfoResult(filesCount: 3, filesSize: 1, filesDuration: 2);
+
+                return $client;
+            }
+        };
+        $application = ApplicationFactory::create($factory);
+        $application->setAutoExit(false);
+        $tester = new ApplicationTester($application);
+        self::assertSame(0, $tester->run(['command' => 'queue', '--config' => 'каталог с пробелами/config.json', '--json' => true]));
+        self::assertSame('каталог с пробелами/config.json', $factory->path);
     }
 
     public function testBinEntrypointUsesComposerProxyAutoloadPath(): void
