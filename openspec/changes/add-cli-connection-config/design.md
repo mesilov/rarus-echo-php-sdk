@@ -26,4 +26,5 @@ See proposal.md and issue #55. ApplicationFactory supplies a lazy EnvironmentEch
 - Plaintext credentials rely on OS user permissions; diagnostics never echo data.
 - Existing broad-permission files are rejected with actionable storage guidance.
 - Windows ACL verification needs inbox PowerShell. Missing/failed protection fails closed before secrets are written.
+- ACL operations call the inbox .NET filesystem APIs directly with module autoloading disabled, so saved credentials work with a clean PATH and without external PowerShell modules.
 - Interactive hidden-input support comes from Symfony Console; headless setup uses the existing environment/.env path.

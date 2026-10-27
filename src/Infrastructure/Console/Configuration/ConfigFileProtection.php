@@ -44,8 +44,9 @@ class ConfigFileProtection
 
     private function windows(string $path, bool $initialize): void
     {
-        $script = <<<'PS'
+        $script = <<<'PS_WRAP'
             $ErrorActionPreference = 'Stop'
+            $PSModuleAutoLoadingPreference = 'None'
             $path = $env:RARUS_ECHO_ACL_PATH
             $owner = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
             $directory = [System.IO.Directory]::Exists($path)
@@ -60,16 +61,18 @@ class ConfigFileProtection
                 $security.SetOwner($owner)
                 $security.SetAccessRuleProtection($true, $false)
                 $security.AddAccessRule($rule)
-                Set-Acl -LiteralPath $path -AclObject $security
+                if ($directory) { [System.IO.Directory]::SetAccessControl($path, $security) }
+                else { [System.IO.File]::SetAccessControl($path, $security) }
             }
-            $actual = Get-Acl -LiteralPath $path
+            if ($directory) { $actual = [System.IO.Directory]::GetAccessControl($path) }
+            else { $actual = [System.IO.File]::GetAccessControl($path) }
             if (!$actual.AreAccessRulesProtected -or $actual.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $owner.Value) { exit 1 }
             $rules = $actual.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
             if ($rules.Count -eq 0) { exit 1 }
             foreach ($rule in $rules) {
                 if ($rule.IdentityReference.Value -ne $owner.Value -or $rule.AccessControlType -ne 'Allow' -or ($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -ne [System.Security.AccessControl.FileSystemRights]::FullControl) { exit 1 }
             }
-            PS;
+            PS_WRAP;
         $systemRoot = getenv('SystemRoot') ?: getenv('SYSTEMROOT');
         if (!$systemRoot) {
             throw new \RuntimeException('Cannot locate Windows configuration protection tools.');
