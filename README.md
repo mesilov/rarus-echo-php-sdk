@@ -27,7 +27,7 @@ PHP SDK для сервиса транскрибации RARUS Echo с испо�
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-1
+composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-2
 ```
 
 ## Быстрый старт
@@ -164,19 +164,19 @@ vendor/bin/rarus-echo --help
 
 #### Однострочная установка
 
-Для проверки prerelease `0.5.0-rc-1` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
+Для проверки prerelease `0.5.0-rc-2` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
 
 ```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-1
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-2
 ```
 
 Windows x86-64, PowerShell 5.1 или новее:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-1
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-2
 ```
 
-`0.5.0-rc-1` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-1). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
+`0.5.0-rc-2` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-2). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
 
 Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
 
@@ -290,7 +290,7 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 
 ### Диагностика окружения
 
-Команда `doctor` доступна в `dev` (Unreleased) и не входит в опубликованный `0.5.0-rc-1`.
+Команда `doctor` доступна начиная с `0.5.0-rc-2`.
 
 `doctor` без аргументов проверяет конфиг, авторизованную связь с Echo и наличие ffmpeg для извлечения аудиодорожки из видео:
 

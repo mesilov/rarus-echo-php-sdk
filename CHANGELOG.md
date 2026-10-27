@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-rc-2] - 2026-10-28
+
+Second release candidate for 0.5.0, adding automatic video audio preparation, bundled compact FFmpeg/ffprobe and doctor. Native packages are built from the tagged main commit; prerelease publication preserves Latest stable.
+
 ### Added
 - Compact source-pinned FFmpeg/ffprobe toolkit for Docker and standalone CLI packages, with offline provenance/source materials and coordinated installer updates (#60).
 - Automatic CLI audio preparation for local video, deterministic stream selection, verified copy/lossless output routes, timeline preservation and bounded cleanup; optional `--audio-stream`, `--no-extract-audio` and `--media-timeout` controls (#60).
