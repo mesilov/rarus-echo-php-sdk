@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline installer contract; optional real native package through controlled curl.
 
-Adapted from bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (MIT).
+Adapted from bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (BSD-3-Clause).
 See build/BITRIX24-CLI-LICENSE.txt.
 """
 import argparse

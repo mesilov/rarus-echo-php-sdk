@@ -1,5 +1,5 @@
 #!/bin/sh
-# Adapted from mesilov/bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (MIT).
+# Adapted from mesilov/bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (BSD-3-Clause).
 # See build/BITRIX24-CLI-LICENSE.txt and build/THIRD-PARTY-NOTICES.md.
 # Install only public GitHub release assets; no API tokens or CI fallback.
 set -eu
