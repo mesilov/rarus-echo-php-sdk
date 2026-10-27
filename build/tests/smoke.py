@@ -22,6 +22,9 @@ import email.policy
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from release_assets import inspect_archive, validate_legacy_identity
+from process_fixtures import (acceptance_directory, child_snapshot, owned_media_child, windows_kernel,
+                              open_media_handles, media_handles_exited, close_media_handles,
+                              cleanup_failed_fixture)
 from media import toolkit as media_toolkit
 
 FILE_ID = "33333333-3333-4333-8333-333333333333"
@@ -71,7 +74,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True):
     if not media:
         validate_legacy_identity(version, sha)
-    with tempfile.TemporaryDirectory(prefix="echo-acceptance-") as temp:
+    with acceptance_directory(prefix="echo-acceptance-") as temp:
         workspace = Path(temp) / "изолированный каталог"
         workspace.mkdir()
         suffix = ".phar" if php else (".exe" if os.name == "nt" else "")
@@ -254,41 +257,28 @@ def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True
         print("Accepted standalone CLI: " + version + " " + sha)
 
 
-def child_pids(pid):
-    if os.name == 'nt':
-        powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
-        output = subprocess.check_output([str(powershell), '-NoProfile', '-Command',
-            "(Get-CimInstance Win32_Process -Filter 'ParentProcessId = " + str(pid) + "').ProcessId"], text=True)
-        return [int(value) for value in output.split()]
-    if sys.platform.startswith('linux'):
-        return [int(value) for value in Path('/proc/' + str(pid) + '/task/' + str(pid) + '/children').read_text().split()]
-    output = subprocess.check_output(['/bin/ps', '-axo', 'pid=,ppid='], text=True)
-    return [int(row.split()[0]) for row in output.splitlines() if len(row.split()) == 2 and int(row.split()[1]) == pid]
-
-
 def cancellation_check(probe, ffmpeg, audio, workspace, env):
     owned, ready = workspace / 'cancellation-owned', workspace / 'cancellation-ready'
     kwargs = {'creationflags': subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else {}
     process = subprocess.Popen([str(probe), 'media-cancel-fixture', str(ffmpeg), str(audio), str(owned), str(ready)],
                                cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
-    children, handles = [], []
+    children, handles, snapshot = [], [], []
+    attached, failure = False, None
     try:
         deadline = time.monotonic() + 10
         while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
             time.sleep(0.05)
         check(ready.exists() and process.poll() is None, 'Native cancellation fixture never became ready')
-        children = child_pids(process.pid)
-        check(len(children) == 1, 'Cancellation fixture must own exactly one running media process')
+        snapshot = child_snapshot(process.pid)
+        print('Native cancellation child snapshot: ' + json.dumps(snapshot, ensure_ascii=False), flush=True)
+        media = owned_media_child(snapshot, process.pid, ffmpeg)
+        children = [media['pid']]
+        handles = open_media_handles([media], ffmpeg)
         if os.name == 'nt':
-            import ctypes
-            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-            kernel.OpenProcess.restype = ctypes.c_void_p
+            kernel = windows_kernel()
             kernel.FreeConsole()
             check(kernel.AttachConsole(process.pid), 'Cannot attach to the native cancellation console')
-            for pid in children:
-                handle = kernel.OpenProcess(0x00100000, False, pid)
-                check(handle, 'Cannot inspect the running native media process')
-                handles.append(handle)
+            attached = True
             check(kernel.GenerateConsoleCtrlEvent(1, process.pid), 'Cannot deliver native CTRL_BREAK')
         else:
             process.send_signal(signal.SIGINT)
@@ -296,9 +286,7 @@ def cancellation_check(probe, ffmpeg, audio, workspace, env):
         check(process.returncode == 0 and json.loads(stdout)['cancelled'],
               'Native cancellation handler/runner failed: ' + stderr.decode(errors='replace'))
         if os.name == 'nt':
-            for handle in handles:
-                check(kernel.WaitForSingleObject(ctypes.c_void_p(handle), 5000) == 0,
-                      'Native Windows cancellation left the media process running')
+            check(media_handles_exited(handles, 5000), 'Native Windows cancellation left the media process running')
         else:
             for pid in children:
                 try:
@@ -309,39 +297,39 @@ def cancellation_check(probe, ffmpeg, audio, workspace, env):
                     raise RuntimeError('Cancellation left the media process running')
         check(not owned.exists(), 'Cancellation retained partial owned output')
         check(not list(Path(env['TMPDIR']).glob('rarus-echo-process-*')), 'Cancellation retained media process files')
+    except BaseException as error:
+        failure = error
+        cleanup_failed_fixture(process, ffmpeg, snapshot, handles, error, owned, env['TMPDIR'])
+        raise
     finally:
-        if process.poll() is None:
-            process.kill()
-            process.communicate(timeout=5)
-        if os.name == 'nt' and handles:
-            for handle in handles:
-                kernel.CloseHandle(ctypes.c_void_p(handle))
+        close_media_handles(handles)
+        if attached:
             kernel.FreeConsole()
             kernel.AttachConsole(0xffffffff)
-        ready.unlink(missing_ok=True)
+        try:
+            ready.unlink(missing_ok=True)
+        except OSError as cleanup:
+            if failure is None:
+                raise
+            failure.add_note('Cancellation readiness cleanup failed: ' + str(cleanup))
 
 
 def timeout_check(probe, ffmpeg, audio, workspace, env):
     owned, ready = workspace / 'timeout-owned', workspace / 'timeout-ready'
     process = subprocess.Popen([str(probe), 'media-timeout-fixture', str(ffmpeg), str(audio), str(owned), str(ready)],
                                cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    handles = []
+    handles, snapshot, failure = [], [], None
     started = time.monotonic()
     try:
         deadline = started + 5
         while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
             time.sleep(0.05)
         check(ready.exists() and process.poll() is None, 'Native timeout fixture never started active FFmpeg')
-        children = child_pids(process.pid)
-        check(len(children) == 1, 'Timeout fixture must own exactly one running media process before the deadline')
-        if os.name == 'nt':
-            import ctypes
-            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-            kernel.OpenProcess.restype = ctypes.c_void_p
-            for pid in children:
-                handle = kernel.OpenProcess(0x00100000, False, pid)
-                check(handle, 'Cannot inspect the media process before its timeout')
-                handles.append(handle)
+        snapshot = child_snapshot(process.pid)
+        print('Native timeout child snapshot: ' + json.dumps(snapshot, ensure_ascii=False), flush=True)
+        media = owned_media_child(snapshot, process.pid, ffmpeg)
+        children = [media['pid']]
+        handles = open_media_handles([media], ffmpeg)
         stdout, stderr = process.communicate(timeout=8)
         check(process.returncode == 0, 'Native timeout fixture failed: ' + stderr.decode(errors='replace'))
         result = json.loads(stdout)
@@ -349,9 +337,7 @@ def timeout_check(probe, ffmpeg, audio, workspace, env):
         check(5.5 <= result['elapsed_seconds'] <= 8 and time.monotonic() - started <= 9,
               'Native timeout did not respect its bounded six-second deadline')
         if os.name == 'nt':
-            for handle in handles:
-                check(kernel.WaitForSingleObject(ctypes.c_void_p(handle), 3000) == 0,
-                      'Native Windows timeout left FFmpeg running')
+            check(media_handles_exited(handles, 3000), 'Native Windows timeout left FFmpeg running')
         else:
             for pid in children:
                 try:
@@ -362,14 +348,18 @@ def timeout_check(probe, ffmpeg, audio, workspace, env):
                     raise RuntimeError('Native timeout left FFmpeg running')
         check(not owned.exists(), 'Timeout retained partial owned audio')
         check(not list(Path(env['TMPDIR']).glob('rarus-echo-process-*')), 'Timeout retained private process logs/files')
+    except BaseException as error:
+        failure = error
+        cleanup_failed_fixture(process, ffmpeg, snapshot, handles, error, owned, env['TMPDIR'])
+        raise
     finally:
-        if process.poll() is None:
-            process.kill()
-            process.communicate(timeout=5)
-        if os.name == 'nt':
-            for handle in handles:
-                kernel.CloseHandle(ctypes.c_void_p(handle))
-        ready.unlink(missing_ok=True)
+        close_media_handles(handles)
+        try:
+            ready.unlink(missing_ok=True)
+        except OSError as cleanup:
+            if failure is None:
+                raise
+            failure.add_note('Timeout readiness cleanup failed: ' + str(cleanup))
 
 
 def extract_archive(path, destination, version, sha, *, require_media=True):
@@ -411,7 +401,7 @@ def main():
     if args.artifact.is_dir():
         smoke(args.artifact, args.version, args.source_sha, args.probe, args.php, not args.without_doctor, not args.without_media)
         return
-    with tempfile.TemporaryDirectory(prefix="echo-extract-") as temp:
+    with acceptance_directory(prefix="echo-extract-") as temp:
         destination = Path(temp)
         extract_archive(args.artifact, destination, args.version, args.source_sha, require_media=not args.without_media)
         smoke(destination, args.version, args.source_sha, args.probe, args.php, not args.without_doctor, not args.without_media)

@@ -71,10 +71,7 @@ jobs:
           file: docker/standalone/Dockerfile
           target: linux-artifacts
           outputs: type=local,dest=dist/assets
-          # Migrate the last recipe-scoped cache; keep the stable target scope thereafter.
-          cache-from: |
-            type=gha,scope=echo-${{ matrix.target }}
-            type=gha,scope=echo-${{ matrix.target }}-eea6731e65c555bbcdd08c353c77e80d1e894854dac5e8da01265e5819fc32ec
+          cache-from: type=gha,scope=echo-${{ matrix.target }}
           cache-to: type=gha,scope=echo-${{ matrix.target }},mode=max
           secrets: |
             github_token=${{ github.token }}
