@@ -103,6 +103,98 @@ Updating PHP, SPC, micro, extensions or patches invalidates runtime caches.
 After such updates, rerun all native jobs and inspect runtime-sources.json
 and the license dump. Toolchain pins do not guarantee bit-for-bit reproducibility.
 
+## Bundled media toolkit (#60)
+
+Every native archive also contains `libexec/ffmpeg[.exe]`,
+`libexec/ffprobe[.exe]`, `media-build-info.json`, `media-SHA256SUMS`,
+`media-licenses/`, and compressed `media-source.tar.xz`. All three executables
+have mode 0755 on Unix; notices, metadata and source have mode 0644. Archives
+contain regular files only. Validation rejects duplicate/case-colliding paths,
+links, traversal, unexpected members, target/source/profile drift, tampered
+binaries/source and a media manifest that does not cover exactly the two tools,
+metadata and source package. All four platform names and release SHA256SUMS
+remain unchanged.
+
+`build/media/config.json` pins signed upstream FFmpeg 9.0.2 and the common compact
+profile. `build/media/README.md` explains source signature verification, native
+prerequisites and the offline source recipe. The toolkit has audio codecs,
+container inspection and timeline filters; no video encoders/decoders, capture,
+playback, network protocols or GPL/nonfree libraries. Linux is static musl;
+macOS permits only system dependencies and signs both tools; Windows uses UCRT64
+with static compiler runtime and checked system DLL imports. MSYS2 is confined
+to the media build environment so its `link.exe` cannot shadow MSVC for PHP.
+Native acceptance remains required on Linux amd64/arm64, macOS arm64 (macOS 15)
+and Windows amd64 (Server 2022; documented desktop floor Windows 11).
+Build entrypoints use UTF-8 console and Python-child I/O so Unicode acceptance
+paths work under Windows CP1252 as well. Foreign native diagnostic bytes remain
+visible as escapes and a child failure keeps its original exit status. Target
+cache fallbacks recheck the complete PHP runtime-input marker; media caches
+still verify their own source/profile/compiler/recipe identity. Linux BuildKit
+cache namespaces are stable per target; layer input hashes and the native
+acceptance checks still invalidate and reject changed or incompatible inputs.
+
+```bash
+python3 build/media/build.py macos-arm64 --destination runtime/media-macos-arm64
+python3 build/media/accept.py runtime/media-macos-arm64 --target macos-arm64 --linkage
+python3 build/media/archive_size.py dist/assets/rarus-echo-macos-arm64.tar.gz
+```
+
+Use `--source /absolute/path/ffmpeg-9.0.2.tar.xz` for offline compilation.
+Missing files never trigger a runtime download. The source package includes the
+exact upstream archive, signature/key, complete recipe/notices and effective
+build arguments. Cache identities cover source, common profile, target,
+compiler/OS and all recipe inputs. Cached manifests and both executable hashes
+are verified; native corpus acceptance runs again before distribution.
+
+Native package smoke copies the whole bundle into a directory with spaces and
+Cyrillic characters, clears PATH, changes cwd, probes/copies/transcodes the
+committed CC0 fixtures and submits video to a controlled local multipart server.
+It proves audio-only bytes reach that server, channel/rate preservation,
+unchanged source bytes and owned temporary cleanup. It also retains the previous
+ordinary-audio/runtime/configuration checks. Real Echo format evidence is kept
+separately under `tests/Fixtures/Media/echo-acceptance.json`.
+FLAC fallback explicitly preserves supported integer precision through 24 bits;
+source float PCM and lossless depths above 24 bits or unknown depth fail before
+upload when conversion is required. Copy routes retain the encoded packets.
+
+Each build records `media-size-report.json` and CI uploads per-target size
+reports. The named baseline is the `7f41160` no-media archive layout with the same
+CLI/runtime payload and every media file omitted, which isolates source/notices
+and both binaries. A complete compressed increment above 25 MiB fails. Docker
+measures the complete media layer's gzip bytes and its total uncompressed delta
+against the named `cli-baseline` image target, before registry publication.
+Uncompressed measurements sum decoded saved-layer tar stream bytes, including
+headers/padding; engine-reported sizes are recorded separately because some
+Docker/containerd versions report compressed blobs in that field.
+
+The default Docker image builds the same profile in a separate compiler stage
+and copies only the accepted payload to `/opt/rarus-echo/media`. The final image
+retains no compiler or expanded source tree. Native Docker jobs build/load local
+candidates, run offline read-only-mount acceptance and size gates, then preserve
+those exact image bytes. Publication requires both native jobs to pass before
+pushing either platform and creating the multi-architecture tag. Media inputs
+and fixtures trigger both workflows. Standalone publication also requires
+complete-package installer acceptance on every native target.
+
+Keep the adjacent files together when extracting a portable archive. The bare
+CLI supports commands that do not use media, but cannot prepare video alone.
+Installed packages live under `.rarus-echo/packages/<version>-<full-source-sha>/`;
+the matching executable remains at the chosen install directory's root. Prior
+immutable packages are retained so running commands keep their matching tools;
+remove an old package manually only after all commands using it have exited.
+Connection configuration, custom install directories and PATH opt-out behavior
+are retained. The exact published `0.5.0-rc-1` /
+`e359975527bd483707dc39d23599545a77c1620d` pair retains its frozen pre-media
+archive contract so the public installers can still install that release.
+No other missing/partial media package enters this legacy path, and new package
+builds always require the complete toolkit. Video preparation needs writable private temporary storage (up to
+1 GiB per invocation); original input mounts can stay read-only.
+
+To update FFmpeg, verify a new official release signature with the reviewed key,
+review the source/profile and notices, update the source pin, and rerun source,
+archive, all native toolkit/package/installer/Docker gates and the live Echo
+matrix. A local pass never substitutes for another platform's native acceptance.
+
 ## Published release acceptance
 
 After all release assets are published, run the public acceptance workflow from

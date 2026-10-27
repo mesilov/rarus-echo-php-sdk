@@ -10,6 +10,16 @@
 
 # Build identity hashes raw bytes and must agree across native platforms.
 /build/config.json text eol=lf
+/build/media/** text eol=lf
+/build/media/*.asc text eol=lf
+/tests/Fixtures/Media/*.mp4 -text
+/tests/Fixtures/Media/*.mkv -text
+/tests/Fixtures/Media/*.webm -text
+/tests/Fixtures/Media/*.m4a -text
+/tests/Fixtures/Media/*.mp3 -text
+/tests/Fixtures/Media/*.wav -text
+/tests/Fixtures/Media/*.json text eol=lf
+/tests/Fixtures/Media/*.py text eol=lf
 /build/patches/*.json text eol=lf
 /docker/rarus-echo-cli/composer.lock text eol=lf
 

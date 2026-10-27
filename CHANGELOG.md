@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Compact source-pinned FFmpeg/ffprobe toolkit for Docker and standalone CLI packages, with offline provenance/source materials and coordinated installer updates (#60).
+- Automatic CLI audio preparation for local video, deterministic stream selection, verified copy/lossless output routes, timeline preservation and bounded cleanup; optional `--audio-stream`, `--no-extract-audio` and `--media-timeout` controls (#60).
 - CLI `doctor` diagnoses saved config structure/protection and selected connection source, authenticated Echo access with a ten-second deadline, and ffmpeg availability/version with a five-second deadline; includes text/JSON reports, independent checks, actionable errors and script-friendly exit codes (#61).
 
 ### Fixed

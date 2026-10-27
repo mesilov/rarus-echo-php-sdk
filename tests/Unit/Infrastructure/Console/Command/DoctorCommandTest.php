@@ -13,12 +13,13 @@ use Rarus\Echo\Infrastructure\Console\Configuration\ConnectionConfigStore;
 use Rarus\Echo\Infrastructure\Console\Diagnostics\ConfigurationCheck;
 use Rarus\Echo\Infrastructure\Console\Diagnostics\ConnectionCheck;
 use Rarus\Echo\Infrastructure\Console\Diagnostics\FfmpegCheck;
+use Rarus\Echo\Infrastructure\Console\Media\Toolkit;
+use Rarus\Echo\Infrastructure\Console\Media\ToolkitUnavailableException;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Tester\ApplicationTester;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
-use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 final class DoctorCommandTest extends TestCase
@@ -58,9 +59,14 @@ final class DoctorCommandTest extends TestCase
 
     private function tester(bool $ffmpegAvailable = false, bool $serverAvailable = true): ApplicationTester
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->method('find')->willReturn($ffmpegAvailable ? PHP_BINARY : null);
-        $ffmpeg = new FfmpegCheck($finder, static fn (string $path): Process => new Process([$path, '-r', 'echo "ffmpeg version 7.1.1 Copyright fixture";']));
+        $resolver = static function (float $deadline) use ($ffmpegAvailable): Toolkit {
+            if (!$ffmpegAvailable) {
+                throw new ToolkitUnavailableException('Fixture unavailable.');
+            }
+
+            return new Toolkit(PHP_BINARY, PHP_BINARY);
+        };
+        $ffmpeg = new FfmpegCheck($resolver, static fn (string $path): Process => new Process([$path, '-r', 'echo "ffmpeg version 7.1.1 Copyright fixture";']));
         $paths = new ConfigPathResolver($this->directory, ['HOME' => $this->directory], 'Linux');
         $config = new ConfigurationCheck(new ConnectionConfigResolver($this->directory, paths: $paths), $paths);
         $http = new MockHttpClient($serverAvailable

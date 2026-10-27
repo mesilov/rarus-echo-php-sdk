@@ -33,3 +33,23 @@ Thumbs.db
 .php-cs-fixer.cache
 .phpstan.cache
 rector.log
+
+# Only reviewed media source recipes/notices/fixtures enter the CLI build context.
+!build/
+build/**
+!build/media/
+!build/media/**
+!build/licenses/
+!build/licenses/**
+!build/tests/
+build/tests/**
+!build/tests/linkage-check.py
+build/**/__pycache__/
+!tests/
+tests/**
+!tests/Fixtures/
+tests/Fixtures/**
+!tests/Fixtures/Media/
+!tests/Fixtures/Media/**
+.worktree
+runtime

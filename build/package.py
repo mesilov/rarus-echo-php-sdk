@@ -11,9 +11,14 @@ import shutil
 import subprocess
 import sys
 
+from media.console import configure_build_console
+
+configure_build_console()
+
 from runtime import ROOT, CONFIG, run, composer, toolchain, build_runtime, extensions_for
 from source import verify_checkout, validate_sha
 from release_assets import TARGETS, pack
+from media import toolkit as media_toolkit
 
 
 def identity(source_sha, version, target):
@@ -23,6 +28,7 @@ def identity(source_sha, version, target):
     return {"version": version or "dev-" + sha, "source_sha": sha, "target": target,
             "php_version": CONFIG["php_version"], "static_php_cli_ref": CONFIG["static_php_cli_ref"],
             "micro_ref": CONFIG["micro_ref"], "extensions": extensions_for(target),
+            **({"media": media_toolkit.identity()} if target != "phar" else {}),
             "composer_lock_sha256": hashlib.sha256((ROOT / CONFIG["dependency_lock"]).read_bytes()).hexdigest(),
             "toolchain_patches": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                                   for name in CONFIG["toolchain_patches"]}}
@@ -41,7 +47,7 @@ def stage(work, info, env):
         else:
             shutil.copy2(source, dest)
     shutil.copy2(ROOT / CONFIG["dependency_lock"], app / "composer.lock")
-    (app / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (app / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n")
     composer(["install", "--no-dev", "--prefer-dist", "--no-interaction", "--no-progress",
               "--no-plugins", "--no-scripts", "--classmap-authoritative"], app, env)
     composer(["check-platform-reqs", "--no-dev"], app, env)
@@ -75,9 +81,20 @@ def main():
     for name, mode in [("rarus-echo", "application"), ("runtime-probe", "probe")]:
         run(["php", "-d", "phar.readonly=0", ROOT / "build/package-phar.php", app, dist / (name + ".phar"), mode], env=env)
     run(["php", dist / "rarus-echo.phar", "--version", "--no-ansi"], env=env)
-    (dist / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (dist / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n")
     if args.target == "phar":
         return
+    media_stage = work / "media"
+    run([sys.executable, ROOT / "build/media/build.py", args.target,
+         "--destination", media_stage], env=env)
+    run([sys.executable, ROOT / "build/media/accept.py", media_stage,
+         "--target", args.target, "--linkage"], env=env)
+    for name in ["libexec", "media-licenses", "media-build-info.json", "media-SHA256SUMS", "media-source.tar.xz"]:
+        source = media_stage / name
+        if source.is_dir():
+            shutil.copytree(source, dist / name)
+        else:
+            shutil.copy2(source, dist / name)
     spc = toolchain(work, env)
     build_runtime(spc, env, args.target)
     suffix = ".exe" if os.name == "nt" else ""

@@ -11,7 +11,7 @@ if (!mkdir($directory, 0700)) {
 try {
     $payload = $directory . '/fixture.phar';
     $archive = new Phar($payload);
-    $archive['entry.php'] = '<?php fwrite(STDOUT, "fixture"); exit(17);';
+    $archive['entry.php'] = '<?php if (!defined("RARUS_ECHO_EXECUTABLE") || basename(RARUS_ECHO_EXECUTABLE) !== "wrapper.php") { throw new RuntimeException("Physical native executable was not captured before temporary PHAR entry."); } fwrite(STDOUT, "fixture"); exit(17);';
     $archive->setStub('<?php __HALT_COMPILER();');
     unset($archive);
     $stub = str_replace(
@@ -23,6 +23,7 @@ try {
     $wrapper = '<?php ' . PHP_EOL
         . 'function micro_open_self() { return fopen(' . var_export($payload, true) . ', "rb"); }' . PHP_EOL
         . 'function micro_get_sfxsize() { return 0; }' . PHP_EOL
+        . 'function micro_get_self_filename() { return __FILE__; }' . PHP_EOL
         . 'function simulateNativeUnlink($path) {' . PHP_EOL
         . '    Phar::unlinkArchive($path);' . PHP_EOL
         . '    file_put_contents($path, "remaining native file");' . PHP_EOL

@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release_assets
 from smoke import extract_archive
 from source import verify_checkout
+from media import toolkit
 
 SHA = "a" * 40
 
@@ -29,7 +30,7 @@ class ArchiveTests(unittest.TestCase):
         root = self.root / target
         root.mkdir()
         binary = "rarus-echo.exe" if target.startswith("windows") else "rarus-echo"
-        for name in release_assets.REQUIRED + [binary]:
+        for name in [n for n in release_assets.REQUIRED if not n.startswith("media-") and n != "libexec"] + [binary]:
             path = root / name
             if name == "runtime-licenses":
                 path.mkdir()
@@ -38,6 +39,19 @@ class ArchiveTests(unittest.TestCase):
                 path.write_text(json.dumps({"version": "v0.5.0", "source_sha": sha, "target": target}), encoding="utf-8")
             else:
                 path.write_text(name, encoding="utf-8")
+        (root / "libexec").mkdir()
+        suffix = ".exe" if target.startswith("windows") else ""
+        for tool in ["ffmpeg", "ffprobe"]:
+            path = root / "libexec" / (tool + suffix)
+            path.write_bytes(tool.encode())
+            path.chmod(0o755)
+        (root / "media-source.tar.xz").write_bytes(b"compressed source fixture")
+        (root / "media-licenses").mkdir()
+        (root / "media-licenses/FFmpeg.txt").write_text("license")
+        toolkit.write_metadata(root, target, toolkit.CONFIG["configure_args"], "fixture compiler", "fixture")
+        info = json.loads((root / "build-info.json").read_text())
+        info["media"] = toolkit.identity()
+        (root / "build-info.json").write_text(json.dumps(info))
         (root / ".env").write_text("must not be shipped")
         (root / "runtime-probe").write_text("must not be shipped")
         return root
@@ -92,6 +106,61 @@ class ArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity"):
             release_assets.write_checksums(output, "v0.5.0", "b" * 40)
 
+    def test_tampered_media_is_rejected_before_archiving(self):
+        root = self.platform("linux-arm64")
+        (root / "libexec/ffprobe").write_bytes(b"tampered")
+        with self.assertRaisesRegex(ValueError, "hash|checksum"):
+            release_assets.pack(root, "linux-arm64", self.root)
+
+    def test_missing_tool_is_fatal(self):
+        root = self.platform("macos-arm64")
+        (root / "libexec/ffmpeg").unlink()
+        with self.assertRaises((ValueError, FileNotFoundError)):
+            release_assets.pack(root, "macos-arm64", self.root)
+
+    def test_all_three_unix_executables_have_executable_mode(self):
+        output = self.archives()
+        with tarfile.open(output / release_assets.archive_name("linux-amd64")) as archive:
+            for name in ["rarus-echo", "libexec/ffmpeg", "libexec/ffprobe"]:
+                self.assertIn(name, archive.getnames())
+                self.assertEqual(0o755, archive.getmember(name).mode)
+
+    def test_archive_validator_rejects_case_collisions_and_bad_modes(self):
+        root = self.platform("linux-amd64")
+        output = release_assets.pack(root, "linux-amd64", self.root)
+        for bad_name, mode in [("media-licenses/ffmpeg.txt", 0o644),
+                               ("libexec/ffprobe", 0o644)]:
+            bad = self.root / "bad.tar.gz"
+            with tarfile.open(output) as source, tarfile.open(bad, "w:gz") as target:
+                for member in source:
+                    if member.name == bad_name:
+                        member.mode = mode
+                    target.addfile(member, source.extractfile(member))
+                if bad_name.startswith("media-licenses"):
+                    member = tarfile.TarInfo(bad_name)
+                    member.mode = mode
+                    member.size = 0
+                    target.addfile(member)
+            with self.assertRaises(ValueError):
+                release_assets.inspect_archive(bad, "linux-amd64", "v0.5.0", SHA)
+
+    def test_archive_validator_rejects_file_parent_and_component_case_collisions(self):
+        root = self.platform("linux-amd64")
+        output = release_assets.pack(root, "linux-amd64", self.root)
+        for additions in [["runtime-licenses/collision", "runtime-licenses/collision/child"],
+                          ["media-licenses/Foo/a", "media-licenses/foo/b"]]:
+            bad = self.root / "collision.tar.gz"
+            with tarfile.open(output) as source, tarfile.open(bad, "w:gz") as target:
+                for member in source:
+                    target.addfile(member, source.extractfile(member))
+                for name in additions:
+                    member = tarfile.TarInfo(name)
+                    member.mode = 0o644
+                    member.size = 0
+                    target.addfile(member)
+            with self.assertRaisesRegex(ValueError, "collision|case|parent"):
+                release_assets.inspect_archive(bad, "linux-amd64", "v0.5.0", SHA)
+
     def test_missing_license_is_fatal(self):
         root = self.platform("linux-amd64")
         (root / "THIRD-PARTY-NOTICES.md").unlink()
@@ -103,7 +172,9 @@ class SourceTests(unittest.TestCase):
     def test_provenance_inputs_keep_canonical_bytes_in_autocrlf_checkout(self):
         project = Path(__file__).resolve().parents[2]
         config = json.loads((project / "build/config.json").read_text())
-        inputs = [config["dependency_lock"], *config["toolchain_patches"]]
+        inputs = [config["dependency_lock"], *config["toolchain_patches"],
+                  "build/media/config.json", "tests/Fixtures/Media/manifest.json",
+                  "tests/Fixtures/Media/corrupt.mp4"]
         with tempfile.TemporaryDirectory() as temp:
             fixture, checkout = Path(temp) / "fixture", Path(temp) / "checkout"
             fixture.mkdir()

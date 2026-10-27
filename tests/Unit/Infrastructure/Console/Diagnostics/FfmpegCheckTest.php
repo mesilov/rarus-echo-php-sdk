@@ -7,21 +7,22 @@ namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Diagnostics;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rarus\Echo\Infrastructure\Console\Diagnostics\FfmpegCheck;
-use Symfony\Component\Process\ExecutableFinder;
+use Rarus\Echo\Infrastructure\Console\Media\Toolkit;
+use Rarus\Echo\Infrastructure\Console\Media\ToolkitLocator;
+use Rarus\Echo\Infrastructure\Console\Media\ToolkitUnavailableException;
 use Symfony\Component\Process\Process;
 
 final class FfmpegCheckTest extends TestCase
 {
     public function testMissingExecutableExplainsHowToEnableVideoAudioExtraction(): void
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->expects(self::once())->method('find')->with('ffmpeg')->willReturn(null);
-
-        $result = (new FfmpegCheck($finder))->run();
+        $result = (new FfmpegCheck(static function (float $deadline): Toolkit {
+            throw new ToolkitUnavailableException('RecognizableSecret');
+        }))->run();
 
         self::assertSame('error', $result->status);
         self::assertSame('ffmpeg_missing', $result->code);
-        self::assertSame('ffmpeg was not found. Install ffmpeg and add it to PATH to extract audio from video files.', $result->message);
+        self::assertSame('Media toolkit was not found. Restore the complete CLI package, or configure both absolute RARUS_ECHO_FFMPEG_PATH and RARUS_ECHO_FFPROBE_PATH values to extract audio from video files.', $result->message);
         self::assertSame([], $result->details);
     }
 
@@ -37,10 +38,8 @@ final class FfmpegCheckTest extends TestCase
     #[DataProvider('versionLines')]
     public function testExecutableReportsOnlyVersionTokenAndResolvedPath(string $version, string $output): void
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->expects(self::once())->method('find')->with('ffmpeg')->willReturn('/fixture/ffmpeg');
         $process = new Process([PHP_BINARY, '-r', 'echo ' . var_export($output, true) . ';']);
-        $check = new FfmpegCheck($finder, static function (string $path) use ($process): Process {
+        $check = new FfmpegCheck($this->resolver(), static function (string $path) use ($process): Process {
             self::assertSame('/fixture/ffmpeg', $path);
 
             return $process;
@@ -63,7 +62,7 @@ final class FfmpegCheckTest extends TestCase
 
         self::assertSame('error', $result->status);
         self::assertSame('ffmpeg_failed', $result->code);
-        self::assertSame('ffmpeg could not run successfully. Check its installation and executable permissions to extract audio from video files.', $result->message);
+        self::assertSame('Media toolkit could not run successfully. Restore a matching complete CLI package or verify both absolute media overrides, their profile and executable permissions to extract audio from video files.', $result->message);
         self::assertSame([], $result->details);
     }
 
@@ -90,16 +89,14 @@ final class FfmpegCheckTest extends TestCase
 
         self::assertSame('error', $result->status);
         self::assertSame('ffmpeg_invalid_version', $result->code);
-        self::assertSame('ffmpeg did not return a recognizable version. Reinstall a working ffmpeg to extract audio from video files.', $result->message);
+        self::assertSame('ffmpeg did not return a recognizable version. Restore the matching media toolkit to extract audio from video files.', $result->message);
         self::assertSame([], $result->details);
         self::assertStringNotContainsString('RecognizableSecret', json_encode($result->toArray(), JSON_THROW_ON_ERROR));
     }
 
     public function testLaunchFailureDoesNotExposeExceptionDetails(): void
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->method('find')->willReturn('/fixture/ffmpeg');
-        $check = new FfmpegCheck($finder, static function (string $path): Process {
+        $check = new FfmpegCheck($this->resolver(), static function (string $path): Process {
             throw new \RuntimeException('RecognizableSecret at ' . $path);
         });
 
@@ -120,16 +117,15 @@ final class FfmpegCheckTest extends TestCase
 
         self::assertSame('error', $result->status);
         self::assertSame('ffmpeg_timeout', $result->code);
-        self::assertSame('ffmpeg version check timed out. Repair or reinstall ffmpeg to extract audio from video files.', $result->message);
+        self::assertSame('Media toolkit readiness check timed out after five seconds. Check the matching toolkit to extract audio from video files.', $result->message);
         self::assertSame([], $result->details);
     }
 
     public function testDiscoveryFailureDoesNotExposeExceptionDetails(): void
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->method('find')->willThrowException(new \RuntimeException('RecognizableSecret'));
-
-        $result = (new FfmpegCheck($finder))->run();
+        $result = (new FfmpegCheck(static function (float $deadline): Toolkit {
+            throw new \RuntimeException('RecognizableSecret');
+        }))->run();
 
         self::assertSame('error', $result->status);
         self::assertSame('ffmpeg_failed', $result->code);
@@ -139,9 +135,53 @@ final class FfmpegCheckTest extends TestCase
 
     private function checkWithProcess(Process $process): FfmpegCheck
     {
-        $finder = $this->createMock(ExecutableFinder::class);
-        $finder->method('find')->willReturn('/fixture/ffmpeg');
 
-        return new FfmpegCheck($finder, static fn (string $path): Process => $process);
+        return new FfmpegCheck($this->resolver(), static fn (string $path): Process => $process);
+    }
+
+    /** @return \Closure(float): Toolkit */
+    private function resolver(): \Closure
+    {
+        return static fn (float $deadline): Toolkit => new Toolkit('/fixture/ffmpeg', '/fixture/ffprobe');
+    }
+
+    public function testInvalidExplicitPairIsNotReplacedByPathDiscovery(): void
+    {
+        $check = new FfmpegCheck(static fn (float $deadline): Toolkit => (new ToolkitLocator(environment: ['RARUS_ECHO_FFMPEG_PATH' => '/fixture/ffmpeg']))->locate($deadline));
+        $result = $check->run();
+        self::assertSame('ffmpeg_failed', $result->code);
+        self::assertSame([], $result->details);
+    }
+
+    public function testInjectedVersionProcessDoesNotInheritEchoCredentials(): void
+    {
+        putenv('RARUS_ECHO_DIAGNOSTIC_SECRET=RecognizableSecret');
+
+        try {
+            $process = new Process([PHP_BINARY, '-r', 'echo "ffmpeg version ".(getenv("RARUS_ECHO_DIAGNOSTIC_SECRET") === false ? "9.0.2" : "RecognizableSecret");'], env: ['RARUS_ECHO_EXTRA_SECRET' => 'RecognizableSecret']);
+            $result = $this->checkWithProcess($process)->run();
+            self::assertSame('ffmpeg_ok', $result->code);
+            self::assertSame('9.0.2', $result->details['version']);
+            self::assertSame(false, $process->getEnv()['RARUS_ECHO_EXTRA_SECRET']);
+        } finally {
+            putenv('RARUS_ECHO_DIAGNOSTIC_SECRET');
+        }
+    }
+
+    public function testToolkitResolutionAndVersionProbeShareFiveSecondBudget(): void
+    {
+        $start = microtime(true);
+        $process = new Process([PHP_BINARY, '-r', 'echo "ffmpeg version 9.0.2";'], timeout: null);
+        $resolver = static function (float $deadline) use ($start): Toolkit {
+            self::assertGreaterThan($start + 4.9, $deadline);
+            self::assertLessThan($start + 5.1, $deadline);
+            usleep(50000);
+
+            return new Toolkit('/fixture/ffmpeg', '/fixture/ffprobe');
+        };
+        $result = (new FfmpegCheck($resolver, static fn (string $path): Process => $process))->run();
+        self::assertSame('ffmpeg_ok', $result->code);
+        self::assertGreaterThan(0, $process->getTimeout());
+        self::assertLessThan(4.99, $process->getTimeout());
     }
 }
