@@ -160,6 +160,46 @@ try {
 vendor/bin/rarus-echo --help
 ```
 
+### Standalone: без PHP, Composer и Docker
+
+В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Артефакты появятся начиная с первого релиза, собранного новым standalone workflow.
+
+| Платформа | Архив | Исполняемый файл |
+| --- | --- | --- |
+| Linux x86-64 | `rarus-echo-linux-amd64.tar.gz` | `rarus-echo` |
+| Linux ARM64 | `rarus-echo-linux-arm64.tar.gz` | `rarus-echo` |
+| macOS Apple Silicon | `rarus-echo-macos-arm64.tar.gz` | `rarus-echo` |
+| Windows x86-64 | `rarus-echo-windows-amd64.zip` | `rarus-echo.exe` |
+
+Linux, проверка скачанного архива и запуск:
+
+```bash
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf rarus-echo-linux-amd64.tar.gz
+./rarus-echo --version
+./rarus-echo --help
+```
+
+На macOS проверьте строку своего архива командой `grep '  rarus-echo-macos-arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c`, затем распакуйте его: `tar -xzf rarus-echo-macos-arm64.tar.gz`.
+
+Windows PowerShell:
+
+```powershell
+$archive = 'rarus-echo-windows-amd64.zip'
+$line = (Select-String -Path .\SHA256SUMS -Pattern ('  ' + [regex]::Escape($archive) + '$')).Line
+$expected = ($line -split '  ')[0]
+if (!$expected -or (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+    throw 'SHA256 mismatch'
+}
+Expand-Archive $archive -DestinationPath .\rarus-echo
+.\rarus-echo\rarus-echo.exe --version
+.\rarus-echo\rarus-echo.exe --help
+```
+
+`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для запуска нужен только исполняемый файл; остальные файлы архива содержат сведения о сборке и лицензии. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
+
+macOS-сборка имеет ad-hoc подпись без notarization, Windows-сборка не подписана Authenticode; система может запросить подтверждение запуска скачанного файла. Docker остаётся основным quick start выше.
+
 CLI использует те же credentials, что и SDK:
 
 ```bash

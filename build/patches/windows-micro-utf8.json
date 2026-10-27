@@ -1,0 +1,24 @@
+{
+  "phase": "micro-source",
+  "file": "php_micro.c",
+  "reason": "Use the PHP CLI wide-command-line conversion on Windows to preserve UTF-8 argv.",
+  "reference": "https://github.com/php/php-src/blob/php-8.5.11/sapi/cli/php_cli.c",
+  "replacements": [
+    {
+      "before": "#    include \"win32/console.h\"",
+      "after": "#    include \"win32/console.h\"\n#    include \"win32/codepage.h\"\n#    include <shellapi.h>"
+    },
+    {
+      "before": "    argv = save_ps_args(argc, argv);",
+      "after": "    argv = save_ps_args(argc, argv);\n#ifdef PHP_WIN32\n    char **micro_original_argv = argv;\n    char **micro_utf8_argv = NULL;\n    int micro_utf8_argc = 0;\n#endif"
+    },
+    {
+      "before": "        // omit PHP_BINARY constant",
+      "after": "#ifdef PHP_WIN32\n        php_win32_cp_cli_setup();\n        int num_wide_args = 0;\n        LPWSTR *wide_args = CommandLineToArgvW(GetCommandLineW(), &num_wide_args);\n        if (wide_args == NULL) {\n            exit_status = 1;\n            goto out;\n        }\n        PHP_WIN32_CP_W_TO_ANY_ARRAY(wide_args, num_wide_args, micro_utf8_argv, micro_utf8_argc)\n        LocalFree(wide_args);\n        if (micro_utf8_argv == NULL) {\n            exit_status = 1;\n            goto out;\n        }\n        argv = micro_utf8_argv;\n        argc = micro_utf8_argc;\n#endif\n\n        // omit PHP_BINARY constant"
+    },
+    {
+      "before": "    // micro_free_reregistered_protos();",
+      "after": "#ifdef PHP_WIN32\n    if (micro_utf8_argv != NULL) {\n        PHP_WIN32_CP_FREE_ARRAY(micro_utf8_argv, micro_utf8_argc)\n        argv = micro_original_argv;\n    }\n    (void)php_win32_cp_cli_restore();\n#endif\n    // micro_free_reregistered_protos();"
+    }
+  ]
+}

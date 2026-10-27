@@ -37,6 +37,21 @@ final class ApplicationFactoryTest extends TestCase
         $this->assertSame(0, $factory->calls);
     }
 
+    public function testVersionDoesNotCreateClient(): void
+    {
+        $factory = new FailingEchoClientFactory();
+        $application = ApplicationFactory::create($factory);
+        $application->setAutoExit(false);
+
+        $tester = new ApplicationTester($application);
+        $exitCode = $tester->run(['--version' => true]);
+
+        self::assertSame(0, $exitCode);
+        self::assertStringContainsString('RARUS Echo CLI', $tester->getDisplay());
+        self::assertStringNotContainsString('UNKNOWN', $tester->getDisplay());
+        self::assertSame(0, $factory->calls);
+    }
+
     public function testBinEntrypointUsesComposerProxyAutoloadPath(): void
     {
         $root = dirname(__DIR__, 4);

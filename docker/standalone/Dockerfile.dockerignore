@@ -1,0 +1,14 @@
+**
+!composer.json
+!LICENSE
+!bin/
+!bin/rarus-echo
+!src/
+!src/**
+!docker/
+!docker/rarus-echo-cli/
+!docker/rarus-echo-cli/composer.lock
+!build/
+!build/**
+
+build/**/__pycache__/

@@ -18,7 +18,7 @@ final class ApplicationFactory
     {
         $clientFactory ??= new EnvironmentEchoClientFactory((string) getcwd());
 
-        $application = new Application('RARUS Echo CLI');
+        $application = new Application('RARUS Echo CLI', BuildVersion::get());
         self::addCommand($application, new QueueCommand($clientFactory));
         self::addCommand($application, new StatusCommand($clientFactory));
         self::addCommand($application, new TranscriptCommand($clientFactory));
