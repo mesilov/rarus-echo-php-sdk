@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rarus\Echo\Infrastructure\Console\Command;
 
 use Rarus\Echo\Contracts\EchoClientFactoryInterface;
+use Rarus\Echo\Contracts\EchoClientInterface;
+use Rarus\Echo\Infrastructure\Console\ConfigurableEchoClientFactoryInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -54,6 +56,20 @@ abstract class AbstractEchoCommand extends Command
         $this->errorOutput($output)->writeln(sprintf('Error: %s', $exception->getMessage()));
 
         return Command::FAILURE;
+    }
+
+    protected function createClient(InputInterface $input): EchoClientInterface
+    {
+        if ($this->clientFactory instanceof ConfigurableEchoClientFactoryInterface) {
+            $path = $input->hasOption('config') ? $input->getOption('config') : null;
+            if ($path !== null && !is_string($path)) {
+                throw new \InvalidArgumentException('--config requires a file path.');
+            }
+
+            return $this->clientFactory->createWithConfig($path);
+        }
+
+        return $this->clientFactory->create();
     }
 
     protected function wantsJson(InputInterface $input): bool

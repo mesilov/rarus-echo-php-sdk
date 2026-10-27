@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Rarus\Echo\Infrastructure\Console;
 
 use Rarus\Echo\Contracts\EchoClientFactoryInterface;
+use Rarus\Echo\Infrastructure\Console\Command\InstallCommand;
 use Rarus\Echo\Infrastructure\Console\Command\QueueCommand;
 use Rarus\Echo\Infrastructure\Console\Command\StatusCommand;
 use Rarus\Echo\Infrastructure\Console\Command\SubmitCommand;
 use Rarus\Echo\Infrastructure\Console\Command\TranscriptCommand;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputOption;
 
 final class ApplicationFactory
 {
@@ -19,6 +21,8 @@ final class ApplicationFactory
         $clientFactory ??= new EnvironmentEchoClientFactory((string) getcwd());
 
         $application = new Application('RARUS Echo CLI', BuildVersion::get());
+        $application->getDefinition()->addOption(new InputOption('config', null, InputOption::VALUE_REQUIRED, 'Read connection settings from this file.'));
+        self::addCommand($application, new InstallCommand());
         self::addCommand($application, new QueueCommand($clientFactory));
         self::addCommand($application, new StatusCommand($clientFactory));
         self::addCommand($application, new TranscriptCommand($clientFactory));

@@ -32,7 +32,7 @@ final class StatusCommand extends AbstractEchoCommand
         }
 
         try {
-            $status = $this->clientFactory->create()->getStatus($fileId);
+            $status = $this->createClient($input)->getStatus($fileId);
         } catch (\Throwable $exception) {
             return $this->writeError($output, $exception);
         }

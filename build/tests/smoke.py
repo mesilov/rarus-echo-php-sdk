@@ -76,12 +76,13 @@ def smoke(directory, version, sha, probe=None, php=None):
         temporary = workspace / "temporary"
         temporary.mkdir()
         env.update({"PATH": "", "HOME": str(workspace), "USERPROFILE": str(workspace),
+                    "APPDATA": str(workspace / "Roaming"), "XDG_CONFIG_HOME": str(workspace / "config home"),
                     "TMP": str(temporary), "TEMP": str(temporary), "TMPDIR": str(temporary),
                     "NO_PROXY": "*", "no_proxy": "*"})
         result = command(binary, ["--version", "--no-ansi"], workspace, env, php=php)
         check(version in result.stdout and sha in result.stdout, "Embedded identity mismatch")
         command(binary, ["--help", "--no-ansi"], workspace, env, php=php)
-        for name in ["queue", "submit", "status", "transcript"]:
+        for name in ["install", "queue", "submit", "status", "transcript"]:
             command(binary, [name, "--help", "--no-ansi"], workspace, env, php=php)
         missing = command(binary, ["queue", "--json", "--no-ansi"], workspace, env, expected=1, php=php)
         check("RARUS_ECHO_API_KEY" in missing.stderr, "Missing credential handling failed")
@@ -115,6 +116,38 @@ def smoke(directory, version, sha, probe=None, php=None):
                            "RARUS_ECHO_BASE_URL": url}
             queue = command(binary, ["queue", "--json", "--no-ansi"], workspace, env | credentials, php=php)
             check(json.loads(queue.stdout)["files_count"] == 3, "Queue or environment credentials failed")
+            config = workspace / "параметры доступа" / "connection.json"
+            command(binary, ["--config", str(config), "--help"], workspace, env, php=php)
+            command(binary, ["--config", str(config), "--version"], workspace, env, php=php)
+            command(binary, ["install", "--config", str(config), "--no-interaction"],
+                    workspace, env, expected=2, php=php)
+            check(not config.exists(), "Noninteractive install created a file")
+            if probe:
+                command(copied_probe, ["configure-fixture", "default", url], workspace, env, php=php)
+                command(copied_probe, ["configure-fixture", str(config), url], workspace, env, php=php)
+                command(copied_probe, ["configure-fixture", str(config), url], workspace, env, php=php)
+                elsewhere = workspace / "another directory"
+                elsewhere.mkdir()
+                queue = command(binary, ["queue", "--json"], elsewhere, env, php=php)
+                check(json.loads(queue.stdout)["files_count"] == 3, "Default configuration depends on cwd")
+                invalid_env = env | {"RARUS_ECHO_API_KEY": "invalid-ambient-key"}
+                queue = command(binary, ["--config", str(config), "queue", "--json"],
+                                elsewhere, invalid_env, php=php)
+                check(json.loads(queue.stdout)["files_count"] == 3, "Explicit configuration did not isolate credentials")
+                queue = command(binary, ["queue", "--config", str(config.relative_to(workspace)), "--json"],
+                                workspace, env, php=php)
+                check(json.loads(queue.stdout)["files_count"] == 3, "Relative/Unicode configuration path failed")
+                missing_path = str(workspace / "missing.json")
+                command(binary, ["queue", "--config", missing_path, "--json"], workspace,
+                        env | credentials, expected=1, php=php)
+                config.write_text('{"api_key":"RecognizableFixtureSecret"', encoding="utf-8")
+                malformed = command(binary, ["queue", "--config", str(config), "--json"],
+                                    workspace, env, expected=1, php=php)
+                check("RecognizableFixtureSecret" not in malformed.stdout + malformed.stderr,
+                      "Malformed configuration leaked contents")
+                if os.name != "nt":
+                    check(config.stat().st_mode & 0o777 == 0o600, "Configuration is not private")
+                    check(config.parent.stat().st_mode & 0o777 == 0o700, "Configuration directory is not private")
             (workspace / ".env").write_text("".join(k + "=" + v + "\n" for k, v in credentials.items()), encoding="utf-8")
             upload = command(binary, ["submit", str(audio), "--json", "--no-ansi"], workspace, env, php=php)
             check(json.loads(upload.stdout)["file_ids"] == [FILE_ID], "Upload or dotenv failed")

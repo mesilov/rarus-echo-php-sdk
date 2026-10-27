@@ -54,7 +54,7 @@ if ! command -v node >/dev/null 2>&1; then
   exit 69
 fi
 
-PROJECT_COMMANDS=(queue submit status transcript)
+PROJECT_COMMANDS=(install queue submit status transcript)
 TMP_DIR="$(mktemp -d)"
 TMP_OUTPUT="$(mktemp)"
 
@@ -81,8 +81,10 @@ if (projectCommands.length === 0) {
   process.exit(1);
 }
 const optionAllowlist = {
-  queue: ["json"],
+  install: ["config"],
+  queue: ["config", "json"],
   submit: [
+    "config",
     "json",
     "task-type",
     "language",
@@ -98,8 +100,8 @@ const optionAllowlist = {
     "raw-result",
     "output",
   ],
-  status: ["json"],
-  transcript: ["json"],
+  status: ["config", "json"],
+  transcript: ["config", "json"],
 };
 
 function fail(message) {
@@ -234,7 +236,7 @@ for (const name of projectCommands) {
   const options = definition.options || {};
   const allowedOptions = optionAllowlist[name];
   if (!allowedOptions) {
-    fail(`Command ${name} has no optionAllowlist entry in update-cli-reference.sh; add one (at least ["json"])`);
+    fail(`Command ${name} has no optionAllowlist entry in update-cli-reference.sh; add its project-owned options`);
   }
   for (const optionName of allowedOptions) {
     const option = options[optionName];
