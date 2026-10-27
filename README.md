@@ -288,6 +288,40 @@ export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # оп
 
 `help`, `--version` и `install` работают без готового подключения. В Docker сохраните файл в смонтированном каталоге и передавайте путь внутри контейнера через `--config`; для интерактивного `install` запускайте контейнер с `-it`.
 
+### Диагностика окружения
+
+Команда `doctor` доступна в `dev` (Unreleased) и не входит в опубликованный `0.5.0-rc-1`.
+
+`doctor` без аргументов проверяет конфиг, авторизованную связь с Echo и наличие ffmpeg для извлечения аудиодорожки из видео:
+
+```bash
+rarus-echo doctor
+rarus-echo --config "/path/to/config.json" doctor
+rarus-echo doctor --json
+```
+
+Команда показывает путь и состояние файла, выбранный источник подключения (`explicit_config`, `environment` или `default_config`), результат запроса очереди и путь/версию ffmpeg. Она использует существующие правила выбора подключения. При валидных env/`.env` credentials отсутствие или ошибка неиспользуемого стандартного конфига дают предупреждение; при невалидных активных настройках проверка сервера пропускается. Проверка ffmpeg выполняется независимо.
+
+Сетевой запрос ограничен десятью секундами, не следует редиректам и не создаёт задания. Проверка `ffmpeg -version` ограничена пятью секундами. В Docker ffmpeg ищется внутри контейнера: при его отсутствии установите компонент в окружении, где запускается CLI. `doctor` не меняет конфиг, не устанавливает зависимости и не извлекает аудио.
+
+Статусы проверок: `ok`, `warning`, `error`, `skipped`. Общий статус — `error` при любой ошибке/пропуске, `warning` при одних предупреждениях, иначе `ok`. Код завершения — `1` при общем `error`, `0` при `ok`/`warning`; ошибки синтаксиса команды обрабатываются Symfony Console и завершаются с кодом `1`.
+
+`--json` выводит один объект в stdout без credentials и сырых ответов сервера:
+
+```json
+{
+  "schema_version": 1,
+  "status": "error",
+  "checks": {
+    "config": {"status": "error", "code": "missing_config", "message": "…", "details": {"source": "explicit_config", "path": "/path/to/config.json", "file_status": "missing_config"}},
+    "connection": {"status": "skipped", "code": "connection_skipped", "message": "…", "details": {}},
+    "ffmpeg": {"status": "error", "code": "ffmpeg_missing", "message": "…", "details": {}}
+  }
+}
+```
+
+`code` задаёт машинную причину результата, `message` — описание с рекомендацией, `details` — объект дополнительных сведений. Для конфига `file_status` хранит результат проверки файла отдельно от активного источника. Успешная проверка ffmpeg содержит `path` и `version`; сетевая — `timeout_seconds`, при HTTP-ошибке также `http_status`.
+
 #### Таймаут HTTP-клиента для больших файлов
 
 При отправке больших файлов автоматически подобранный HTTP-клиент раньше обрывал загрузку с ошибкой `Idle timeout reached ...` (по умолчанию PHP `default_socket_timeout` ~60 с). Теперь SDK создаёт HTTP-клиент с idle timeout `600` секунд. Значение можно переопределить переменной окружения (положительное целое число секунд):
@@ -301,6 +335,7 @@ export RARUS_ECHO_HTTP_TIMEOUT=1200 # опционально, по умолча�
 ### Команды
 
 ```bash
+vendor/bin/rarus-echo doctor
 vendor/bin/rarus-echo queue
 vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
 vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
@@ -341,12 +376,12 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --time
 
 #### Глобальные опции
 
-Доступны для команд RARUS Echo (`install`, `queue`, `submit`, `status`, `transcript`), кроме явно отмеченного `--json`:
+Доступны для команд RARUS Echo (`install`, `doctor`, `queue`, `submit`, `status`, `transcript`), кроме явно отмеченного `--json`:
 
 | Опция | Значение | Описание |
 | --- | --- | --- |
 | `--config` | путь к файлу | Выбрать файл подключения для чтения или записи через `install`. |
-| `--json` | флаг | Вывести результат сервисной команды в формате JSON; недоступна для `install`. |
+| `--json` | флаг | Вывести результат сервисной команды или `doctor` в формате JSON; недоступна для `install`. |
 | `-h`, `--help` | флаг | Показать справку по команде. |
 | `--silent` | флаг | Полностью подавить вывод (никаких сообщений). Доступна только с Symfony Console ≥ 7.2. |
 | `-q`, `--quiet` | флаг | Выводить только ошибки, остальной вывод подавляется. |
@@ -355,7 +390,7 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --time
 | `--ansi`, `--no-ansi` | флаг | Принудительно включить/выключить ANSI-раскраску. |
 | `-n`, `--no-interaction` | флаг | Не задавать интерактивных вопросов. |
 
-`--json` добавляется сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
+`--json` добавляется командой `doctor` и сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
 
 #### `install`
 
@@ -364,6 +399,15 @@ vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --time
 ```text
 vendor/bin/rarus-echo install [--config=PATH]
 ```
+
+#### `doctor`
+
+```bash
+vendor/bin/rarus-echo doctor [--json]
+vendor/bin/rarus-echo --config "/path/to/config.json" doctor
+```
+
+Обязательных аргументов нет. Показывает все проверки и общий итог; `--json` включает структурированный отчёт версии 1. Глобальный `--config PATH` выбирает диагностируемый файл. Статусы, таймауты и коды завершения описаны в разделе «Диагностика окружения» выше.
 
 #### `queue`
 

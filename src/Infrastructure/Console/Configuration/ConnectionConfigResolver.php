@@ -18,15 +18,20 @@ final readonly class ConnectionConfigResolver
 
     public function resolve(?string $explicit = null): Credentials
     {
+        return $this->resolveConnection($explicit)->credentials;
+    }
+
+    public function resolveConnection(?string $explicit = null): ResolvedConnection
+    {
         $paths = $this->paths ?? new ConfigPathResolver($this->workingDirectory);
         if ($explicit !== null) {
-            return $this->store->load($paths->resolve($explicit))->credentials();
+            return new ResolvedConnection($this->store->load($paths->resolve($explicit))->credentials(), 'explicit_config');
         }
         if (is_file($this->workingDirectory . '/.env')) {
             try {
                 (new Dotenv())->usePutenv()->loadEnv($this->workingDirectory . '/.env');
             } catch (\Throwable) {
-                throw new \RuntimeException('Cannot load connection settings from .env.');
+                throw new DotenvConfigurationException('Cannot load connection settings from .env.');
             }
         }
 
@@ -44,7 +49,7 @@ final readonly class ConnectionConfigResolver
                 throw new \InvalidArgumentException('Invalid RARUS_ECHO_BASE_URL.');
             }
 
-            return ConnectionConfig::fromValues($apiKey, $userId, $baseUrl)->credentials();
+            return new ResolvedConnection(ConnectionConfig::fromValues($apiKey, $userId, $baseUrl)->credentials(), 'environment');
         }
 
         $path = $paths->resolve();
@@ -52,6 +57,6 @@ final readonly class ConnectionConfigResolver
             throw new \InvalidArgumentException('RARUS_ECHO_API_KEY environment variable is not set and no saved connection exists. Run rarus-echo install or use --config PATH.');
         }
 
-        return $this->store->load($path)->credentials();
+        return new ResolvedConnection($this->store->load($path)->credentials(), 'default_config');
     }
 }
