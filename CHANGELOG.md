@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Standalone CLI packaging for Linux amd64/arm64, macOS arm64, and Windows amd64, with embedded PHP, version/source SHA, build metadata, runtime licenses, final archive SHA256SUMS, native acceptance tests, and gated GitHub Release publication on version tags (#53).
+
+### Changed
+- CLI `--version` now reports embedded build identity for standalone packages and the installed Composer package version otherwise.
+
 ## [0.4.0] - 2026-09-03
 
 ### Added

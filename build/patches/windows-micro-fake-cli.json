@@ -1,0 +1,6 @@
+{
+  "file": "src/SPC/builder/windows/WindowsBuilder.php",
+  "before": "' /DPHP_MICRO_FAKE_CLI\" '",
+  "after": "' /DPHP_MICRO_FAKE_CLI'",
+  "reason": "Remove the duplicate closing quote in the nmake CFLAGS_MICRO argument when --with-micro-fake-cli is enabled."
+}

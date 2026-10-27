@@ -466,7 +466,10 @@ Maintainers handle releases:
 2. Update CHANGELOG.md
 3. Create release tag
 4. Publish to Packagist
-5. Create GitHub release
+5. Push the version tag to trigger `Standalone CLI`: all four native archives must build and pass isolated acceptance before GitHub Release assets are published.
+6. Check `rarus-echo-{linux-amd64,linux-arm64,macos-arm64}.tar.gz`, `rarus-echo-windows-amd64.zip`, and `SHA256SUMS` in the release. Compare `--version` with each archive's `build-info.json`.
+
+Standalone build prerequisites, provenance, platform patches, acceptance and runtime license updates are described in [build/README.md](build/README.md). PR and branch-dispatch builds upload workflow artifacts without publishing a release. Creating a version tag is a separate release operation; do not create one merely to test an issue PR.
 
 ### Semantic Versioning
 

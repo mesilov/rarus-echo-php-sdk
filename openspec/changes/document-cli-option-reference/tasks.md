@@ -16,7 +16,7 @@
 
 ## 4. Verification
 
-- [x] 2.1 Run `make lint-openspec`.
-- [x] 2.2 Run `git diff --check`.
-- [x] 2.3 Run `make test-unit`.
-- [x] 2.4 Run `make lint-all` (includes the CLI reference drift check).
+- [x] 4.1 Run `make lint-openspec`.
+- [x] 4.2 Run `git diff --check`.
+- [x] 4.3 Run `make test-unit`.
+- [x] 4.4 Run `make lint-all` (includes the CLI reference drift check).

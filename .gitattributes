@@ -14,6 +14,7 @@
 /.claude-plugin        export-ignore
 /.codex                export-ignore
 /.github               export-ignore
+/build                 export-ignore
 /docker                export-ignore
 /openspec              export-ignore
 /tests                 export-ignore

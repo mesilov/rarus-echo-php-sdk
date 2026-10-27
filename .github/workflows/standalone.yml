@@ -1,0 +1,181 @@
+name: Standalone CLI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*', '[0-9]*.[0-9]*.[0-9]*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standalone-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  ECHO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  ECHO_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+
+jobs:
+  contracts:
+    name: Packaging contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ECHO_SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m unittest discover -s build/tests -v
+      - run: python3 build/source.py --source-sha "$ECHO_SOURCE_SHA"
+
+  build:
+    name: Package ${{ matrix.target }}
+    needs: contracts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: macos-arm64
+            runner: macos-15
+          - target: windows-amd64
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ECHO_SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify committed source
+        shell: bash
+        run: python build/source.py --source-sha "$ECHO_SOURCE_SHA"
+      - uses: docker/setup-buildx-action@v3
+        if: startsWith(matrix.target, 'linux-')
+      - name: Build and accept native Linux archive
+        if: startsWith(matrix.target, 'linux-')
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/standalone/Dockerfile
+          target: linux-artifacts
+          outputs: type=local,dest=dist/assets
+          cache-from: type=gha,scope=echo-${{ matrix.target }}
+          cache-to: type=gha,scope=echo-${{ matrix.target }},mode=max
+          secrets: |
+            github_token=${{ github.token }}
+          build-args: |
+            ECHO_SOURCE_SHA=${{ env.ECHO_SOURCE_SHA }}
+            ECHO_RELEASE_VERSION=${{ env.ECHO_RELEASE_VERSION }}
+      - name: Accept Linux archive in a PHP-free container
+        if: startsWith(matrix.target, 'linux-')
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          chmod -R a+rX dist/assets
+          expected="${ECHO_RELEASE_VERSION:-dev-${ECHO_SOURCE_SHA}}"
+          docker run --rm --mount "type=bind,src=${PWD}/dist/assets,dst=/artifacts,readonly" \
+            --mount "type=bind,src=${PWD}/build,dst=/tests,readonly" \
+            python:3.13-slim-bookworm python /tests/tests/smoke.py "/artifacts/rarus-echo-${TARGET}.tar.gz" \
+            --version "$expected" --source-sha "$ECHO_SOURCE_SHA"
+      - uses: shivammathur/setup-php@v2
+        if: ${{ !startsWith(matrix.target, 'linux-') }}
+        with:
+          php-version: '8.5.11'
+          extensions: bcmath, intl, curl, fileinfo, mbstring, openssl, phar, pcntl
+          tools: composer:2.10.3
+          coverage: none
+      - name: Install macOS compiler prerequisites
+        if: matrix.target == 'macos-arm64'
+        run: |
+          brew install autoconf automake bison re2c pkgconf cmake
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.target == 'windows-amd64'
+        with:
+          arch: x64
+      - uses: actions/cache@v4
+        if: ${{ !startsWith(matrix.target, 'linux-') }}
+        with:
+          path: runtime/
+          key: echo-${{ matrix.target }}-${{ hashFiles('build/config.json', 'build/runtime.py', 'build/patches/**') }}
+      - name: Build and accept macOS archive
+        if: matrix.target == 'macos-arm64'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 build/package.py macos-arm64
+      - name: Build and accept Windows archive
+        if: matrix.target == 'windows-amd64'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python build/package.py windows-amd64
+          if ($LASTEXITCODE -ne 0) { throw 'Standalone Windows build/acceptance failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rarus-echo-${{ matrix.target }}
+          path: dist/assets/rarus-echo-*
+          if-no-files-found: error
+
+  assets:
+    name: Verify release archives
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ECHO_SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rarus-echo-*
+          merge-multiple: true
+          path: dist/assets
+      - name: Verify identities and calculate SHA256SUMS
+        run: |
+          expected="${ECHO_RELEASE_VERSION:-dev-${ECHO_SOURCE_SHA}}"
+          python3 build/release_assets.py dist/assets --version "$expected" --source-sha "$ECHO_SOURCE_SHA"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-release-assets
+          path: dist/assets/
+          if-no-files-found: error
+
+  publish:
+    name: Publish standalone release assets
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: assets
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ECHO_SOURCE_SHA }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: standalone-release-assets
+          path: dist/assets
+      - name: Verify and publish the selected version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 build/release_assets.py dist/assets --version "$ECHO_RELEASE_VERSION" --source-sha "$ECHO_SOURCE_SHA" --verify-only
+          if ! gh release view "$ECHO_RELEASE_VERSION" >/dev/null 2>&1; then
+            gh release create "$ECHO_RELEASE_VERSION" --verify-tag --generate-notes
+          fi
+          gh release upload "$ECHO_RELEASE_VERSION" dist/assets/* --clobber

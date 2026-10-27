@@ -1,0 +1,17 @@
+{
+  "phase": "micro-source",
+  "targets": [
+    "macos-arm64"
+  ],
+  "file": "php_micro_fileinfo.c",
+  "replacements": [
+    {
+      "before": "} micro_sfxsize_section_t;",
+      "after": "} micro_sfxsize_section_t;\n\n#if defined(__APPLE__)\n/* Filled by rarus-echo packaging before signing the completed executable. */\n__attribute__((used, section(\"__DATA,__micro_sfxsize\")))\nstatic const unsigned char rarus_echo_micro_payload_bounds[16] = {0};\n#endif"
+    },
+    {
+      "before": "    if (NULL == section) {",
+      "after": "    /* The unsigned runtime placeholder preserves ordinary micro compiler tests. */\n    if (NULL == section || (size == 16 && memcmp(section, \"\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\\0\", 16) == 0)) {"
+    }
+  ]
+}
