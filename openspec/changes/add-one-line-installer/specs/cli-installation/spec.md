@@ -34,7 +34,7 @@ The installers MUST verify a single well-formed SHA-256 record for the archive b
 - **THEN** installation fails before replacing the existing executable or notices
 
 ### Requirement: User-scoped updates
-The installers SHALL support an absolute custom installation directory and paths containing spaces and Unicode. Repeated installs SHALL update only installer-owned executable, notices and activation files. Connection configuration and other user files MUST remain unchanged. Staging failures MUST preserve the existing executable and notices.
+The installers SHALL support an absolute custom installation directory and paths containing spaces and Unicode. Repeated installs SHALL update only the installer-owned executable, complete notices package directory and activation files. Connection configuration and user files outside those destinations MUST remain unchanged. Staging failures MUST preserve the existing executable and notices.
 
 #### Scenario: Repeat installation
 - **WHEN** the user installs twice or selects a newer version

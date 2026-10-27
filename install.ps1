@@ -17,6 +17,34 @@ $ErrorActionPreference = 'Stop'
 
 function Get-RarusEchoPlatform {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return 'unsupported' }
+    # Process environment and GetNativeSystemInfo can report emulated x64 on ARM64.
+    # IsWow64Process2 exposes the native host architecture on modern Windows.
+    if (-not ('RarusEchoInstallerPlatform' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class RarusEchoInstallerPlatform {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);
+    public static ushort NativeMachine() {
+        try {
+            ushort processMachine, nativeMachine;
+            if (!IsWow64Process2(new IntPtr(-1), out processMachine, out nativeMachine))
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            return nativeMachine;
+        } catch (EntryPointNotFoundException) { return 0; }
+    }
+}
+'@
+    }
+    $nativeMachine = [RarusEchoInstallerPlatform]::NativeMachine()
+    if ($nativeMachine -ne 0) {
+        if ($nativeMachine -eq 0x8664) { return 'windows-amd64' }
+        return 'unsupported'
+    }
+    # Windows versions predating IsWow64Process2 also predate Windows on ARM64.
     # PROCESSOR_ARCHITEW6432 identifies the native OS when invoked from 32-bit PowerShell.
     $architecture = $env:PROCESSOR_ARCHITEW6432
     if (-not $architecture) { $architecture = $env:PROCESSOR_ARCHITECTURE }
@@ -139,7 +167,12 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination) {
             [void][IO.Directory]::CreateDirectory((Split-Path $target -Parent))
             $inputStream = $entry.Open()
             $outputStream = [IO.File]::Open($target, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
-            try { $inputStream.CopyTo($outputStream) } finally { $outputStream.Dispose(); $inputStream.Dispose() }
+            try {
+                $inputStream.CopyTo($outputStream)
+                if ($outputStream.Length -le 0 -or $outputStream.Length -ne $entry.Length) {
+                    throw 'Extracted archive member size differs from the ZIP directory or is empty.'
+                }
+            } finally { $outputStream.Dispose(); $inputStream.Dispose() }
         }
     } finally { $zip.Dispose() }
 }

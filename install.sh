@@ -75,6 +75,7 @@ binary_stage=
 package_stage=
 env_stage=
 old_package=
+old_package_moved=0
 old_binary=
 old_env=
 package_replaced=0
@@ -92,7 +93,7 @@ cleanup() {
             else rm -f "$share_dir/env"; fi
         fi
         [ "$package_replaced" -eq 0 ] || rm -rf "$share_dir/package"
-        if [ -n "$old_package" ]; then mv "$old_package/package" "$share_dir/package"; fi
+        if [ "$old_package_moved" -eq 1 ]; then mv "$old_package/package" "$share_dir/package"; fi
     fi
     [ -z "$old_package" ] || rm -rf "$old_package"
     [ -z "$old_binary" ] || rm -f "$old_binary"
@@ -160,6 +161,8 @@ case "$source_sha" in ''|*[!0-9a-f]*) fail 'candidate has an invalid source SHA'
 mkdir -p "$install_dir" "$share_dir"
 [ ! -d "$install_dir/rarus-echo" ] || fail 'binary destination is a directory'
 [ ! -d "$share_dir/env" ] || fail 'activation destination is a directory'
+[ ! -L "$install_dir/rarus-echo" ] || fail 'binary destination must not be a symlink'
+[ ! -L "$share_dir/env" ] || fail 'activation destination must not be a symlink'
 # Never follow preexisting directory symlinks while replacing package notices.
 [ ! -L "$share_dir/package" ] || fail 'package destination must not be a symlink'
 binary_stage=$(mktemp "$install_dir/.rarus-echo.XXXXXXXX")
@@ -212,6 +215,7 @@ fi
 if [ -e "$share_dir/package" ]; then
     old_package=$(mktemp -d "$share_dir/.previous.XXXXXXXX")
     mv "$share_dir/package" "$old_package/package" || fail 'cannot back up license notices'
+    old_package_moved=1
 fi
 mv "$package_stage" "$share_dir/package" || fail 'cannot replace license notices'
 package_stage=

@@ -2,7 +2,7 @@
 
 ## 1. POSIX installer
 
-- [ ] 1.1 Adapt b24cli installer/tests for all three Unix targets, Echo identity and notices; verify red/green offline tests with `python3 build/tests/shell-installer-check.py` and `sh -n install.sh`.
+- [x] 1.1 Adapt b24cli installer/tests for all three Unix targets, Echo identity and notices; verify red/green offline tests with `python3 build/tests/shell-installer-check.py` and `sh -n install.sh`.
 - [x] 1.2 Document POSIX commands, options, PATH and publication prerequisites in README; verify examples against `sh install.sh --help` and update attribution/CHANGELOG.
 
 ## 2. Windows installer

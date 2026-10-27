@@ -196,7 +196,7 @@ curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent
 & ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
 ```
 
-На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
+На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Каталог `package` целиком принадлежит установщику и заменяется при обновлении; храните свои файлы вне него. Если целевой бинарник или файл активации уже является symlink, установка завершается с ошибкой, сохраняя ссылку. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
 
 ```bash
 . "$HOME/.local/share/rarus-echo/env"

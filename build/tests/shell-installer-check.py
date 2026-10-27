@@ -267,6 +267,29 @@ exec "''' + real_mv + '''" "$@"
                 self.run_installer('--no-modify-path', success=False)
                 self.unchanged(before)
 
+    def test_symlink_destinations_are_preserved(self):
+        for name in ['.local/bin/rarus-echo', '.local/share/rarus-echo/env']:
+            with self.subTest(name=name):
+                destination = self.home / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                target = self.root / 'manual install'
+                target.write_text('previous executable or activation')
+                destination.symlink_to(target)
+                self.run_installer('--no-modify-path', success=False)
+                self.assertTrue(destination.is_symlink())
+                self.assertEqual(target.read_text(), 'previous executable or activation')
+                destination.unlink()
+
+    def test_failed_notices_backup_cleans_all_stages(self):
+        before = self.sentinel()
+        real_mv = shutil.which('mv')
+        self.script('mv', '''#!/bin/sh
+[ "$1" != "$HOME/.local/share/rarus-echo/package" ] || exit 9
+exec "''' + real_mv + '''" "$@"
+''')
+        self.run_installer('--no-modify-path', success=False)
+        self.unchanged(before)
+
     def test_failures_preserve_previous_install(self):
         for scenario in ['download', 'latest', 'checksum-download', 'missing', 'malformed', 'duplicate',
                          'mismatch', 'invalid-archive', 'version', 'candidate-failure',

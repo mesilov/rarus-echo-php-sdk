@@ -17,6 +17,7 @@ if ($parseErrors.Count -ne 0) { throw ($parseErrors | Out-String) }
 foreach ($definition in $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
     . ([scriptblock]::Create($definition.Extent.Text))
 }
+$script:platformImplementation = ${function:Get-RarusEchoPlatform}
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = Join-Path ([IO.Path]::GetTempPath()) ('rarus-echo-installer-check-' + [Guid]::NewGuid().ToString('N'))
@@ -59,6 +60,8 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
             try {
                 if ($name -eq 'rarus-echo.exe' -and $Executable) {
                     $bytes = [IO.File]::ReadAllBytes($Executable)
+                } elseif ($name -eq 'THIRD-PARTY-NOTICES.md') {
+                    $bytes = [Text.Encoding]::UTF8.GetBytes('notices for ' + $script:tag)
                 } else { $bytes = [Text.Encoding]::UTF8.GetBytes('license / metadata fixture') }
                 $stream.Write($bytes, 0, $bytes.Length)
             } finally { $stream.Dispose() }
@@ -67,7 +70,9 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
             $entry = $zip.CreateEntry($item.Name)
             if ($null -ne $item.Attributes) { $entry.ExternalAttributes = $item.Attributes }
             $stream = $entry.Open()
-            try { $stream.WriteByte(120) } finally { $stream.Dispose() }
+            try {
+                if (-not $item.ContainsKey('Empty') -or -not $item.Empty) { $stream.WriteByte(120) }
+            } finally { $stream.Dispose() }
         }
     } finally { $zip.Dispose() }
 }
@@ -172,9 +177,40 @@ try {
         New-TestArchive $path '' @(@{ Name = 'runtime-licenses/Sub/license1'; Attributes = 0 }, @{ Name = 'runtime-licenses/sub/license2'; Attributes = 0 })
         Assert-Fails { Expand-RarusEchoArchive $path (Join-Path $root 'case-folders-out') } 'collid'
     }
+    Test-Case 'ZIP directory size cannot disguise an empty runtime license' {
+        $path = Join-Path $root 'false-size.zip'
+        New-TestArchive $path '' @(@{ Name = 'runtime-licenses/PHP.txt'; Attributes = 0; Empty = $true }) 'runtime-licenses/PHP.txt'
+        $bytes = [IO.File]::ReadAllBytes($path)
+        $patched = $false
+        for ($offset = 0; $offset -le $bytes.Length - 46; $offset++) {
+            if ([BitConverter]::ToUInt32($bytes, $offset) -ne 0x02014b50) { continue }
+            $nameLength = [BitConverter]::ToUInt16($bytes, $offset + 28)
+            $name = [Text.Encoding]::UTF8.GetString($bytes, $offset + 46, $nameLength)
+            if ($name -ceq 'runtime-licenses/PHP.txt') {
+                [Array]::Copy([BitConverter]::GetBytes([UInt32]1), 0, $bytes, $offset + 24, 4)
+                $patched = $true
+                break
+            }
+        }
+        Assert-True $patched 'Could not prepare malformed central-directory size fixture.'
+        [IO.File]::WriteAllBytes($path, $bytes)
+        Assert-Fails { Expand-RarusEchoArchive $path (Join-Path $root 'false-size-out') } 'length|size|empty'
+    }
     if (-not $script:isNativeWindows) {
         Write-Host ('PASS ' + $script:checks + ' portable checks; native Windows executable/PATH checks require Windows PowerShell 5.1.')
         return
+    }
+    Test-Case 'native OS architecture is independent of process architecture variables' {
+        $originalArchitecture = $env:PROCESSOR_ARCHITECTURE
+        $originalWowArchitecture = $env:PROCESSOR_ARCHITEW6432
+        try {
+            $env:PROCESSOR_ARCHITECTURE = 'ARM64'
+            $env:PROCESSOR_ARCHITEW6432 = ''
+            Assert-True ((& $script:platformImplementation) -ceq 'windows-amd64') 'Native amd64 OS was misidentified from process environment variables.'
+        } finally {
+            $env:PROCESSOR_ARCHITECTURE = $originalArchitecture
+            $env:PROCESSOR_ARCHITEW6432 = $originalWowArchitecture
+        }
     }
     function Get-RarusEchoPlatform { return 'windows-amd64' }
     $env:LOCALAPPDATA = Join-Path $root 'Local AppData'
@@ -219,6 +255,7 @@ try {
         Install-RarusEcho -Version $script:tag -NoModifyPath
         $output = & (Join-Path $defaultBin 'rarus-echo.exe') --version --no-ansi
         Assert-True ($output -ceq ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')) 'Updated executable has wrong identity.'
+        Assert-True ([IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) -ceq ('notices for ' + $script:tag)) 'Updated release notices were not installed.'
     }
     $oldExecutable = (Get-FileHash -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')).Hash
     $oldNotice = [IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md'))
@@ -269,7 +306,7 @@ public static class RarusEchoDirectoryLock {
     public static extern SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
 }
 '@
-        $lockedDirectory = [RarusEchoDirectoryLock]::CreateFile($defaultPackage, 0x80000000, 3, [IntPtr]::Zero, 3, 0x02000000, [IntPtr]::Zero)
+        $lockedDirectory = [RarusEchoDirectoryLock]::CreateFile($defaultPackage, [UInt32]2147483648, 3, [IntPtr]::Zero, 3, 0x02000000, [IntPtr]::Zero)
         Assert-True (-not $lockedDirectory.IsInvalid) 'Could not lock package directory for rollback check.'
         try { Assert-Fails { Install-RarusEcho -Version $script:tag -NoModifyPath } 'install|access|process|used|denied' } finally { $lockedDirectory.Dispose() }
         Assert-OldInstallation
