@@ -34,7 +34,7 @@ final readonly class MediaPreparer implements MediaPreparationInterface
     #[\Override]
     public function prepare(array $files, MediaOptions $options, \Closure $progress): PreparedFileSet
     {
-        $set = new PreparedFileSet();
+        $set = new PreparedFileSet(files: $this->files);
         $tools = null;
 
         try {
@@ -80,7 +80,7 @@ final readonly class MediaPreparer implements MediaPreparationInterface
                 $stream['start_time'] = $timeline->start;
                 $stream['duration'] = $timeline->duration;
                 $plan = ($this->policy ?? PreparationPolicy::committed())->plan($stream, $probe->origin);
-                $path = $set->allocate($plan->extension);
+                $path = $set->allocate($plan->extension, $deadline);
                 $set->checkBudget();
                 $progress(sprintf('preparing: %s audio_stream=%d codec=%s', $file, $stream['index'], (string) ($stream['codec_name'] ?? 'unknown')));
                 $this->runner->run(array_merge([$tools->ffmpeg, '-nostdin', '-hide_banner', '-loglevel', 'error', '-xerror', '-i', $absolute, '-map', '0:' . $stream['index'], '-vn', '-sn', '-dn', '-map_metadata', '-1', '-map_chapters', '-1'], $plan->arguments, ['-y', $path]), $deadline, monitor: $set->checkBudget(...));
@@ -88,6 +88,9 @@ final readonly class MediaPreparer implements MediaPreparationInterface
                 $audio = $output->selectAudio(null);
                 if ($output->hasVideo() || count($output->streams) !== 1 || ($audio['codec_name'] ?? null) !== $plan->codec || (int) ($audio['sample_rate'] ?? 0) !== $rate || ($audio['channels'] ?? null) !== ($stream['channels'] ?? null)) {
                     throw new \RuntimeException('Prepared audio failed codec, stream, sample-rate or channel validation.');
+                }
+                if ($plan->bitsPerSample !== null && (int) ($audio['bits_per_raw_sample'] ?? 0) !== $plan->bitsPerSample) {
+                    throw new \RuntimeException('Prepared audio failed lossless sample precision validation.');
                 }
                 $outputTimeline = $this->timeline($tools, $path, (int) $audio['index'], $rate, $deadline, $set);
                 if (abs($outputTimeline->start) > 0.05 || abs($outputTimeline->duration - $plan->duration) > 0.05) {
@@ -100,7 +103,7 @@ final readonly class MediaPreparer implements MediaPreparationInterface
 
             return $set;
         } catch (\Throwable $exception) {
-            $set->cleanup();
+            $set->cleanup($exception);
 
             throw $exception;
         }

@@ -10,16 +10,20 @@
   ],
   "evidence": [
     {
-      "checked_at": "2026-10-27T14:40:15+00:00",
+      "checked_at": "2026-10-27T14:45:54+00:00",
       "service_url": "https://production-ai-ui-api.ai.rarus-cloud.ru",
       "record": "tests/Fixtures/Media/echo-acceptance.json",
-      "record_sha256": "29d7ff71895fe098f4e160a50c918e6dd7c9c467fc17f0312df848433956afbe",
+      "record_sha256": "8de979d3e274ef97bd637668c591745153e530f879bdde9250d799d1a84cdcc7",
       "task_type": "timestamps",
-      "cases": 7,
+      "cases": 8,
       "timeline_markers_shift_seconds": 2,
       "scope": "Observed codec/container acceptance for listed rate/channel fixtures; no guarantee of recognition timestamp accuracy.",
       "ffmpeg_version": "9.0.2",
-      "profile_sha256": "cdf603195eb41ae10572d8a66efe763c5699d6e5d60838fb802d2b8758e5a760"
+      "profile_sha256": "cdf603195eb41ae10572d8a66efe763c5699d6e5d60838fb802d2b8758e5a760",
+      "flac_integer_bits": [
+        16,
+        24
+      ]
     }
   ]
 }

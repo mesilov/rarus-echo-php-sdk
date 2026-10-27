@@ -56,11 +56,44 @@ final readonly class PreparationPolicy
         if ($samples === 0 && is_string($codec) && in_array($codec, $this->copyRoutes, true) && isset($extensions[$codec])) {
             return new PreparationPlan($extensions[$codec], $codec, ['-c:a', 'copy'], (float) $duration);
         }
+        $bits = $this->fallbackPrecision($stream);
         $filter = 'asetpts=PTS-STARTPTS';
         if ($samples > 0) {
             $filter .= ',adelay=' . $samples . 'S:all=1';
         }
 
-        return new PreparationPlan('flac', 'flac', ['-c:a', 'flac', '-af', $filter, '-ar', (string) $rate, '-ac', (string) $channels], (float) $duration + $samples / (int) $rate);
+        return new PreparationPlan('flac', 'flac', ['-c:a', 'flac', '-sample_fmt', $bits === 16 ? 's16' : 's32', '-bits_per_raw_sample', (string) $bits, '-af', $filter, '-ar', (string) $rate, '-ac', (string) $channels], (float) $duration + $samples / (int) $rate, $bits);
+    }
+
+    /** @param array<string, mixed> $stream */
+    private function fallbackPrecision(array $stream): int
+    {
+        $codec = (string) ($stream['codec_name'] ?? '');
+        if (str_starts_with($codec, 'pcm_f')) {
+            throw new \RuntimeException('Source floating-point PCM precision cannot be preserved by the verified 16/24-bit integer FLAC route.');
+        }
+        if (in_array($codec, ['pcm_mulaw', 'pcm_alaw'], true)) {
+            return 16;
+        }
+        $lossless = str_starts_with($codec, 'pcm_') || in_array($codec, ['flac', 'alac'], true);
+        if (!$lossless) {
+            // Floating decoder output from an already-lossy codec is not source float PCM.
+            return 24;
+        }
+        $bits = filter_var($stream['bits_per_raw_sample'] ?? null, FILTER_VALIDATE_INT);
+        if ($bits === false || $bits < 1) {
+            $bits = filter_var($stream['bits_per_sample'] ?? null, FILTER_VALIDATE_INT);
+        }
+        if (($bits === false || $bits < 1) && preg_match('/^pcm_[su](8|16|24|32|64)/', $codec, $matches) === 1) {
+            $bits = (int) $matches[1];
+        }
+        if (($bits === false || $bits < 1) && in_array($stream['sample_fmt'] ?? null, ['s16', 's16p'], true)) {
+            $bits = 16;
+        }
+        if ($bits === false || $bits < 1 || $bits > 24) {
+            throw new \RuntimeException('Source integer sample precision is missing or exceeds the verified lossless 24-bit FLAC limit.');
+        }
+
+        return $bits <= 16 ? 16 : 24;
     }
 }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Media;
 
 use PHPUnit\Framework\TestCase;
+use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Infrastructure\Console\Configuration\ConfigFileProtection;
 use Rarus\Echo\Infrastructure\Console\Media\PreparedFileSet;
+use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 
 final class PreparedFileSetTest extends TestCase
 {
@@ -76,6 +78,41 @@ final class PreparedFileSetTest extends TestCase
             self::assertSame('ACL fixture refused', $exception->getMessage());
             self::assertNotNull($protection->path);
             self::assertDirectoryDoesNotExist($protection->path);
+        }
+    }
+
+    public function testLockedFirstOutputDoesNotPreventCleaningLaterOwnedOutputs(): void
+    {
+        $helper = new class () extends FileHelper {
+            public ?string $locked = null;
+
+            public function remove(string $path): void
+            {
+                if ($path === $this->locked) {
+                    throw new FileException('Fixture file is locked.');
+                }
+                parent::remove($path);
+            }
+        };
+        $set = new PreparedFileSet(files: $helper);
+        $first = $set->allocate('flac');
+        $second = $set->allocate('flac');
+        file_put_contents($first, 'first');
+        file_put_contents($second, 'second');
+        $helper->locked = $first;
+
+        try {
+            try {
+                $set->cleanup();
+                self::fail('Expected cleanup failure.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString($first, $exception->getMessage());
+            }
+            self::assertFileExists($first);
+            self::assertFileDoesNotExist($second);
+        } finally {
+            $helper->locked = null;
+            $set->cleanup();
         }
     }
 }

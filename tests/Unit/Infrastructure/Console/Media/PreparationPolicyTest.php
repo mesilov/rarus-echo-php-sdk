@@ -31,7 +31,7 @@ final class PreparationPolicyTest extends TestCase
         $policy = new PreparationPolicy(true, ['aac']);
         $plan = $policy->plan(['codec_name' => 'aac', 'start_time' => '2.5', 'duration' => '12', 'channels' => 2, 'sample_rate' => '48000'], 0.0);
         self::assertSame('flac', $plan->extension);
-        self::assertSame(['-c:a', 'flac', '-af', 'asetpts=PTS-STARTPTS,adelay=120000S:all=1', '-ar', '48000', '-ac', '2'], $plan->arguments);
+        self::assertSame(['-c:a', 'flac', '-sample_fmt', 's32', '-bits_per_raw_sample', '24', '-af', 'asetpts=PTS-STARTPTS,adelay=120000S:all=1', '-ar', '48000', '-ac', '2'], $plan->arguments);
         self::assertEqualsWithDelta(14.5, $plan->duration, 0.00001);
     }
 
@@ -65,6 +65,30 @@ final class PreparationPolicyTest extends TestCase
         $options = MediaOptions::parse('000', false, '00600', 1);
         self::assertSame(0, $options->audioStream);
         self::assertSame(600, $options->timeout);
+    }
+
+    public function testLosslessIntegerPrecisionIsExplicitlyPreserved(): void
+    {
+        foreach ([['pcm_s16le', 16, 's16', 16], ['pcm_s24le', 24, 's32', 24], ['alac', 20, 's32p', 24]] as [$codec, $bits, $format, $outputBits]) {
+            $stream = array_merge($this->audio(1, false), ['codec_name' => $codec, 'bits_per_raw_sample' => $bits, 'sample_fmt' => $format]);
+            $plan = (new PreparationPolicy(true, []))->plan($stream, 0);
+            self::assertSame($outputBits, $plan->bitsPerSample);
+            self::assertSame((string) $outputBits, $plan->arguments[array_search('-bits_per_raw_sample', $plan->arguments, true) + 1]);
+        }
+    }
+
+    public function testUnrepresentableLosslessSourcePrecisionIsRejected(): void
+    {
+        foreach ([['codec_name' => 'pcm_s32le', 'bits_per_raw_sample' => 32, 'sample_fmt' => 's32'], ['codec_name' => 'pcm_f32le', 'sample_fmt' => 'flt'], ['codec_name' => 'alac', 'sample_fmt' => 's32p']] as $precision) {
+            try {
+                (new PreparationPolicy(true, []))->plan(array_merge($this->audio(1, false), $precision), 0);
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('precision', $exception->getMessage());
+
+                continue;
+            }
+            self::fail('Unrepresentable source was accepted.');
+        }
     }
 
     /** @return array<string, mixed> */

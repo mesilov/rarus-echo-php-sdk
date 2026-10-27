@@ -31,52 +31,61 @@ if (!in_array('https', curl_version()['protocols'], true)
 ) {
     throw new RuntimeException('Runtime transport, Unicode or SDK autoload check failed.');
 }
-// Probe-only native cancellation acceptance: no additional user-facing CLI option.
-if (($argv[1] ?? null) === 'media-cancel-fixture') {
+// Probe-only active-process timeout/cancellation acceptance; no public CLI option.
+if (in_array($argv[1] ?? null, ['media-cancel-fixture', 'media-timeout-fixture'], true)) {
+    $timeoutFixture = $argv[1] === 'media-timeout-fixture';
+    $activeBeforeDeadline = false;
+    $started = microtime(true);
+    $deadline = $started + ($timeoutFixture ? 6 : 20);
     $runner = new Rarus\Echo\Infrastructure\Console\Media\MediaProcessRunner();
     $cancelled = false;
     $handler = static function () use ($runner, &$cancelled): void {
         $cancelled = true;
         $runner->cancel();
     };
-    if (PHP_OS_FAMILY === 'Windows') {
+    if (!$timeoutFixture && PHP_OS_FAMILY === 'Windows') {
         if (!function_exists('sapi_windows_set_ctrl_handler') || !sapi_windows_set_ctrl_handler($handler)) {
             throw new RuntimeException('Native Windows console-control handler cannot be registered.');
         }
-    } else {
+    } elseif (!$timeoutFixture) {
         pcntl_async_signals(true);
         pcntl_signal(SIGINT, $handler);
     }
     $owned = $argv[4];
     if (!mkdir($owned, 0o700)) {
-        throw new RuntimeException('Cannot create cancellation fixture directory.');
+        throw new RuntimeException('Cannot create native media fixture directory.');
     }
     $output = $owned . DIRECTORY_SEPARATOR . 'partial.flac';
     try {
         $runner->run([$argv[2], '-nostdin', '-v', 'error', '-re', '-stream_loop', '-1',
-            '-i', $argv[3], '-vn', '-c:a', 'flac', '-flush_packets', '1', $output], microtime(true) + 20,
-            monitor: static function () use ($output, $argv): void {
+            '-i', $argv[3], '-vn', '-c:a', 'flac', '-flush_packets', '1', $output], $deadline,
+            monitor: static function () use ($output, $argv, $deadline, &$activeBeforeDeadline): void {
                 clearstatcache(true, $output);
-                if (is_file($output) && filesize($output) > 0) {
+                if (is_file($output) && filesize($output) > 0 && microtime(true) < $deadline) {
+                    $activeBeforeDeadline = true;
                     file_put_contents($argv[5], 'ready');
                 }
             });
-        throw new RuntimeException('Cancellation fixture completed without cancellation.');
+        throw new RuntimeException('Native media fixture completed without reaching its timeout/cancellation.');
     } catch (RuntimeException $exception) {
-        if (!$cancelled || !str_contains($exception->getMessage(), 'cancelled')) {
+        $expected = $timeoutFixture ? 'timeout' : 'cancelled';
+        if (!$activeBeforeDeadline || (!$timeoutFixture && !$cancelled) || !str_contains($exception->getMessage(), $expected)) {
             throw $exception;
         }
     } finally {
         $runner->cancel();
         @unlink($output);
         @rmdir($owned);
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!$timeoutFixture && PHP_OS_FAMILY === 'Windows') {
             sapi_windows_set_ctrl_handler($handler, false);
-        } else {
+        } elseif (!$timeoutFixture) {
             pcntl_signal(SIGINT, SIG_DFL);
         }
     }
-    echo json_encode(['cancelled' => true], JSON_THROW_ON_ERROR) . PHP_EOL;
+    $result = $timeoutFixture
+        ? ['timed_out' => true, 'active_before_deadline' => $activeBeforeDeadline, 'elapsed_seconds' => microtime(true) - $started]
+        : ['cancelled' => true];
+    echo json_encode($result, JSON_THROW_ON_ERROR) . PHP_EOL;
     exit(0);
 }
 // Probe-only scripted dialogue: the shipped CLI has no unattended secret-input switch.

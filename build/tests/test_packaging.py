@@ -172,7 +172,9 @@ class SourceTests(unittest.TestCase):
     def test_provenance_inputs_keep_canonical_bytes_in_autocrlf_checkout(self):
         project = Path(__file__).resolve().parents[2]
         config = json.loads((project / "build/config.json").read_text())
-        inputs = [config["dependency_lock"], *config["toolchain_patches"]]
+        inputs = [config["dependency_lock"], *config["toolchain_patches"],
+                  "build/media/config.json", "tests/Fixtures/Media/manifest.json",
+                  "tests/Fixtures/Media/corrupt.mp4"]
         with tempfile.TemporaryDirectory() as temp:
             fixture, checkout = Path(temp) / "fixture", Path(temp) / "checkout"
             fixture.mkdir()

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Infrastructure\Console\Media;
 
+use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Infrastructure\Console\Configuration\ConfigFileProtection;
+use Rarus\Echo\Infrastructure\Filesystem\FileHelper;
 
 /** @internal Explicit ownership of ordered prepared paths; no destructor cleanup. */
 final class PreparedFileSet
@@ -15,7 +17,7 @@ final class PreparedFileSet
     private array $owned = [];
     private ?string $directory = null;
 
-    public function __construct(private readonly ConfigFileProtection $protection = new ConfigFileProtection())
+    public function __construct(private readonly ?ConfigFileProtection $protection = null, private readonly FileHelper $files = new FileHelper())
     {
     }
 
@@ -30,8 +32,11 @@ final class PreparedFileSet
         return array_column($this->associations, 'prepared');
     }
 
-    public function allocate(string $extension): string
+    public function allocate(string $extension, ?float $deadline = null): string
     {
+        if ($deadline !== null && microtime(true) >= $deadline) {
+            throw new \RuntimeException('Media preparation timeout exceeded.');
+        }
         if ($this->directory === null) {
             $this->directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rarus-echo-media-' . bin2hex(random_bytes(16));
             if (!mkdir($this->directory, 0o700)) {
@@ -39,7 +44,7 @@ final class PreparedFileSet
             }
 
             try {
-                $this->protection->protect($this->directory);
+                ($this->protection ?? new ConfigFileProtection($deadline === null ? 10.0 : min(10.0, max(0.001, $deadline - microtime(true)))))->protect($this->directory);
             } catch (\Throwable $exception) {
                 @rmdir($this->directory);
                 $this->directory = null;
@@ -78,22 +83,34 @@ final class PreparedFileSet
         }
     }
 
-    public function cleanup(): void
+    public function cleanup(?\Throwable $primaryError = null): void
     {
+        $failures = [];
         foreach ($this->owned as $path) {
             for ($attempt = 0; $attempt < 5 && is_file($path); ++$attempt) {
-                $removed = @unlink($path);
-                clearstatcache(true, $path);
-                if (!$removed) {
+                try {
+                    $this->files->remove($path);
+                } catch (FileException) {
                     usleep(20000);
                 }
+                clearstatcache(true, $path);
             }
             if (is_file($path)) {
-                throw new \RuntimeException('Cannot remove prepared audio after closing media/upload handles: ' . $path);
+                $failures[] = $path;
             }
         }
         if ($this->directory !== null && is_dir($this->directory) && !@rmdir($this->directory)) {
-            throw new \RuntimeException('Cannot remove prepared media directory.');
+            $failures[] = $this->directory;
+        }
+        if ($failures !== []) {
+            $message = 'Cannot remove prepared media after closing upload handles: ' . implode(', ', $failures);
+            if ($primaryError instanceof \Throwable) {
+                error_log($message);
+
+                return;
+            }
+
+            throw new \RuntimeException($message);
         }
         $this->owned = [];
         $this->directory = null;

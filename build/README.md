@@ -146,6 +146,9 @@ It proves audio-only bytes reach that server, channel/rate preservation,
 unchanged source bytes and owned temporary cleanup. It also retains the previous
 ordinary-audio/runtime/configuration checks. Real Echo format evidence is kept
 separately under `tests/Fixtures/Media/echo-acceptance.json`.
+FLAC fallback explicitly preserves supported integer precision through 24 bits;
+source float PCM and lossless depths above 24 bits or unknown depth fail before
+upload when conversion is required. Copy routes retain the encoded packets.
 
 Each build records `media-size-report.json` and CI uploads per-target size
 reports. The named baseline is the `7f41160` no-media archive layout with the same

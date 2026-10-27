@@ -128,6 +128,8 @@ def smoke(directory, version, sha, probe=None, php=None):
         if probe and not php:
             cancellation_check(copied_probe, workspace / "libexec" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
                                audio, workspace, env)
+            timeout_check(copied_probe, workspace / "libexec" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+                          audio, workspace, env)
         Handler.requests = []
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         server.daemon_threads = True
@@ -280,6 +282,57 @@ def cancellation_check(probe, ffmpeg, audio, workspace, env):
                 kernel.CloseHandle(ctypes.c_void_p(handle))
             kernel.FreeConsole()
             kernel.AttachConsole(0xffffffff)
+        ready.unlink(missing_ok=True)
+
+
+def timeout_check(probe, ffmpeg, audio, workspace, env):
+    owned, ready = workspace / 'timeout-owned', workspace / 'timeout-ready'
+    process = subprocess.Popen([str(probe), 'media-timeout-fixture', str(ffmpeg), str(audio), str(owned), str(ready)],
+                               cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    handles = []
+    started = time.monotonic()
+    try:
+        deadline = started + 5
+        while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        check(ready.exists() and process.poll() is None, 'Native timeout fixture never started active FFmpeg')
+        children = child_pids(process.pid)
+        check(len(children) == 1, 'Timeout fixture must own exactly one running media process before the deadline')
+        if os.name == 'nt':
+            import ctypes
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.OpenProcess.restype = ctypes.c_void_p
+            for pid in children:
+                handle = kernel.OpenProcess(0x00100000, False, pid)
+                check(handle, 'Cannot inspect the media process before its timeout')
+                handles.append(handle)
+        stdout, stderr = process.communicate(timeout=8)
+        check(process.returncode == 0, 'Native timeout fixture failed: ' + stderr.decode(errors='replace'))
+        result = json.loads(stdout)
+        check(result['timed_out'] and result['active_before_deadline'], 'FFmpeg did not reach the active-process deadline')
+        check(5.5 <= result['elapsed_seconds'] <= 8 and time.monotonic() - started <= 9,
+              'Native timeout did not respect its bounded six-second deadline')
+        if os.name == 'nt':
+            for handle in handles:
+                check(kernel.WaitForSingleObject(ctypes.c_void_p(handle), 3000) == 0,
+                      'Native Windows timeout left FFmpeg running')
+        else:
+            for pid in children:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    pass
+                else:
+                    raise RuntimeError('Native timeout left FFmpeg running')
+        check(not owned.exists(), 'Timeout retained partial owned audio')
+        check(not list(Path(env['TMPDIR']).glob('rarus-echo-process-*')), 'Timeout retained private process logs/files')
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+        if os.name == 'nt':
+            for handle in handles:
+                kernel.CloseHandle(ctypes.c_void_p(handle))
         ready.unlink(missing_ok=True)
 
 

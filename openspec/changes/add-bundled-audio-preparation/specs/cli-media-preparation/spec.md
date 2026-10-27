@@ -66,7 +66,7 @@ For each video the CLI SHALL select the only audio stream marked default, or oth
 
 ### Requirement: Verified output format policy
 
-Preparation SHALL copy encoded audio when its codec/container and timeline are accepted by the committed Echo compatibility matrix. Otherwise it SHALL transcode a supported audio codec to the matrix's verified lossless fallback. It MUST preserve channel count and sample rate and MUST reject unsupported inputs or unverified outputs before upload.
+Preparation SHALL copy encoded audio when its codec/container and timeline are accepted by the committed Echo compatibility matrix. Otherwise it SHALL transcode a supported audio codec to the matrix's verified lossless fallback. It MUST preserve channel count, sample rate and supported integer source precision, and MUST reject source float PCM or lossless precision that the verified fallback cannot represent before upload.
 
 #### Scenario: Compatible stream copy
 
@@ -186,3 +186,15 @@ Command help, README and the maintained transcription-skill CLI reference SHALL 
 
 - **WHEN** a user reads `submit --help` or the maintained command reference
 - **THEN** they can understand the automatic path and use `--audio-stream`, `--no-extract-audio` and `--media-timeout` without changing the default one-command workflow
+
+### Requirement: Reject unrepresentable fallback precision
+
+Lossless fallback SHALL preserve integer source precision up to 24 bits with an explicitly validated output depth. It MUST reject source floating-point PCM and lossless integer inputs above 24 bits or with unknown effective depth when conversion is required.
+
+#### Scenario: A 32-bit integer video track cannot use the verified fallback
+- **WHEN** a video audio track contains PCM32 samples that need FLAC conversion
+- **THEN** preparation fails with an unsupported-precision error before upload rather than silently quantizing the source
+
+#### Scenario: A supported 24-bit integer track is converted
+- **WHEN** a supported 24-bit integer track needs FLAC conversion
+- **THEN** the output retains its sample rate, channels and 24-bit effective precision

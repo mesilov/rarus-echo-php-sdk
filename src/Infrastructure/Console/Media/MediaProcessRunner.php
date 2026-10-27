@@ -13,7 +13,7 @@ final class MediaProcessRunner
     private $active;
     private bool $cancelled = false;
 
-    public function __construct(private readonly ConfigFileProtection $protection = new ConfigFileProtection())
+    public function __construct(private readonly ?ConfigFileProtection $protection = null)
     {
     }
 
@@ -45,7 +45,8 @@ final class MediaProcessRunner
         $environment['AV_LOG_FORCE_NOCOLOR'] = '1';
 
         try {
-            $this->protection->protect($directory);
+            $this->check($deadline, $directory);
+            ($this->protection ?? new ConfigFileProtection(min(10.0, max(0.001, $deadline - microtime(true)))))->protect($directory);
             $this->check($deadline, $directory);
             $pipes = [];
             $process = proc_open($arguments, [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['file', $stdout, 'w'], 2 => ['file', $stderr, 'w']], $pipes, null, $environment, ['bypass_shell' => true, 'create_process_group' => true]);

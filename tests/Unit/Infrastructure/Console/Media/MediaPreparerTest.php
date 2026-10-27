@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Media;
 
 use PHPUnit\Framework\TestCase;
+use Rarus\Echo\Exception\FileException;
 use Rarus\Echo\Infrastructure\Console\Media\MediaOptions;
 use Rarus\Echo\Infrastructure\Console\Media\MediaPreparer;
 use Rarus\Echo\Infrastructure\Console\Media\PreparationPolicy;
@@ -55,10 +56,10 @@ final class MediaPreparerTest extends TestCase
             $file = $argv[count($argv)-1];
             if (in_array('-show_frames', $argv, true)) { echo 'best_effort_timestamp_time=0|nb_samples=48000'; exit; }
             if (in_array('-show_streams', $argv, true)) {
-                $audio = ['index'=>0,'codec_type'=>'audio','codec_name'=>str_contains($file,'prepared-')?'flac':'aac','sample_rate'=>'48000','channels'=>2,'start_time'=>'0','duration'=>'1'];
+                $audio = ['index'=>0,'codec_type'=>'audio','codec_name'=>str_contains($file,'prepared-')?'flac':'aac','sample_rate'=>'48000','channels'=>2,'start_time'=>'0','duration'=>'1','bits_per_raw_sample'=>is_file(dirname($argv[0]).'/force-precision-loss')?16:24];
                 $streams = str_contains($file,'no-audio') ? [] : [$audio];
                 if (!str_contains($file,'prepared-')) $streams[]=['index'=>1,'codec_type'=>'video'];
-                echo json_encode(['format'=>['start_time'=>'0','duration'=>'1'],'streams'=>$streams]); exit;
+                echo json_encode(['format'=>['start_time'=>'0','duration'=>'1','bits_per_raw_sample'=>is_file(dirname($argv[0]).'/force-precision-loss')?16:24],'streams'=>$streams]); exit;
             }
             copy(__FIXTURE__, $file);
             file_put_contents(__MARKER__, $file);
@@ -69,17 +70,48 @@ final class MediaPreparerTest extends TestCase
         chmod($directory . '/ffmpeg', 0o700);
         chmod($directory . '/ffprobe', 0o700);
         $locator = new ToolkitLocator(environment: ['RARUS_ECHO_FFMPEG_PATH' => $directory . '/ffmpeg', 'RARUS_ECHO_FFPROBE_PATH' => $directory . '/ffprobe']);
-        $preparer = new MediaPreparer(locator: $locator, policy: new PreparationPolicy(true, []));
+        $helper = new class () extends FileHelper {
+            public bool $locked = false;
+
+            public function remove(string $path): void
+            {
+                if ($this->locked) {
+                    throw new FileException('Fixture upload handle is locked.');
+                }
+                parent::remove($path);
+            }
+        };
+        $previousLog = ini_set('error_log', $directory . '/cleanup.log');
 
         try {
-            $preparer->prepare([dirname(__DIR__, 4) . '/Fixtures/Media/video-aac.mp4', dirname(__DIR__, 4) . '/Fixtures/Media/no-audio.mp4'], new MediaOptions(), static function (string $message): void {
-            });
-            self::fail('Expected no-audio failure.');
-        } catch (\RuntimeException $exception) {
-            self::assertStringContainsString('no audio', $exception->getMessage());
-            self::assertFileExists($directory . '/marker');
-            self::assertFileDoesNotExist((string) file_get_contents($directory . '/marker'));
+            foreach ([[false, false, 'no audio'], [true, false, 'no audio'], [false, true, 'precision']] as [$locked, $precisionLoss, $expected]) {
+                if ($precisionLoss) {
+                    file_put_contents($directory . '/force-precision-loss', 'fixture');
+                }
+                $helper->locked = $locked;
+                $preparer = new MediaPreparer(locator: $locator, policy: new PreparationPolicy(true, []), files: $helper);
+
+                try {
+                    $preparer->prepare([dirname(__DIR__, 4) . '/Fixtures/Media/video-aac.mp4', dirname(__DIR__, 4) . '/Fixtures/Media/no-audio.mp4'], new MediaOptions(), static function (string $message): void {
+                    });
+                    self::fail('Expected no-audio failure.');
+                } catch (\RuntimeException $exception) {
+                    self::assertStringContainsString($expected, $exception->getMessage());
+                    self::assertFileExists($directory . '/marker');
+                    $preparedPath = (string) file_get_contents($directory . '/marker');
+                    if ($locked) {
+                        self::assertFileExists($preparedPath);
+                        self::assertStringContainsString('Cannot remove prepared media', (string) file_get_contents($directory . '/cleanup.log'));
+                        $helper->locked = false;
+                        $helper->remove($preparedPath);
+                        rmdir(dirname($preparedPath));
+                    } else {
+                        self::assertFileDoesNotExist($preparedPath);
+                    }
+                }
+            }
         } finally {
+            ini_set('error_log', $previousLog === false ? '' : $previousLog);
             foreach (glob($directory . '/*') ?: [] as $path) {
                 unlink($path);
             }

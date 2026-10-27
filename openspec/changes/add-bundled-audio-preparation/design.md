@@ -142,3 +142,7 @@ The extracted-package harness copies the complete bundle into an isolated Unicod
 6. Merge only after those gates; archive this OpenSpec change only after the linked implementation PR has merged. Release/image publication follows the repository workflows and does not create an ad-hoc release tag during planning.
 
 Rollback restores the previous native entrypoint and its retained versioned payload. CLI callers can explicitly use `--no-extract-audio` for the previous upload behavior when their original files satisfy existing upload rules. Removing the media feature must not rewrite connection files or remove unrelated user data.
+
+### Verified fallback precision
+
+The pinned non-experimental FFmpeg FLAC encoder preserves integer precision up to 24 bits. Fallback selects explicit 16-bit or 24-bit output and validates the resulting precision as well as channels/rate. Source floating-point PCM and lossless integer audio above 24 bits or with unknown effective depth are rejected before upload when conversion is required. Encoded copy routes preserve their packets without this conversion. Floating-point decoder output from a lossy codec is distinguished from source floating-point PCM and uses the service-verified 24-bit fallback.

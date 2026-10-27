@@ -158,15 +158,23 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
             $client = $this->createClient($input);
             $this->mediaInProgress = true;
             $prepared = null;
+            $submitError = null;
 
             try {
                 $prepared = $this->mediaPreparer->prepare($files, $mediaOptions, function (string $message) use ($output): void {
                     $this->errorOutput($output)->writeln($message, OutputInterface::OUTPUT_RAW);
                 });
                 $submitResult = $client->submit($prepared->paths(), $options);
+            } catch (\Throwable $exception) {
+                $submitError = $exception;
+
+                throw $exception;
             } finally {
-                $prepared?->cleanup();
-                $this->mediaInProgress = false;
+                try {
+                    $prepared?->cleanup($submitError);
+                } finally {
+                    $this->mediaInProgress = false;
+                }
             }
         } catch (MediaCancellationException $exception) {
             throw $exception;

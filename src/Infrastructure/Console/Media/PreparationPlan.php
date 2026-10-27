@@ -8,7 +8,7 @@ namespace Rarus\Echo\Infrastructure\Console\Media;
 final readonly class PreparationPlan
 {
     /** @param list<string> $arguments */
-    public function __construct(public string $extension, public string $codec, public array $arguments, public float $duration)
+    public function __construct(public string $extension, public string $codec, public array $arguments, public float $duration, public ?int $bitsPerSample = null)
     {
     }
 }

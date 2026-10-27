@@ -146,4 +146,24 @@ final class MediaProcessRunnerTest extends TestCase
             }
         }
     }
+
+    public function testExpiredDeadlineDoesNotStartAclProtection(): void
+    {
+        $protection = new class () extends ConfigFileProtection {
+            public int $calls = 0;
+
+            public function protect(string $path): void
+            {
+                ++$this->calls;
+            }
+        };
+
+        try {
+            (new MediaProcessRunner($protection))->run([PHP_BINARY, '-r', 'exit(0);'], microtime(true) - 1);
+            self::fail('Expected timeout.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('timeout', $exception->getMessage());
+            self::assertSame(0, $protection->calls);
+        }
+    }
 }
