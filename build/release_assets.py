@@ -113,10 +113,10 @@ def pack(root, target, destination):
                   'compressed_media_increment_bytes': increment,
                   'media_uncompressed_bytes': sum(p.stat().st_size for p in files if p not in base_files),
                   'maximum_compressed_media_increment_bytes': toolkit.CONFIG['maximum_compressed_increment']}
-        (root / 'media-size-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+        (root / 'media-size-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8', newline='\n')
         if increment > toolkit.CONFIG['maximum_compressed_increment']:
             raise ValueError('Complete compressed media increment exceeds 25 MiB')
-    (destination / 'SHA256SUMS').write_text(toolkit.digest(output) + '  ' + output.name + '\n', encoding='utf-8')
+    (destination / 'SHA256SUMS').write_text(toolkit.digest(output) + '  ' + output.name + '\n', encoding='utf-8', newline='\n')
     return output
 
 
@@ -214,7 +214,7 @@ def write_checksums(directory, version, sha):
     directory = Path(directory)
     validate_set(directory, version, sha)
     content = ''.join(toolkit.digest(directory / archive_name(t)) + '  ' + archive_name(t) + '\n' for t in TARGETS)
-    (directory / 'SHA256SUMS').write_text(content, encoding='utf-8')
+    (directory / 'SHA256SUMS').write_text(content, encoding='utf-8', newline='\n')
 
 
 def verify_assets(directory, version, sha):

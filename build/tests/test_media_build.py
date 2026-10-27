@@ -116,6 +116,52 @@ class MediaBuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'hash|checksum'):
                 media.verify_payload(root, 'macos-arm64')
 
+    def media_files(self, root, media, target='windows-amd64'):
+        (root / 'libexec').mkdir()
+        for name in media.manifest_paths(target)[2:]:
+            (root / name).write_bytes(name.encode())
+        (root / 'media-source.tar.xz').write_bytes(b'fixture source')
+        (root / 'media-licenses').mkdir()
+        (root / 'media-licenses/LICENSE.txt').write_bytes(b'fixture license')
+
+    def test_metadata_manifest_and_source_recipe_use_lf_on_windows_writers(self):
+        media = self.toolkit()
+        original = Path.write_text
+        def windows_write(path, text, *args, **kwargs):
+            # Emulate TextIOWrapper's Windows newline=None translation on every host.
+            if kwargs.get('newline') is None:
+                kwargs['newline'] = '\r\n'
+            return original(path, text, *args, **kwargs)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.media_files(root, media)
+            source = root / 'upstream.tar.xz'
+            source.write_bytes(b'fixture upstream archive')
+            with patch.object(Path, 'write_text', windows_write):
+                media.source_package(source, root, media.CONFIG['configure_args'], 'fixture compiler', 'fixture')
+                media.write_metadata(root, 'windows-amd64', media.CONFIG['configure_args'], 'fixture compiler', 'fixture')
+            paths = media.manifest_paths('windows-amd64')
+            expected = ''.join(media.digest(root / name) + '  ' + name + '\n' for name in paths).encode('ascii')
+            self.assertEqual(expected, (root / 'media-SHA256SUMS').read_bytes())
+            self.assertNotIn(b'\r', (root / 'media-build-info.json').read_bytes())
+            with tarfile.open(root / 'media-source.tar.xz') as archive:
+                self.assertNotIn(b'\r', archive.extractfile('effective-build.json').read())
+            media.verify_payload(root, 'windows-amd64')
+
+    def test_payload_rejects_crlf_and_reordered_manifests_before_packaging(self):
+        media = self.toolkit()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.media_files(root, media)
+            media.write_metadata(root, 'windows-amd64', media.CONFIG['configure_args'], 'fixture compiler', 'fixture')
+            manifest = root / 'media-SHA256SUMS'
+            canonical = manifest.read_bytes().replace(b'\r\n', b'\n')
+            reordered = b'\n'.join(reversed(canonical.rstrip(b'\n').split(b'\n'))) + b'\n'
+            for invalid in [canonical.replace(b'\n', b'\r\n'), reordered, canonical.rstrip(b'\n')]:
+                manifest.write_bytes(invalid)
+                with self.assertRaisesRegex(ValueError, 'canonical|manifest'):
+                    media.verify_payload(root, 'windows-amd64')
+
     def test_corresponding_source_requires_the_console_helper_dependency(self):
         media = self.toolkit()
         source = b'fixture upstream source'

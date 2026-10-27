@@ -149,9 +149,9 @@ def write_metadata(root, target, configure_args, compiler, key):
             'cache_key': key, 'binaries': {name: {'path': paths[i + 2], 'sha256': digest(root / paths[i + 2])}
                 for i, name in enumerate(['ffmpeg', 'ffprobe'])},
             'source_package': {'path': paths[1], 'sha256': digest(root / paths[1])}}
-    (root / paths[0]).write_text(json.dumps(info, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    (root / paths[0]).write_text(json.dumps(info, indent=2, sort_keys=True) + '\n', encoding='utf-8', newline='\n')
     (root / 'media-SHA256SUMS').write_text(''.join(digest(root / name) + '  ' + name + '\n'
-                                               for name in paths), encoding='utf-8')
+                                               for name in paths), encoding='utf-8', newline='\n')
     return info
 
 
@@ -181,16 +181,10 @@ def verify_payload(root, target, expected_key=None):
             or not info.get('compiler') or not info.get('minimum_os')
             or (expected_key and info.get('cache_key') != expected_key)):
         raise ValueError('Incomplete media provenance or stale cache')
-    records = (root / 'media-SHA256SUMS').read_text(encoding='utf-8').splitlines()
     expected = {name: digest(root / name) for name in paths}
-    parsed = {}
-    for line in records:
-        match = re.fullmatch(r'([0-9a-f]{64})  ([A-Za-z0-9./-]+)', line)
-        if not match or match[2] in parsed:
-            raise ValueError('Invalid media checksum manifest')
-        parsed[match[2]] = match[1]
-    if parsed != expected:
-        raise ValueError('Media checksum manifest or file hash differs')
+    canonical = ''.join(expected[name] + '  ' + name + '\n' for name in paths).encode('ascii')
+    if (root / 'media-SHA256SUMS').read_bytes() != canonical:
+        raise ValueError('Media checksum manifest or file hash differs; expected canonical LF records')
     for name, path in zip(['ffmpeg', 'ffprobe'], paths[2:]):
         if info.get('binaries', {}).get(name) != {'path': path, 'sha256': expected[path]}:
             raise ValueError('Media binary hash differs')
@@ -259,7 +253,7 @@ def source_package(source, root, configure_args, compiler, key):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, target)
         (staging / 'effective-build.json').write_text(json.dumps({'target_configure_args': configure_args,
-            'compiler': compiler, 'cache_key': key, **identity()}, indent=2) + '\n', encoding='utf-8')
+            'compiler': compiler, 'cache_key': key, **identity()}, indent=2) + '\n', encoding='utf-8', newline='\n')
         with tarfile.open(Path(root) / 'media-source.tar.xz', 'w:xz', preset=6) as archive:
             for path in sorted(staging.rglob('*')):
                 if path.is_file():

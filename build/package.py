@@ -47,7 +47,7 @@ def stage(work, info, env):
         else:
             shutil.copy2(source, dest)
     shutil.copy2(ROOT / CONFIG["dependency_lock"], app / "composer.lock")
-    (app / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (app / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n")
     composer(["install", "--no-dev", "--prefer-dist", "--no-interaction", "--no-progress",
               "--no-plugins", "--no-scripts", "--classmap-authoritative"], app, env)
     composer(["check-platform-reqs", "--no-dev"], app, env)
@@ -81,7 +81,7 @@ def main():
     for name, mode in [("rarus-echo", "application"), ("runtime-probe", "probe")]:
         run(["php", "-d", "phar.readonly=0", ROOT / "build/package-phar.php", app, dist / (name + ".phar"), mode], env=env)
     run(["php", dist / "rarus-echo.phar", "--version", "--no-ansi"], env=env)
-    (dist / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+    (dist / "build-info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n")
     if args.target == "phar":
         return
     media_stage = work / "media"

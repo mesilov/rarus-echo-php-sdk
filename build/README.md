@@ -129,7 +129,9 @@ Build entrypoints use UTF-8 console and Python-child I/O so Unicode acceptance
 paths work under Windows CP1252 as well. Foreign native diagnostic bytes remain
 visible as escapes and a child failure keeps its original exit status. Target
 cache fallbacks recheck the complete PHP runtime-input marker; media caches
-still verify their own source/profile/compiler/recipe identity.
+still verify their own source/profile/compiler/recipe identity. Linux BuildKit
+cache namespaces are stable per target; layer input hashes and the native
+acceptance checks still invalidate and reject changed or incompatible inputs.
 
 ```bash
 python3 build/media/build.py macos-arm64 --destination runtime/media-macos-arm64
