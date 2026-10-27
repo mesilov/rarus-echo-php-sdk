@@ -171,7 +171,9 @@ function New-MediaFixture([string]$Path, [string]$Tool, [string]$Mode = '') {
     if ($Mode.StartsWith('wrong-')) { $mediaVersion = '8.0' }
     $failure = ''
     if ($Mode -eq 'conversion-failure') { $failure = 'if(args.Length > 0) return 9;' }
-    $source = 'using System; public class ' + $class + ' { public static int Main(string[] args) { if(args.Length == 1 && args[0] == "-version") { Console.WriteLine("' + $Tool + ' version ' + $mediaVersion + ' fixture"); return 0; } ' + $failure + ' if("' + $Tool + '" == "ffmpeg") System.IO.File.WriteAllText(args[args.Length-1], "fixture FLAC"); else Console.WriteLine("flac"); return 0; }}'
+    $operation = 'Console.WriteLine("flac");'
+    if ($Tool -eq 'ffmpeg') { $operation = 'System.IO.File.WriteAllText(args[args.Length-1], "fixture FLAC");' }
+    $source = 'using System; public class ' + $class + ' { public static int Main(string[] args) { if(args.Length == 1 && args[0] == "-version") { Console.WriteLine("' + $Tool + ' version ' + $mediaVersion + ' fixture"); return 0; } ' + $failure + ' ' + $operation + ' return 0; }}'
     Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly $Path -OutputType ConsoleApplication
 }
 function New-ConsoleFixture([string]$Path, [string]$Identity, [string]$Counter = '') {

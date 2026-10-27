@@ -164,6 +164,8 @@ printf 'flac\\n'
             if mode == 'legacy-media-entry': files['media-build-info.json'] = '{}'
             if mode == 'legacy-wrong-native': files['rarus-echo'] = '#!/bin/sh\nprintf "' + identity(version) + '\\n"\n'
             if mode == 'legacy-missing-license': del files['runtime-licenses/runtime.txt']
+        if mode in ('wrapped-identity', 'legacy-wrapped-identity'):
+            files['build-info.json'] = json.dumps({'': json.loads(files['build-info.json'])})
         with tarfile.open(archive, 'w:gz') as tar:
             for filename, value in files.items():
                 data = value.encode()
@@ -475,6 +477,19 @@ exec "''' + real_mv + '''" "$@"
                              source_sha=SHA if scenario == 'wrong-source' else LEGACY_SHA)
                 self.run_installer('--version', version, '--no-modify-path', success=False)
                 self.unchanged(before)
+
+    def test_empty_key_cannot_promote_nested_modern_or_legacy_identity_to_root(self):
+        for mode, version, source_sha in [('wrapped-identity', '0.2.0', SHA),
+                                          ('legacy-wrapped-identity', LEGACY_VERSION, LEGACY_SHA)]:
+            with self.subTest(mode=mode):
+                before = self.sentinel()
+                self.env['FIXTURE_TAG'] = version
+                self.package(version, mode=mode, source_sha=source_sha)
+                install = self.root / mode
+                self.run_installer('--version', version, '--install-dir', str(install),
+                                   '--no-modify-path', success=False)
+                self.unchanged(before)
+                self.assertFalse((install / 'rarus-echo').exists())
 
     def test_immutable_package_child_links_are_rejected(self):
         self.run_installer('--no-modify-path')

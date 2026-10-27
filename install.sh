@@ -228,7 +228,7 @@ json_records() {
             print path "\t@object\tobject";
             pos++; ws(); if(substr(doc,pos,1)=="}") { pos++; return }
             while(1) {
-                ws(); key=string_value(); if(key ~ /[\\]/) bad();
+                ws(); key=string_value(); if(key == "" || key ~ /[\\]/) bad();
                 # Encode path delimiters so filename keys in toolchain_patches
                 # remain valid without impersonating nested identity properties.
                 gsub(/%/, "%25", key); gsub(/\./, "%2e", key);
