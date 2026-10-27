@@ -32,7 +32,8 @@ rector.log
 *.log
 
 # Build artifacts
-/build/
+/runtime/
+__pycache__/
 /dist/
 
 # Claude Code

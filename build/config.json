@@ -1,0 +1,46 @@
+{
+  "php_version": "8.5.11",
+  "static_php_cli_ref": "5b5861c366a0d94bc84002db7b3f46144b388fbb",
+  "micro_ref": "fb6d497b6f4cf138ee3851a30c905d64b7b19aed",
+  "toolchain_patches": [
+    "build/patches/windows-micro-fake-cli.json",
+    "build/patches/windows-micro-utf8.json",
+    "build/patches/macos-micro-payload-bounds.json"
+  ],
+  "extensions": [
+    "bcmath",
+    "ctype",
+    "curl",
+    "fileinfo",
+    "filter",
+    "iconv",
+    "intl",
+    "mbstring",
+    "openssl",
+    "phar",
+    "tokenizer",
+    "zlib"
+  ],
+  "target_extensions": {
+    "linux-amd64": [
+      "pcntl"
+    ],
+    "linux-arm64": [
+      "pcntl"
+    ],
+    "macos-arm64": [
+      "pcntl"
+    ],
+    "windows-amd64": [],
+    "phar": [
+      "pcntl"
+    ]
+  },
+  "application_paths": [
+    "bin/rarus-echo",
+    "src",
+    "LICENSE",
+    "composer.json"
+  ],
+  "dependency_lock": "docker/rarus-echo-cli/composer.lock"
+}
