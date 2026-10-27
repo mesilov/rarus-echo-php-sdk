@@ -61,3 +61,6 @@ jobs:
       - name: Windows PowerShell 5.1 offline release installation
         shell: powershell
         run: ./build/tests/windows-installer-check.ps1
+      - name: PowerShell 7 Unicode bootstrap
+        shell: pwsh
+        run: ./build/tests/windows-installer-check.ps1 -BootstrapOnly

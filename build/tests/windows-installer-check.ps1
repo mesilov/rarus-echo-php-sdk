@@ -1,6 +1,6 @@
 # Offline contract checks. Windows PowerShell 5.1 runs the native executable tests.
 [CmdletBinding()]
-param()
+param([switch]$BootstrapOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -292,6 +292,10 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
             if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Unicode bootstrap probe timed out.' }
             Assert-True ($process.ExitCode -eq 0) ('Unicode bootstrap probe failed: ' + $stdout.Result + $stderr.Result)
         } finally { $process.Dispose() }
+    }
+    if ($BootstrapOnly) {
+        Write-Host ('PASS ' + $script:checks + ' Windows bootstrap checks.')
+        return
     }
     Test-Case 'native OS architecture is independent of process architecture variables' {
         $originalArchitecture = $env:PROCESSOR_ARCHITECTURE
