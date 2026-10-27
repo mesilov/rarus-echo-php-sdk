@@ -82,7 +82,7 @@ def main():
     suffix = ".exe" if os.name == "nt" else ""
     for name in ["rarus-echo", "runtime-probe"]:
         binary, payload = dist / (name + suffix), dist / (name + ".phar")
-        run(["php", "bin/spc", "micro:combine", payload, "-O", binary], spc, env)
+        run(["php", "-d", "memory_limit=1G", "bin/spc", "micro:combine", payload, "-O", binary], spc, env)
         binary.chmod(0o755)
         if args.target == "macos-arm64":
             from macos import finalize

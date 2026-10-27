@@ -94,7 +94,7 @@ jobs:
         if: ${{ !startsWith(matrix.target, 'linux-') }}
         with:
           php-version: '8.5.11'
-          extensions: bcmath, intl, curl, fileinfo, mbstring, openssl, phar, pcntl
+          extensions: bcmath, intl, curl, fileinfo, mbstring, openssl, phar${{ matrix.target == 'macos-arm64' && ', pcntl' || '' }}
           tools: composer:2.10.3
           coverage: none
       - name: Install macOS compiler prerequisites
