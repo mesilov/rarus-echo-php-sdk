@@ -71,8 +71,8 @@ jobs:
           file: docker/standalone/Dockerfile
           target: linux-artifacts
           outputs: type=local,dest=dist/assets
-          cache-from: type=gha,scope=echo-${{ matrix.target }}
-          cache-to: type=gha,scope=echo-${{ matrix.target }},mode=max
+          cache-from: type=gha,scope=echo-${{ matrix.target }}-${{ hashFiles('build/media/**') }}
+          cache-to: type=gha,scope=echo-${{ matrix.target }}-${{ hashFiles('build/media/**') }},mode=max
           secrets: |
             github_token=${{ github.token }}
           build-args: |
@@ -87,8 +87,9 @@ jobs:
           chmod -R a+rX dist/assets
           expected="${ECHO_RELEASE_VERSION:-dev-${ECHO_SOURCE_SHA}}"
           docker run --rm --mount "type=bind,src=${PWD}/dist/assets,dst=/artifacts,readonly" \
-            --mount "type=bind,src=${PWD}/build,dst=/tests,readonly" \
-            python:3.13-slim-bookworm python /tests/tests/smoke.py "/artifacts/rarus-echo-${TARGET}.tar.gz" \
+            --mount "type=bind,src=${PWD}/build,dst=/workspace/build,readonly" \
+            --mount "type=bind,src=${PWD}/tests/Fixtures/Media,dst=/workspace/tests/Fixtures/Media,readonly" \
+            python:3.13-slim-bookworm python /workspace/build/tests/smoke.py "/artifacts/rarus-echo-${TARGET}.tar.gz" \
             --version "$expected" --source-sha "$ECHO_SOURCE_SHA"
       - uses: shivammathur/setup-php@v2
         if: ${{ !startsWith(matrix.target, 'linux-') }}
@@ -106,12 +107,24 @@ jobs:
         if: matrix.target == 'windows-amd64'
         with:
           arch: x64
+      - name: Install Windows compact media compiler
+        id: media-msys
+        if: matrix.target == 'windows-amd64'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
+            diffutils
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-binutils
       - uses: actions/cache/restore@v4
         if: ${{ !startsWith(matrix.target, 'linux-') }}
         id: runtime-cache
         with:
           path: runtime/
-          key: echo-${{ matrix.target }}-${{ hashFiles('build/config.json', 'build/runtime.py', 'build/patches/**') }}
+          key: echo-${{ matrix.target }}-${{ hashFiles('build/config.json', 'build/runtime.py', 'build/patches/**', 'build/media/**', 'build/tests/linkage-check.py') }}
       - name: Build and accept macOS archive
         if: matrix.target == 'macos-arm64'
         env:
@@ -121,9 +134,35 @@ jobs:
         if: matrix.target == 'windows-amd64'
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          MEDIA_MSYS_ROOT: ${{ steps.media-msys.outputs.msys2-location }}
         run: |
           python build/package.py windows-amd64
           if ($LASTEXITCODE -ne 0) { throw 'Standalone Windows build/acceptance failed' }
+          $expected = if ($env:ECHO_RELEASE_VERSION) { $env:ECHO_RELEASE_VERSION } else { 'dev-' + $env:ECHO_SOURCE_SHA }
+          & powershell -NoProfile -ExecutionPolicy Bypass -File build/tests/windows-installer-check.ps1 -Assets dist/assets -Version $expected
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows complete-package installer acceptance failed' }
+      - name: Accept native POSIX complete-package installer
+        if: matrix.target != 'windows-amd64'
+        shell: bash
+        run: |
+          expected="${ECHO_RELEASE_VERSION:-dev-${ECHO_SOURCE_SHA}}"
+          python3 build/tests/shell-installer-check.py --assets dist/assets --version "$expected"
+      - name: Record complete archive/media sizes
+        shell: bash
+        run: |
+          mkdir -p dist/reports
+          if [[ -f dist/${{ matrix.target }}/media-size-report.json ]]; then
+            cp dist/${{ matrix.target }}/media-size-report.json dist/reports/${{ matrix.target }}-media-size.json
+          else
+            docker run --rm --mount "type=bind,src=${PWD}/dist/assets,dst=/artifacts,readonly" \
+              --mount "type=bind,src=${PWD}/build,dst=/workspace/build,readonly" \
+              python:3.13-slim-bookworm python /workspace/build/media/archive_size.py /artifacts/rarus-echo-${{ matrix.target }}.tar.gz > dist/reports/${{ matrix.target }}-media-size.json
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: media-size-${{ matrix.target }}
+          path: dist/reports/
+          if-no-files-found: error
       - name: Save compiled native runtime
         if: always() && !cancelled() && !startsWith(matrix.target, 'linux-') && steps.runtime-cache.outputs.cache-hit != 'true' && hashFiles('runtime/**/rarus-echo-runtime-key') != ''
         uses: actions/cache/save@v4

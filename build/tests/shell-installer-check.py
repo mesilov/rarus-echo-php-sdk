@@ -13,6 +13,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -26,6 +27,8 @@ args = parser.parse_args()
 NATIVE_TARGET = ('macos-arm64' if platform.system() == 'Darwin' else
                  'linux-arm64' if platform.machine() in ('arm64', 'aarch64') else 'linux-amd64')
 SHA = 'a' * 40
+MEDIA_SHA = 'b' * 64
+PROFILE_SHA = 'c' * 64
 
 
 def identity(version):
@@ -82,11 +85,52 @@ esac
         name = 'rarus-echo-' + target + '.tar.gz'
         archive = self.assets / name
         files = {'rarus-echo': '#!/bin/sh\nprintf "' + identity(version) + '\\n"\n',
-                 'build-info.json': json.dumps({'version': version}),
+                 'build-info.json': json.dumps({'version': version, 'source_sha': SHA,
+                     'media': {'ffmpeg_version': '9.0.2', 'source_sha256': MEDIA_SHA,
+                               'profile_sha256': PROFILE_SHA}}),
                  'runtime-sources.json': '{}',
-                 'THIRD-PARTY-NOTICES.md': 'notices',
+                 'THIRD-PARTY-NOTICES.md': 'notices for ' + version,
                  'RARUS-ECHO-LICENSE.txt': 'own license', 'BITRIX24-CLI-LICENSE.txt': 'upstream', 'YIIPRESS-LICENSE.txt': 'upstream',
                  'runtime-licenses/runtime.txt': 'runtime license'}
+        files.update({'libexec/ffmpeg': '''#!/bin/sh
+if [ "$1" = -version ]; then echo 'ffmpeg version 9.0.2 fixture'; exit; fi
+for last do :; done
+printf 'fixture FLAC' > "$last"
+''', 'libexec/ffprobe': '''#!/bin/sh
+if [ "$1" = -version ]; then echo 'ffprobe version 9.0.2 fixture'; exit; fi
+printf 'flac\\n'
+''', 'media-licenses/FFmpeg.txt': 'LGPL', 'media-source.tar.xz': 'source fixture'})
+        if mode == 'wrong-ffmpeg': files['libexec/ffmpeg'] = '#!/bin/sh\necho "ffmpeg version 8.0 fixture"\n'
+        if mode == 'wrong-ffprobe': files['libexec/ffprobe'] = '#!/bin/sh\necho "ffprobe version 8.0 fixture"\n'
+        if mode == 'conversion-failure': files['libexec/ffmpeg'] = '#!/bin/sh\n[ "$1" = -version ] || exit 9\necho "ffmpeg version 9.0.2 fixture"\n'
+        media = {'schema_version': 1, 'ffmpeg_version': '9.0.2', 'source_sha256': MEDIA_SHA,
+                 'profile_sha256': PROFILE_SHA, 'target': target, 'configure_args': [],
+                 'compiler': 'fixture', 'minimum_os': 'fixture',
+                 'binaries': {tool: {'path': 'libexec/' + tool,
+                     'sha256': hashlib.sha256(files['libexec/' + tool].encode()).hexdigest()}
+                     for tool in ['ffmpeg', 'ffprobe']},
+                 'source_package': {'path': 'media-source.tar.xz',
+                     'sha256': hashlib.sha256(files['media-source.tar.xz'].encode()).hexdigest()}}
+        if mode == 'wrong-media-target': media['target'] = 'other-target'
+        if mode == 'wrong-media-identity': media['profile_sha256'] = 'd' * 64
+        if mode == 'wrong-schema-type': media['schema_version'] = '1'
+        if mode == 'wrong-configure-type': media['configure_args'] = '--disable-everything'
+        if mode == 'missing-compiler': del media['compiler']
+        files['media-build-info.json'] = json.dumps(media)
+        media_records = [hashlib.sha256(files[name].encode()).hexdigest() + '  ' + name + '\n'
+                         for name in ['libexec/ffmpeg', 'libexec/ffprobe', 'media-build-info.json', 'media-source.tar.xz']]
+        files['media-SHA256SUMS'] = ''.join(media_records)
+        if mode == 'tampered-media': files['libexec/ffmpeg'] += '# tampered\n'
+        if mode == 'duplicate-media-checksum': files['media-SHA256SUMS'] += media_records[0]
+        if mode == 'missing-media-checksum': files['media-SHA256SUMS'] = ''.join(media_records[1:])
+        if mode == 'extra-media-checksum': files['media-SHA256SUMS'] += '0' * 64 + '  arbitrary\n'
+        if mode == 'malformed-media-json': files['media-build-info.json'] = '{not JSON}'
+        if mode == 'duplicate-media-key':
+            files['media-build-info.json'] = files['media-build-info.json'].replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1')
+        if mode in ('malformed-media-json', 'duplicate-media-key'):
+            files['media-SHA256SUMS'] = files['media-SHA256SUMS'].replace(media_records[2], hashlib.sha256(files['media-build-info.json'].encode()).hexdigest() + '  media-build-info.json\n')
+        if mode == 'missing-media': del files['libexec/ffprobe']
+        if mode == 'missing-media-license': del files['media-licenses/FFmpeg.txt']
         if mode == 'missing-license':
             del files['runtime-licenses/runtime.txt']
         if mode == 'empty-license-directory':
@@ -112,7 +156,9 @@ esac
                 data = value.encode()
                 item = tarfile.TarInfo(filename)
                 item.size = len(data)
-                item.mode = 0o755 if filename == 'rarus-echo' else 0o644
+                item.mode = 0o755 if filename in ('rarus-echo', 'libexec/ffmpeg', 'libexec/ffprobe') else 0o644
+                if mode == 'wrong-mode' and filename == 'libexec/ffmpeg': item.mode = 0o644
+                if mode == 'special-mode' and filename == 'media-build-info.json': item.mode = 0o4644
                 tar.addfile(item, io.BytesIO(data))
             if mode in ('symlink', 'hardlink'):
                 item = tarfile.TarInfo('runtime-licenses/link')
@@ -134,19 +180,21 @@ esac
         self.record = hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n'
         (self.assets / 'SHA256SUMS').write_text(self.record)
 
-    def run_installer(self, *options, success=True):
+    def run_installer(self, *options, success=True, interrupted=False):
         result = subprocess.run(['/bin/sh', str(ROOT / 'install.sh'), *options], env=self.env,
                                 cwd=self.root, text=True, capture_output=True)
         if success:
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         else:
             self.assertNotEqual(result.returncode, 0, result.stdout)
-            self.assertIn('rarus-echo installer:', result.stderr)
+            if not interrupted:
+                self.assertIn('rarus-echo installer:', result.stderr)
         self.assertFalse(list(self.root.glob('rarus-echo-install.*')))
         self.assertFalse(list((self.home / '.local/bin').glob('.rarus-echo.*')))
         self.assertFalse(list((self.home / '.local/share/rarus-echo').glob('.package.*')))
         self.assertFalse(list((self.home / '.local/share/rarus-echo').glob('.previous*')))
         self.assertFalse(list((self.home / '.local/bin').glob('.previous.*')))
+        self.assertFalse(list((self.home / '.local/bin/.rarus-echo/packages').glob('.stage.*')))
         return result
 
     def sentinel(self):
@@ -168,6 +216,9 @@ esac
         self.run_installer()
         share = self.home / '.local/share/rarus-echo'
         self.assertTrue((share / 'package/runtime-licenses/runtime.txt').exists())
+        package = self.home / ('.local/bin/.rarus-echo/packages/0.2.0-' + SHA)
+        self.assertTrue((package / 'libexec/ffmpeg').exists())
+        self.assertTrue((package / 'media-source.tar.xz').exists())
         self.assertEqual((self.home / '.local/bin/rarus-echo').stat().st_mode & 0o777, 0o755)
         for name in ['.bashrc', '.profile', 'zsh settings/.zshrc']:
             self.assertEqual((self.home / name).read_text().count('# rarus-echo installer'), 1)
@@ -176,6 +227,7 @@ esac
         self.package('v0.3.0-rc.1')
         self.run_installer('--version', 'v0.3.0-rc.1')
         self.shells('v0.3.0-rc.1', self.home / '.local/bin')
+        self.assertTrue((package / 'libexec/ffmpeg').exists(), 'update removed the previous immutable toolkit')
         for name in ['.config/rarus-echo/config.json', '.local/share/rarus-echo/user-data']:
             self.assertEqual((self.home / name).read_bytes(), before[name])
         requests = self.log.read_text().splitlines()
@@ -267,6 +319,49 @@ exec "''' + real_mv + '''" "$@"
                 self.run_installer('--no-modify-path', success=False)
                 self.unchanged(before)
 
+    def test_term_after_each_successful_activation_move_restores_complete_install(self):
+        self.sentinel()
+        real_mv = shutil.which('mv')
+        for stage in ['notices-backup', 'immutable', 'notices', 'binary', 'env']:
+            with self.subTest(stage=stage):
+                install = self.root / ('signal ' + stage)
+                self.script('mv', '#!/bin/sh\nexec "' + real_mv + '" "$@"\n')
+                self.env['FIXTURE_TAG'] = '0.2.0'
+                self.package('0.2.0')
+                self.run_installer('--no-modify-path', '--install-dir', str(install))
+                (self.home / '.local/share/rarus-echo/env').write_text('previous shell activation\n')
+                before = {name: (self.home / name).read_bytes() for name in [
+                    '.local/share/rarus-echo/env', '.local/share/rarus-echo/package/THIRD-PARTY-NOTICES.md',
+                    '.config/rarus-echo/config.json', '.local/share/rarus-echo/user-data']}
+                previous_binary = (install / 'rarus-echo').read_bytes()
+                previous_package = install / ('.rarus-echo/packages/0.2.0-' + SHA)
+                before_tools = {name: (previous_package / name).read_bytes()
+                                for name in ['rarus-echo', 'libexec/ffmpeg', 'libexec/ffprobe', 'media-build-info.json']}
+                self.env['FIXTURE_TAG'] = '0.3.0'
+                self.package('0.3.0')
+                self.env['FIXTURE_SIGNAL_STAGE'] = stage
+                self.script('mv', '''#!/bin/sh
+src=$1
+[ "$src" != -f ] || src=$2
+"''' + real_mv + '''" "$@" || exit $?
+case "$FIXTURE_SIGNAL_STAGE:$src" in
+    notices-backup:*/share/rarus-echo/package|immutable:*/packages/.stage.*|notices:*/.package.*|binary:*/.rarus-echo.*|env:*/.env.*)
+        kill -TERM "$PPID";;
+esac
+case "$src" in */.previous.*|*/.previous-env.*) kill -TERM "$PPID";; esac
+''')
+                result = self.run_installer('--no-modify-path', '--install-dir', str(install), success=False, interrupted=True)
+                self.assertEqual(result.returncode, 143, result.stderr)
+                self.unchanged(before)
+                self.assertEqual((install / 'rarus-echo').read_bytes(), previous_binary)
+                for name, content in before_tools.items():
+                    self.assertEqual((previous_package / name).read_bytes(), content)
+                self.assertFalse((install / ('.rarus-echo/packages/0.3.0-' + SHA)).exists())
+                self.assertFalse(list(install.glob('.previous.*')))
+                self.assertFalse(list((install / '.rarus-echo/packages').glob('.stage.*')))
+                output = subprocess.check_output([str(install / 'rarus-echo'), '--version'], text=True)
+                self.assertEqual(output.strip(), identity('0.2.0'))
+
     def test_symlink_destinations_are_preserved(self):
         for name in ['.local/bin/rarus-echo', '.local/share/rarus-echo/env']:
             with self.subTest(name=name):
@@ -321,6 +416,62 @@ exec "''' + real_mv + '''" "$@"
                 self.run_installer(*options, success=False)
                 self.unchanged(before)
 
+    def test_invalid_media_bundle_preserves_previous_install(self):
+        for scenario in ['wrong-ffmpeg', 'wrong-ffprobe', 'conversion-failure', 'wrong-media-target',
+                         'wrong-media-identity', 'tampered-media', 'duplicate-media-checksum',
+                         'missing-media-checksum', 'extra-media-checksum', 'malformed-media-json',
+                         'duplicate-media-key', 'missing-media', 'missing-media-license', 'wrong-mode', 'special-mode',
+                         'wrong-schema-type', 'wrong-configure-type', 'missing-compiler']:
+            with self.subTest(scenario=scenario):
+                before = self.sentinel()
+                self.package(mode=scenario)
+                self.run_installer('--no-modify-path', '--install-dir', str(self.root / scenario), success=False)
+                self.unchanged(before)
+
+    def test_existing_immutable_package_is_verified_and_never_overwritten(self):
+        self.run_installer('--no-modify-path')
+        package = self.home / ('.local/bin/.rarus-echo/packages/0.2.0-' + SHA)
+        media = package / 'media-build-info.json'
+        before = media.read_bytes()
+        self.run_installer('--no-modify-path')
+        self.assertEqual(media.read_bytes(), before)
+        media.write_text('conflicting manifest')
+        self.run_installer('--no-modify-path', success=False)
+        self.assertEqual(media.read_text(), 'conflicting manifest')
+
+    def test_immutable_package_child_links_are_rejected(self):
+        self.run_installer('--no-modify-path')
+        package = self.home / ('.local/bin/.rarus-echo/packages/0.2.0-' + SHA)
+        tools = package / 'libexec'
+        tools.rename(self.root / 'external tools')
+        tools.symlink_to(self.root / 'external tools', target_is_directory=True)
+        self.run_installer('--no-modify-path', success=False)
+        self.assertTrue(tools.is_symlink())
+
+    def test_existing_immutable_package_rejects_unexpected_files(self):
+        self.run_installer('--no-modify-path')
+        extra = self.home / ('.local/bin/.rarus-echo/packages/0.2.0-' + SHA + '/extra.txt')
+        extra.write_text('preserve conflicting content')
+        self.run_installer('--no-modify-path', success=False)
+        self.assertEqual(extra.read_text(), 'preserve conflicting content')
+
+    def test_failed_rollback_retains_recovery_files(self):
+        before = self.sentinel()
+        real_mv = shutil.which('mv')
+        self.script('mv', '''#!/bin/sh
+src=$1
+[ "$src" != -f ] || src=$2
+case "$src" in */.env.*|*/.previous.*) exit 9;; esac
+exec "''' + real_mv + '''" "$@"
+''')
+        result = subprocess.run(['/bin/sh', str(ROOT / 'install.sh'), '--no-modify-path'],
+                                env=self.env, cwd=self.root, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('recovery', result.stderr.lower())
+        backups = list((self.home / '.local/bin').glob('.previous.*'))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), before['.local/bin/rarus-echo'])
+
     def test_prerequisite_failure(self):
         before = self.sentinel()
         isolated = self.root / 'minimal tools'
@@ -355,8 +506,17 @@ exec "''' + real_mv + '''" "$@"
         self.run_installer('--version', version)
         self.run_installer('--version', version)
         self.shells(version, self.home / '.local/bin')
+        native_installs = [self.home / '.local/bin/rarus-echo']
         # Custom destination and opt-out use the same real archive.
-        self.run_installer('--version', version, '--install-dir', str(self.root / 'native custom bin'), '--no-modify-path')
+        custom = self.root / 'native custom каталог'
+        self.run_installer('--version', version, '--install-dir', str(custom), '--no-modify-path')
+        native_installs.append(custom / 'rarus-echo')
+        for binary in native_installs:
+            result = subprocess.run([sys.executable, str(ROOT / 'build/tests/installed-media-check.py'),
+                                     '--binary', str(binary)], env=self.env, cwd=self.root,
+                                    text=True, capture_output=True, timeout=180)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            print(result.stdout.strip())
         print('Native installer archive verified:', NATIVE_TARGET, version,
               hashlib.sha256((self.assets / ('rarus-echo-' + NATIVE_TARGET + '.tar.gz')).read_bytes()).hexdigest())
 

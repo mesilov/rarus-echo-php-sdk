@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "generated_with": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "fixtures": {
+    "artwork.mp3": {
+      "sha256": "eb8e137b2e7de99b90bf743b6b6c0ec452ef339ad4ae3380386b415b1535aeaf",
+      "bytes": 16699,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mp3",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.023021",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "png",
+          "codec_type": "video",
+          "start_time": "0.023022",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 1
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mp3",
+        "start_time": "0.023021",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {
+        "0": "645d106ae794af165dd28b7546a6583e910d70d3b8d75a12b7df968325024066"
+      }
+    },
+    "audio-only.m4a": {
+      "sha256": "f4501d832b4c291e61e66d43bee2488b569f161d54d8bc2acca48633789b610a",
+      "bytes": 14698,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "start_time": "0.000000",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {
+        "0": "8975a6bba044b64848a1e05ad2d2bd780b649845e87a2404361f5de5f219936a"
+      }
+    },
+    "audio-only.webm": {
+      "sha256": "292d101b66468e2908f41b071843d614e0d4d87f008f81f77bf3e50c1f99a441",
+      "bytes": 18111,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "opus",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "start_time": "0.000000",
+        "duration": "2.008000"
+      },
+      "audio_packet_sha256": {
+        "0": "a1bf4bc1ff19448581a99e303d8649d069ec136926188a619d0d52fc1d132dfd"
+      }
+    },
+    "corrupt.mp4": {
+      "sha256": "7d707bda0c2d8b753c618544a3507ad0db50df4ba075d4c89743d4e03af077bc",
+      "bytes": 44
+    },
+    "delayed.mp4": {
+      "sha256": "0372e2d4fbcfe50187691107fd7b708b85f760db535978b73030e31a9235ba40",
+      "bytes": 17076,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "duration": "4.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "1.978667",
+          "duration": "2.021333",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "start_time": "0.000000",
+        "duration": "4.000000"
+      },
+      "audio_packet_sha256": {
+        "1": "8975a6bba044b64848a1e05ad2d2bd780b649845e87a2404361f5de5f219936a"
+      }
+    },
+    "no-audio.mp4": {
+      "sha256": "d4d22e815bc55639217e01f493c776faa103af50dde9816fea2cca98dbe332ad",
+      "bytes": 1589,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "start_time": "0.000000",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {}
+    },
+    "stereo.wav": {
+      "sha256": "5204d2aefcb606317412a7ac0c69566877c15673dec025bce4647e81755df382",
+      "bytes": 384044,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "pcm_s16le",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "duration": "2.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "wav",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {
+        "0": "1eb17e49439a8ef1d3062051bacb2f0bef012fb90a809ed44a0a32b7f44b2cdf"
+      }
+    },
+    "two-tracks.mkv": {
+      "sha256": "95df9a58f690c70abcfc3e4c22d0356b1766c2b51afb36850f999ad32e30bf60",
+      "bytes": 30410,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 2,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "start_time": "0.000000",
+        "duration": "2.021000"
+      },
+      "audio_packet_sha256": {
+        "1": "013c9dff4838da694bd60cdc3836e0376fa90c8bb1258534fdeb4bf70b1a224a",
+        "2": "8975a6bba044b64848a1e05ad2d2bd780b649845e87a2404361f5de5f219936a"
+      }
+    },
+    "video-aac.mp4": {
+      "sha256": "0d269571278bb6167e56739d89c9e58407accd2b139ea265eec92c568c17674b",
+      "bytes": 16350,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "duration": "2.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "start_time": "0.000000",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {
+        "1": "8975a6bba044b64848a1e05ad2d2bd780b649845e87a2404361f5de5f219936a"
+      }
+    },
+    "video-ac3.mkv": {
+      "sha256": "ad20454507c7dede1a1913b776923684a3babe86d0ffec2e6fb0359372d488af",
+      "bytes": 50547,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "ac3",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "start_time": "0.000000",
+        "duration": "2.005000"
+      },
+      "audio_packet_sha256": {
+        "1": "6bb5dc3ac5445afec388ae2d4c2d6f429c6da47cb791ba9bbf146463ccca4078"
+      }
+    },
+    "video-flac.mkv": {
+      "sha256": "3ff1a0c6d1dd8c50ca30a46c59e6e6d642901544c73fc3f8ec9f0579d4741e0e",
+      "bytes": 180769,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "flac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 1,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "start_time": "0.000000",
+        "duration": "2.000000"
+      },
+      "audio_packet_sha256": {
+        "1": "94c2c2e7719a70471380bbac0a6b9f03a8206980f5dbac49b50b408cdd0d85e4"
+      }
+    },
+    "video-opus.webm": {
+      "sha256": "732fb3ceccc8e0167f5f0f042a3caf6369d806c2ec14da1e5a1f8b2c7e8d3aac",
+      "bytes": 18819,
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "vp9",
+          "codec_type": "video",
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "opus",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "disposition": {
+            "default": 0,
+            "attached_pic": 0
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "start_time": "0.000000",
+        "duration": "2.008000"
+      },
+      "audio_packet_sha256": {
+        "1": "a1bf4bc1ff19448581a99e303d8649d069ec136926188a619d0d52fc1d132dfd"
+      }
+    }
+  }
+}

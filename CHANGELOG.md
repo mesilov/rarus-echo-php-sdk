@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable automatic Git maintenance in temporary packaging-test repositories to prevent cleanup races on CI runners (#55).
 
 ### Added
-- OpenSpec proposal for bundled compact FFmpeg/ffprobe delivery, complete standalone package updates and automatic CLI video-audio preparation (#60); runtime implementation and acceptance remain planned.
+- Compact source-pinned FFmpeg/ffprobe toolkit for Docker and standalone CLI packages, with offline provenance/source materials and coordinated installer updates (#60).
+- Automatic CLI audio preparation for local video, deterministic stream selection, verified copy/lossless output routes, timeline preservation and bounded cleanup; optional `--audio-stream`, `--no-extract-audio` and `--media-timeout` controls (#60).
 - One-line standalone CLI installers for Linux amd64/arm64, macOS arm64 and Windows amd64, with public-release selection, SHA-256 verification, user-scoped installation, retained licenses and optional PATH activation (#57). Public use requires scripts on main and a Release containing standalone assets.
 - Interactive CLI `install`, private per-user connection configuration and global `--config PATH`, with explicit-file isolation and legacy env/dotenv compatibility (#55).
 - Standalone CLI packaging for Linux amd64/arm64, macOS arm64, and Windows amd64, with embedded PHP, version/source SHA, build metadata, runtime licenses, final archive SHA256SUMS, native acceptance tests, and gated GitHub Release publication on version tags (#53).

@@ -7,6 +7,10 @@ namespace Rarus\Echo\Infrastructure\Console\Command;
 use Rarus\Echo\Contracts\EchoClientFactoryInterface;
 use Rarus\Echo\Enum\Language;
 use Rarus\Echo\Enum\TaskType;
+use Rarus\Echo\Infrastructure\Console\Media\MediaCancellationException;
+use Rarus\Echo\Infrastructure\Console\Media\MediaOptions;
+use Rarus\Echo\Infrastructure\Console\Media\MediaPreparationInterface;
+use Rarus\Echo\Infrastructure\Console\Media\MediaPreparer;
 use Rarus\Echo\Infrastructure\Console\SubmitWaitOptions;
 use Rarus\Echo\Infrastructure\Console\TranscriptPoller;
 use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
@@ -22,11 +26,13 @@ use Symfony\Component\Filesystem\Filesystem;
 final class SubmitCommand extends AbstractEchoCommand implements SignalableCommandInterface
 {
     private ?OutputInterface $signalErrorOutput = null;
+    private bool $mediaInProgress = false;
 
     public function __construct(
         EchoClientFactoryInterface $clientFactory,
         private readonly TranscriptPoller $poller = new TranscriptPoller(),
-        private readonly Filesystem $filesystem = new Filesystem()
+        private readonly Filesystem $filesystem = new Filesystem(),
+        private readonly MediaPreparationInterface $mediaPreparer = new MediaPreparer()
     ) {
         parent::__construct($clientFactory);
     }
@@ -52,7 +58,10 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
             ->addOption('poll-interval', null, InputOption::VALUE_REQUIRED, 'Polling interval in seconds when using --wait.', '30')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Maximum wait time in seconds when using --wait.', '7200')
             ->addOption('raw-result', null, InputOption::VALUE_NONE, 'With --wait, write only the single transcript result to stdout.')
-            ->addOption('output', null, InputOption::VALUE_REQUIRED, 'With --wait, write the single transcript result to a file.');
+            ->addOption('output', null, InputOption::VALUE_REQUIRED, 'With --wait, write the single transcript result to a file.')
+            ->addOption('audio-stream', null, InputOption::VALUE_REQUIRED, 'Absolute non-negative audio stream index for one video input.')
+            ->addOption('no-extract-audio', null, InputOption::VALUE_NONE, 'Upload original inputs using existing SDK validation.')
+            ->addOption('media-timeout', null, InputOption::VALUE_REQUIRED, 'Combined probe and preparation deadline in seconds per input.', '600');
     }
 
     #[\Override]
@@ -60,9 +69,26 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
     {
         $this->signalErrorOutput = $this->errorOutput($output);
 
+        $windowsHandler = PHP_OS_FAMILY === 'Windows' && function_exists('sapi_windows_set_ctrl_handler');
+        $handler = function (int $event): void {
+            $signal = $event === 0 ? 2 : 15;
+            $exitCode = $this->handleSignal($signal);
+            if ($exitCode !== false) {
+                exit($exitCode);
+            }
+        };
+        if ($windowsHandler) {
+            sapi_windows_set_ctrl_handler($handler);
+        }
+
         try {
             return $this->doExecute($input, $output);
+        } catch (MediaCancellationException $exception) {
+            return $exception->exitCode;
         } finally {
+            if ($windowsHandler) {
+                sapi_windows_set_ctrl_handler($handler, false);
+            }
             $this->signalErrorOutput = null;
         }
     }
@@ -98,6 +124,12 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
             $this->formatSignalName($signal)
         ));
 
+        if ($this->mediaInProgress) {
+            $this->mediaPreparer->cancel();
+
+            throw new MediaCancellationException(128 + $signal);
+        }
+
         return 128 + $signal;
     }
 
@@ -117,8 +149,27 @@ final class SubmitCommand extends AbstractEchoCommand implements SignalableComma
         }
 
         try {
+            $mediaOptions = MediaOptions::parse($input->getOption('audio-stream'), (bool) $input->getOption('no-extract-audio'), $input->getOption('media-timeout'), count($files));
+        } catch (\InvalidArgumentException $exception) {
+            return $this->writeError($output, $exception);
+        }
+
+        try {
             $client = $this->createClient($input);
-            $submitResult = $client->submit($files, $options);
+            $this->mediaInProgress = true;
+            $prepared = null;
+
+            try {
+                $prepared = $this->mediaPreparer->prepare($files, $mediaOptions, function (string $message) use ($output): void {
+                    $this->errorOutput($output)->writeln($message, OutputInterface::OUTPUT_RAW);
+                });
+                $submitResult = $client->submit($prepared->paths(), $options);
+            } finally {
+                $prepared?->cleanup();
+                $this->mediaInProgress = false;
+            }
+        } catch (MediaCancellationException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             return $this->writeError($output, $exception);
         }

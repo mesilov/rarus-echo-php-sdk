@@ -6,7 +6,19 @@ ARG PHP_EXTENSION_INSTALLER_PLATFORM=linux/amd64
 FROM --platform=${PHP_EXTENSION_INSTALLER_PLATFORM} mlocati/php-extension-installer:2.4 AS php-extension-installer
 FROM composer:2.8 AS composer
 
-FROM php:8.4-cli-alpine AS vendor
+FROM php:8.4-cli-alpine@sha256:d8784155c4d37986be9ddd7a8950df7e78998cc48e35472cd69e2b9371424a65 AS media-builder
+RUN apk add --no-cache build-base python3 xz bash nasm binutils
+WORKDIR /app
+COPY build/media/ /app/build/media/
+COPY build/licenses/ /app/build/licenses/
+COPY build/tests/linkage-check.py /app/build/tests/linkage-check.py
+COPY tests/Fixtures/Media/ /app/tests/Fixtures/Media/
+ARG TARGETARCH
+ENV MEDIA_CC=gcc
+RUN --mount=type=cache,target=/app/runtime/media-cache \
+    python3 build/media/build.py "linux-${TARGETARCH}" --destination /out/media
+
+FROM php:8.4-cli-alpine@sha256:d8784155c4d37986be9ddd7a8950df7e78998cc48e35472cd69e2b9371424a65 AS vendor
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 COPY --from=composer /usr/bin/composer /usr/bin/composer
@@ -39,7 +51,7 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
 
 RUN php -r 'require "/app/vendor/autoload.php"; \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory(); \Http\Discovery\Psr17FactoryDiscovery::findResponseFactory(); \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory(); \Http\Discovery\Psr18ClientDiscovery::find();'
 
-FROM php:8.4-cli-alpine AS cli
+FROM php:8.4-cli-alpine@sha256:d8784155c4d37986be9ddd7a8950df7e78998cc48e35472cd69e2b9371424a65 AS cli-baseline
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
@@ -60,3 +72,6 @@ RUN ln -s /app/bin/rarus-echo /usr/local/bin/rarus-echo
 
 ENTRYPOINT ["rarus-echo"]
 CMD ["list"]
+
+FROM cli-baseline AS cli
+COPY --from=media-builder /out/media /opt/rarus-echo/media

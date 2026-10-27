@@ -14,9 +14,15 @@ import tempfile
 import threading
 import wave
 import zipfile
+import signal
+import time
+import hashlib
+import email.parser
+import email.policy
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from release_assets import inspect_archive
+from media import toolkit as media_toolkit
 
 FILE_ID = "33333333-3333-4333-8333-333333333333"
 API_KEY = "11111111-1111-4111-8111-111111111111"
@@ -68,7 +74,14 @@ def smoke(directory, version, sha, probe=None, php=None):
         workspace.mkdir()
         suffix = ".phar" if php else (".exe" if os.name == "nt" else "")
         binary = workspace / ("rarus-echo" + suffix)
-        shutil.copy2(Path(directory) / binary.name, binary)
+        if php:
+            shutil.copy2(Path(directory) / binary.name, binary)
+        else:
+            shutil.copytree(directory, workspace, dirs_exist_ok=True)
+            metadata = json.loads((workspace / "media-build-info.json").read_text())
+            media_toolkit.verify_payload(workspace, metadata["target"])
+            subprocess.run([sys.executable, Path(__file__).resolve().parents[1] / "media/accept.py",
+                            workspace, "--target", metadata["target"]], check=True)
         binary.chmod(0o755)
         env = {k: v for k, v in os.environ.items()
                if not k.startswith("RARUS_ECHO_") and k.lower() not in
@@ -79,7 +92,9 @@ def smoke(directory, version, sha, probe=None, php=None):
                     "APPDATA": str(workspace / "Roaming"), "XDG_CONFIG_HOME": str(workspace / "config home"),
                     "TMP": str(temporary), "TEMP": str(temporary), "TMPDIR": str(temporary),
                     "NO_PROXY": "*", "no_proxy": "*"})
-        result = command(binary, ["--version", "--no-ansi"], workspace, env, php=php)
+        elsewhere = workspace / "another working directory"
+        elsewhere.mkdir()
+        result = command(binary, ["--version", "--no-ansi"], elsewhere, env, php=php)
         check(version in result.stdout and sha in result.stdout, "Embedded identity mismatch")
         command(binary, ["--help", "--no-ansi"], workspace, env, php=php)
         for name in ["install", "queue", "submit", "status", "transcript"]:
@@ -99,12 +114,20 @@ def smoke(directory, version, sha, probe=None, php=None):
             check(info["php_version"] == metadata["php_version"], "Compiled PHP version mismatch")
             check(info["lock_sha256"] == metadata["composer_lock_sha256"], "Embedded lock differs")
             check(version in info["version"] and sha in info["version"], "Probe identity differs")
+            if not php:
+                check(Path(info["native_executable"]).resolve() == copied_probe.resolve(),
+                      "Runtime probe lost the physical native executable path")
+                if os.name == "nt":
+                    check(info["windows_ctrl_handler"], "Native Windows console-control API is unavailable")
         audio = workspace / "аудио запись.wav"
         with wave.open(str(audio), "wb") as wav:
             wav.setnchannels(1)
             wav.setsampwidth(2)
             wav.setframerate(8000)
             wav.writeframes(struct.pack("<h", 1) * 800)
+        if probe and not php:
+            cancellation_check(copied_probe, workspace / "libexec" / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg"),
+                               audio, workspace, env)
         Handler.requests = []
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         server.daemon_threads = True
@@ -154,6 +177,35 @@ def smoke(directory, version, sha, probe=None, php=None):
             request = Handler.requests[-1]
             check(request[0] == "/v1/async/transcription"
                   and audio.read_bytes() in request[2], "Multipart upload bytes/path mismatch")
+            if not php:
+                fixtures = Path(__file__).resolve().parents[2] / "tests/Fixtures/Media"
+                fixture = fixtures / "video-aac.mp4"
+                check(fixture.is_file(), "Committed media fixtures are required for native acceptance")
+                video = workspace / "видео с пробелами $ literal.mp4"
+                shutil.copy2(fixture, video)
+                original_hash = hashlib.sha256(video.read_bytes()).hexdigest()
+                before = len(Handler.requests)
+                prepared = command(binary, ["submit", str(video), "--json", "--no-ansi"],
+                                   elsewhere, env | credentials, php=php)
+                check(json.loads(prepared.stdout)["file_ids"] == [FILE_ID], "Video preparation/upload failed")
+                check(len(Handler.requests) == before + 1, "Unexpected request during video preparation")
+                multipart = Handler.requests[-1][2]
+                check(video.read_bytes() not in multipart, "Original video was uploaded")
+                content_type = Handler.requests[-1][1]["Content-Type"]
+                message = email.parser.BytesParser(policy=email.policy.default).parsebytes(
+                    ("Content-Type: " + content_type + "\r\nMIME-Version: 1.0\r\n\r\n").encode() + multipart)
+                files = [part for part in message.iter_parts() if part.get_filename()]
+                check(len(files) == 1, "Prepared multipart does not contain exactly one file")
+                received = workspace / "received-audio"
+                received.write_bytes(files[0].get_payload(decode=True))
+                tool = workspace / "libexec" / ("ffprobe.exe" if os.name == "nt" else "ffprobe")
+                streams = json.loads(command(tool, ["-v", "error", "-show_streams", "-of", "json", str(received)],
+                                             elsewhere, env).stdout)["streams"]
+                check(len(streams) == 1 and streams[0]["codec_type"] == "audio"
+                      and streams[0]["sample_rate"] == "48000" and streams[0]["channels"] == 2,
+                      "Uploaded media did not preserve audio-only channel/rate contract")
+                check(hashlib.sha256(video.read_bytes()).hexdigest() == original_hash, "Source video changed")
+                check(not list(temporary.glob("rarus-echo-media-*")), "Prepared temporary files were not cleaned")
             check(API_KEY not in upload.stdout + upload.stderr
                   and USER_ID not in upload.stdout + upload.stderr, "Credentials leaked to output")
         finally:
@@ -162,6 +214,73 @@ def smoke(directory, version, sha, probe=None, php=None):
             worker.join(timeout=5)
         check(not list(temporary.glob("rarus-echo-payload-*")), "Temporary PHAR was not removed")
         print("Accepted standalone CLI: " + version + " " + sha)
+
+
+def child_pids(pid):
+    if os.name == 'nt':
+        powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        output = subprocess.check_output([str(powershell), '-NoProfile', '-Command',
+            "(Get-CimInstance Win32_Process -Filter 'ParentProcessId = " + str(pid) + "').ProcessId"], text=True)
+        return [int(value) for value in output.split()]
+    if sys.platform.startswith('linux'):
+        return [int(value) for value in Path('/proc/' + str(pid) + '/task/' + str(pid) + '/children').read_text().split()]
+    output = subprocess.check_output(['/bin/ps', '-axo', 'pid=,ppid='], text=True)
+    return [int(row.split()[0]) for row in output.splitlines() if len(row.split()) == 2 and int(row.split()[1]) == pid]
+
+
+def cancellation_check(probe, ffmpeg, audio, workspace, env):
+    owned, ready = workspace / 'cancellation-owned', workspace / 'cancellation-ready'
+    kwargs = {'creationflags': subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else {}
+    process = subprocess.Popen([str(probe), 'media-cancel-fixture', str(ffmpeg), str(audio), str(owned), str(ready)],
+                               cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    children, handles = [], []
+    try:
+        deadline = time.monotonic() + 10
+        while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        check(ready.exists() and process.poll() is None, 'Native cancellation fixture never became ready')
+        children = child_pids(process.pid)
+        check(len(children) == 1, 'Cancellation fixture must own exactly one running media process')
+        if os.name == 'nt':
+            import ctypes
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.OpenProcess.restype = ctypes.c_void_p
+            kernel.FreeConsole()
+            check(kernel.AttachConsole(process.pid), 'Cannot attach to the native cancellation console')
+            for pid in children:
+                handle = kernel.OpenProcess(0x00100000, False, pid)
+                check(handle, 'Cannot inspect the running native media process')
+                handles.append(handle)
+            check(kernel.GenerateConsoleCtrlEvent(1, process.pid), 'Cannot deliver native CTRL_BREAK')
+        else:
+            process.send_signal(signal.SIGINT)
+        stdout, stderr = process.communicate(timeout=8)
+        check(process.returncode == 0 and json.loads(stdout)['cancelled'],
+              'Native cancellation handler/runner failed: ' + stderr.decode(errors='replace'))
+        if os.name == 'nt':
+            for handle in handles:
+                check(kernel.WaitForSingleObject(ctypes.c_void_p(handle), 5000) == 0,
+                      'Native Windows cancellation left the media process running')
+        else:
+            for pid in children:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    pass
+                else:
+                    raise RuntimeError('Cancellation left the media process running')
+        check(not owned.exists(), 'Cancellation retained partial owned output')
+        check(not list(Path(env['TMPDIR']).glob('rarus-echo-process-*')), 'Cancellation retained media process files')
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+        if os.name == 'nt' and handles:
+            for handle in handles:
+                kernel.CloseHandle(ctypes.c_void_p(handle))
+            kernel.FreeConsole()
+            kernel.AttachConsole(0xffffffff)
+        ready.unlink(missing_ok=True)
 
 
 def extract_archive(path, destination, version, sha):

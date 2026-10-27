@@ -11,7 +11,7 @@ usage() {
 Install rarus-echo for macOS arm64 or Linux amd64/arm64, without sudo.
 Usage: sh install.sh [--version TAG] [--install-dir PATH] [--no-modify-path]
 Default: latest stable public release, $HOME/.local/bin.
-Requires: cat, curl, tar, awk, sed, grep, mktemp, cp, mv, chmod, mkdir, rm, uname,
+Requires: cat, curl, tar, awk, sed, grep, mktemp, cp, mv, chmod, mkdir, rm, cmp, ls, uname,
           and sha256sum (Linux) or shasum (macOS).
 Notices and shell activation: $HOME/.local/share/rarus-echo/{package,env}.
 Source that env file in your current shell after installation.
@@ -58,7 +58,7 @@ case "$(uname -s)/$(uname -m)" in
     Linux/aarch64|Linux/arm64) target=linux-arm64; checksum_tool=sha256sum ;;
     *) fail "unsupported target: $(uname -s)/$(uname -m); supported: macOS arm64, Linux amd64/arm64; use install.ps1 on Windows amd64" ;;
 esac
-for utility in curl tar awk sed grep mktemp cp mv chmod mkdir rm "$checksum_tool"; do
+for utility in curl tar awk sed grep mktemp cp mv chmod mkdir rm cmp ls "$checksum_tool"; do
     command -v "$utility" >/dev/null 2>&1 || fail "required utility missing: $utility"
 done
 release_base=https://github.com/mesilov/rarus-echo-php-sdk/releases
@@ -81,19 +81,52 @@ old_env=
 package_replaced=0
 binary_replaced=0
 env_replaced=0
+immutable_stage=
+immutable_package=
+immutable_created=0
 committed=0
 cleanup() {
+    status=$?
+    # Once rollback starts, a second handled signal must not interrupt restoration
+    # and then discard the only recovery copy during another cleanup pass.
+    trap '' INT TERM HUP
+    trap - 0
+    set +e
+    rollback_failed=0
     if [ "$committed" -eq 0 ]; then
         if [ "$binary_replaced" -eq 1 ]; then
-            if [ -n "$old_binary" ]; then mv -f "$old_binary" "$install_dir/rarus-echo"; old_binary=;
-            else rm -f "$install_dir/rarus-echo"; fi
+            if [ -n "$old_binary" ]; then
+                if mv -f "$old_binary" "$install_dir/rarus-echo"; then old_binary=; else rollback_failed=1; fi
+            else rm -f "$install_dir/rarus-echo" || rollback_failed=1; fi
         fi
         if [ "$env_replaced" -eq 1 ]; then
-            if [ -n "$old_env" ]; then mv -f "$old_env" "$share_dir/env"; old_env=;
-            else rm -f "$share_dir/env"; fi
+            if [ -n "$old_env" ]; then
+                if mv -f "$old_env" "$share_dir/env"; then old_env=; else rollback_failed=1; fi
+            else rm -f "$share_dir/env" || rollback_failed=1; fi
         fi
-        [ "$package_replaced" -eq 0 ] || rm -rf "$share_dir/package"
-        if [ "$old_package_moved" -eq 1 ]; then mv "$old_package/package" "$share_dir/package"; fi
+        [ "$package_replaced" -eq 0 ] || rm -rf "$share_dir/package" || rollback_failed=1
+        # The intent is recorded before mv. A failed move can leave the original
+        # notices in place, so restore only when the private backup actually exists.
+        if [ "$old_package_moved" -eq 1 ] && [ -e "$old_package/package" ]; then
+            mv "$old_package/package" "$share_dir/package" || rollback_failed=1
+        fi
+        if [ -f "$work/profiles" ]; then
+            profile_index=0
+            while IFS= read -r profile; do
+                profile_index=$((profile_index + 1))
+                if [ -f "$work/profile-$profile_index" ]; then
+                    cp -p "$work/profile-$profile_index" "$profile" || rollback_failed=1
+                else rm -f "$profile" || rollback_failed=1; fi
+            done < "$work/profiles"
+        fi
+        if [ "$immutable_created" -eq 1 ] && [ "$rollback_failed" -eq 0 ]; then
+            rm -rf "$immutable_package" || rollback_failed=1
+        fi
+    fi
+    if [ "$rollback_failed" -ne 0 ]; then
+        printf 'rarus-echo installer: rollback incomplete; recovery files retained: %s %s %s %s %s\n' \
+            "$old_binary" "$old_env" "$old_package" "$immutable_package" "$work" >&2
+        exit 1
     fi
     [ -z "$old_package" ] || rm -rf "$old_package"
     [ -z "$old_binary" ] || rm -f "$old_binary"
@@ -102,6 +135,8 @@ cleanup() {
     [ -z "$binary_stage" ] || rm -f "$binary_stage"
     [ -z "$package_stage" ] || rm -rf "$package_stage"
     [ -z "$env_stage" ] || rm -f "$env_stage"
+    [ -z "$immutable_stage" ] || rm -rf "$immutable_stage"
+    exit "$status"
 }
 trap cleanup 0
 trap 'exit 130' INT
@@ -130,26 +165,140 @@ tar -tzf "$work/$archive" > "$work/members" || fail 'invalid archive'
 awk '
     /(^\/|(^|\/)\.\.?(\/|$)|[^A-Za-z0-9_.+\/-]|\/\/)/ { exit 1 }
     { name=$0; if (seen[tolower(name)]++) exit 1;
-      if (name ~ /^(rarus-echo|build-info.json|runtime-sources.json|THIRD-PARTY-NOTICES.md|RARUS-ECHO-LICENSE.txt|BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt)$/) next;
-      if (name ~ /^(runtime-licenses)\//) next;
+      count=split(name, parts, "/"); prefix="";
+      for (i=1; i<=count; i++) {
+          prefix=prefix (i>1 ? "/" : "") parts[i]; folded=tolower(prefix);
+          if (folded in spelling && spelling[folded] != prefix) exit 1;
+          spelling[folded]=prefix;
+          if (i<count && folded in files) exit 1;
+          if (i<count) directories[folded]=1;
+      }
+      if (tolower(name) in directories) exit 1;
+      files[tolower(name)]=1;
+      if (name ~ /^(rarus-echo|build-info.json|runtime-sources.json|THIRD-PARTY-NOTICES.md|RARUS-ECHO-LICENSE.txt|BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt|media-build-info.json|media-source.tar.xz|media-SHA256SUMS)$/) next;
+      if (name ~ /^libexec\/(ffmpeg|ffprobe)$/) next;
+      if (name ~ /^(runtime-licenses|media-licenses)\//) next;
       exit 1 }
 ' "$work/members" || fail 'unsafe or unexpected archive member'
 tar -tvzf "$work/$archive" > "$work/types" || fail 'cannot inspect archive'
-awk 'substr($0,1,1) != "-" { exit 1 }' "$work/types" || fail 'archive must contain only regular files'
+awk '
+    { mode=substr($0,1,10); name=$NF;
+      if (name ~ /^(rarus-echo|libexec\/(ffmpeg|ffprobe))$/) { if (mode != "-rwxr-xr-x") exit 1 }
+      else if (mode != "-rw-r--r--") exit 1 }
+' "$work/types" || fail 'archive must contain regular files with exact executable/data permissions'
 mkdir "$work/package"
 tar -xzf "$work/$archive" -C "$work/package" || fail 'cannot unpack archive'
-for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt libexec/ffmpeg libexec/ffprobe media-build-info.json media-source.tar.xz media-SHA256SUMS; do
     [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "archive missing required file: $file"
 done
 have_license=0
+have_media_license=0
 while IFS= read -r member; do
     case "$member" in runtime-licenses/*)
         [ -f "$work/package/$member" ] && [ -s "$work/package/$member" ] || fail "empty runtime license: $member"
         have_license=1 ;;
+        media-licenses/*)
+        [ -f "$work/package/$member" ] && [ -s "$work/package/$member" ] || fail "empty media license: $member"
+        have_media_license=1 ;;
     esac
 done < "$work/members"
 [ "$have_license" -eq 1 ] || fail 'archive missing runtime licenses'
-chmod 755 "$work/package/rarus-echo"
+[ "$have_media_license" -eq 1 ] || fail 'archive missing media licenses'
+# Parse complete JSON with portable awk, rejecting duplicate keys and malformed input.
+# Escaped object keys are deliberately not accepted in our controlled build manifests.
+json_records() {
+    awk '
+    function bad() { invalid=1; exit 1 }
+    function ws() { while (substr(doc,pos,1) ~ /^[ \t\r\n]$/ && pos<=length(doc)) pos++ }
+    function string_value(    start,c,e,n) {
+        if (substr(doc,pos++,1) != "\"") bad(); start=pos;
+        while (pos<=length(doc)) {
+            c=substr(doc,pos++,1);
+            if (c=="\"") return substr(doc,start,pos-start-1);
+            if (c ~ /[[:cntrl:]]/) bad();
+            if (c=="\\") {
+                e=substr(doc,pos++,1);
+                if (e=="u") { for(n=0;n<4;n++) if (substr(doc,pos++,1) !~ /^[0-9a-fA-F]$/) bad() }
+                else if (e !~ /^["\\\/bfnrt]$/) bad();
+            }
+        } bad();
+    }
+    function value(path,depth,    c,key,child,i,start,token) {
+        if (depth>64) bad(); ws(); c=substr(doc,pos,1);
+        if (c=="{") {
+            print path "\t@object\tobject";
+            pos++; ws(); if(substr(doc,pos,1)=="}") { pos++; return }
+            while(1) {
+                ws(); key=string_value(); if(key ~ /[\\.\[\]]/) bad();
+                child=path (path!="" ? "." : "") key;
+                if(seen[child]++) bad(); ws(); if(substr(doc,pos++,1)!=":") bad();
+                value(child,depth+1); ws(); c=substr(doc,pos++,1); if(c=="}") return; if(c!=",") bad();
+            }
+        } else if(c=="[") {
+            print path "\t@array\tarray";
+            pos++; ws(); if(substr(doc,pos,1)=="]") { pos++; return }
+            i=0; while(1) { value(path "[" i++ "]",depth+1); ws(); c=substr(doc,pos++,1); if(c=="]") return; if(c!=",") bad() }
+        } else if(c=="\"") { token=string_value(); if(token !~ /[\\\t\r\n]/) print path "\t" token "\tstring" }
+        else {
+            start=pos; while(substr(doc,pos,1) ~ /^[^ \t\r\n,}\]]$/ && pos<=length(doc)) pos++;
+            token=substr(doc,start,pos-start);
+            if(token !~ /^(true|false|null|-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?)$/) bad();
+            print path "\t" token "\t" (token ~ /^(true|false|null)$/ ? "literal" : "number");
+        }
+    }
+    { doc=doc $0 "\n" }
+    END { if(invalid) exit 1; pos=1; ws(); if(substr(doc,pos,1)!="{") bad(); value("",0); ws(); if(pos<=length(doc)) bad() }
+    ' "$1"
+}
+field() { awk -F '\t' -v key="$2" -v kind="${3:-string}" '$1==key {count++; value=$2; type=$3} END {if(count!=1 || type!=kind) exit 1; print value}' "$1"; }
+hash_file() {
+    if [ "$checksum_tool" = shasum ]; then hash=$(shasum -a 256 "$1"); else hash=$(sha256sum "$1"); fi
+    printf '%s\n' "${hash%% *}"
+}
+validate_media() {
+    bundle=$1
+    awk '
+      NF != 2 || length($1)!=64 || $1 ~ /[^0-9a-f]/ {exit 1}
+      $2 !~ /^(libexec\/(ffmpeg|ffprobe)|media-build-info.json|media-source.tar.xz)$/ {exit 1}
+      {if(seen[$2]++) exit 1; count++} END {if(count!=4) exit 1}
+    ' "$bundle/media-SHA256SUMS" || fail 'media checksum manifest must contain exactly four valid records'
+    for media_file in libexec/ffmpeg libexec/ffprobe media-build-info.json media-source.tar.xz; do
+        expected_media=$(awk -v name="$media_file" '$2==name {print $1}' "$bundle/media-SHA256SUMS")
+        [ "$(hash_file "$bundle/$media_file")" = "$expected_media" ] || fail "media SHA-256 mismatch: $media_file"
+    done
+    json_records "$bundle/media-build-info.json" > "$work/media-records" || fail 'invalid media build JSON'
+    json_records "$bundle/build-info.json" > "$work/build-records" || fail 'invalid CLI build JSON'
+    [ "$(field "$work/media-records" schema_version number)" = 1 ] || fail 'unsupported media manifest schema'
+    [ "$(field "$work/media-records" configure_args array)" = @array ] || fail 'media configure arguments must be an array'
+    [ -n "$(field "$work/media-records" compiler)" ] && [ -n "$(field "$work/media-records" minimum_os)" ] || fail 'media manifest missing compiler/minimum OS'
+    [ "$(field "$work/media-records" target)" = "$target" ] || fail 'media target mismatch'
+    media_version=$(field "$work/media-records" ffmpeg_version) || fail 'missing FFmpeg version'
+    printf '%s\n' "$media_version" | grep -Eq '^[0-9]+(\.[0-9]+)+$' || fail 'invalid FFmpeg version'
+    for key in ffmpeg_version source_sha256 profile_sha256; do
+        value=$(field "$work/media-records" "$key") || fail "missing media identity: $key"
+        [ "$(field "$work/build-records" "media.$key")" = "$value" ] || fail "CLI/media identity mismatch: $key"
+        if [ "$key" != ffmpeg_version ]; then
+            [ "${#value}" -eq 64 ] || fail "invalid media identity: $key"
+            case "$value" in *[!0-9a-f]*) fail "invalid media identity: $key" ;; esac
+        fi
+    done
+    for tool in ffmpeg ffprobe; do
+        [ "$(field "$work/media-records" "binaries.$tool.path")" = "libexec/$tool" ] || fail 'unexpected media binary path'
+        [ "$(field "$work/media-records" "binaries.$tool.sha256")" = "$(hash_file "$bundle/libexec/$tool")" ] || fail 'media binary manifest hash mismatch'
+        tool_version=$("$bundle/libexec/$tool" -version) || fail "$tool cannot execute"
+        case "$tool_version" in "$tool version $media_version "*) ;; *) fail "$tool version does not match media identity" ;; esac
+    done
+    [ "$(field "$work/media-records" source_package.path)" = media-source.tar.xz ] || fail 'unexpected media source path'
+    [ "$(field "$work/media-records" source_package.sha256)" = "$(hash_file "$bundle/media-source.tar.xz")" ] || fail 'media source manifest hash mismatch'
+    # A short generated PCM input proves the bundled demuxer/FLAC encoder and probe.
+    printf '\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000' > "$work/check.pcm"
+    rm -f "$work/check.flac"
+    "$bundle/libexec/ffmpeg" -nostdin -v error -f s16le -ar 8000 -ac 1 -i "$work/check.pcm" -c:a flac "$work/check.flac" || fail 'bundled media conversion failed'
+    [ -s "$work/check.flac" ] || fail 'bundled media conversion produced no output'
+    probe=$("$bundle/libexec/ffprobe" -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "$work/check.flac") || fail 'bundled media probe failed'
+    [ "$probe" = flac ] || fail 'bundled media probe did not confirm FLAC audio'
+}
+validate_media "$work/package"
 reported=$("$work/package/rarus-echo" --version --no-ansi) || fail 'candidate --version failed; check platform compatibility and macOS launch permissions'
 identity_prefix="RARUS Echo CLI $version (source "
 case "$reported" in "$identity_prefix"*')') ;; *) fail 'candidate version does not match the selected release' ;; esac
@@ -157,8 +306,45 @@ source_sha=${reported#"$identity_prefix"}
 source_sha=${source_sha%')'}
 case "$source_sha" in ''|*[!0-9a-f]*) fail 'candidate has an invalid source SHA' ;; esac
 [ "${#source_sha}" -eq 40 ] || fail 'candidate has an invalid source SHA'
+[ "$(field "$work/build-records" version)" = "$version" ] && [ "$(field "$work/build-records" source_sha)" = "$source_sha" ] || fail 'CLI build metadata identity mismatch'
 # Stage both destinations on their own filesystem before committing the binary.
 mkdir -p "$install_dir" "$share_dir"
+for directory in "$install_dir" "$share_dir" "$install_dir/.rarus-echo" "$install_dir/.rarus-echo/packages"; do
+    [ ! -L "$directory" ] || fail 'package parent must not be a symlink'
+    [ ! -e "$directory" ] || [ -d "$directory" ] || fail 'package parent must be a directory'
+done
+mkdir -p "$install_dir/.rarus-echo/packages"
+immutable_package=$install_dir/.rarus-echo/packages/$version-$source_sha
+[ ! -L "$immutable_package" ] || fail 'immutable package must not be a symlink'
+check_existing_tree() {
+    for existing_path in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+        [ -e "$existing_path" ] || [ -L "$existing_path" ] || continue
+        [ ! -L "$existing_path" ] || fail 'existing immutable package contains a link'
+        relative=${existing_path#"$immutable_package"/}
+        if [ -d "$existing_path" ]; then
+            awk -v prefix="$relative/" 'index($0,prefix)==1 {found=1} END {if(!found) exit 1}' "$work/members" || fail 'existing immutable package contains an unexpected directory'
+            check_existing_tree "$existing_path"
+        elif [ -f "$existing_path" ]; then
+            awk -v name="$relative" '$0==name {found=1} END {if(!found) exit 1}' "$work/members" || fail 'existing immutable package contains an unexpected file'
+            permissions=$(ls -ld "$existing_path") || fail 'cannot inspect immutable package permissions'
+            case "$relative" in rarus-echo|libexec/ffmpeg|libexec/ffprobe) required_permissions=-rwxr-xr-x ;; *) required_permissions=-rw-r--r-- ;; esac
+            case "$permissions" in "$required_permissions"*) ;; *) fail 'existing immutable package permissions conflict with release' ;; esac
+        else fail 'existing immutable package contains a special file'; fi
+    done
+}
+if [ -e "$immutable_package" ]; then
+    [ -d "$immutable_package" ] || fail 'immutable package destination must be a directory'
+    check_existing_tree "$immutable_package"
+    # Compare every file, including notices and the native entrypoint. Never rewrite it.
+    while IFS= read -r member; do
+        [ ! -L "$immutable_package/$member" ] && [ -f "$immutable_package/$member" ] && cmp -s "$work/package/$member" "$immutable_package/$member" || fail 'existing immutable package conflicts with release'
+    done < "$work/members"
+    validate_media "$immutable_package"
+else
+    immutable_stage=$(mktemp -d "$install_dir/.rarus-echo/packages/.stage.XXXXXXXX")
+    cp -R "$work/package/." "$immutable_stage/"
+    validate_media "$immutable_stage"
+fi
 [ ! -d "$install_dir/rarus-echo" ] || fail 'binary destination is a directory'
 [ ! -d "$share_dir/env" ] || fail 'activation destination is a directory'
 [ ! -L "$install_dir/rarus-echo" ] || fail 'binary destination must not be a symlink'
@@ -171,7 +357,7 @@ chmod 755 "$binary_stage"
 staged_version=$("$binary_stage" --version --no-ansi) || fail 'staged binary cannot execute in install directory'
 [ "$staged_version" = "$reported" ] || fail 'staged binary version mismatch'
 package_stage=$(mktemp -d "$share_dir/.package.XXXXXXXX")
-for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses; do
+for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses media-build-info.json media-licenses media-SHA256SUMS; do
     cp -R "$work/package/$file" "$package_stage/"
 done
 # Single-quote shell strings, including literal quotes in user directories.
@@ -194,11 +380,6 @@ if [ "$modify_path" -eq 1 ]; then
         if [ -f "$profile" ]; then login_profile=$profile; break; fi
     done
     source_line="[ ! -f $quoted_env ] || . $quoted_env # rarus-echo installer"
-    for profile in "$zsh_dir/.zshrc" "$HOME/.bashrc" "$login_profile"; do
-        if ! grep -Fqx "$source_line" "$profile" 2>/dev/null; then
-            printf '\n%s\n' "$source_line" >> "$profile" || fail "cannot update shell profile: $profile"
-        fi
-    done
 fi
 env_stage=$(mktemp "$share_dir/.env.XXXXXXXX")
 cp "$work/env" "$env_stage"
@@ -214,18 +395,37 @@ if [ -e "$share_dir/env" ] || [ -L "$share_dir/env" ]; then
 fi
 if [ -e "$share_dir/package" ]; then
     old_package=$(mktemp -d "$share_dir/.previous.XXXXXXXX")
-    mv "$share_dir/package" "$old_package/package" || fail 'cannot back up license notices'
     old_package_moved=1
+    mv "$share_dir/package" "$old_package/package" || fail 'cannot back up license notices'
 fi
+# Register each rollback intent before its mutation. A handled signal can arrive
+# after the rename succeeds but before the next shell assignment executes.
+if [ -n "$immutable_stage" ]; then
+    immutable_created=1
+    mv "$immutable_stage" "$immutable_package" || fail 'cannot activate immutable package'
+    immutable_stage=
+fi
+package_replaced=1
 mv "$package_stage" "$share_dir/package" || fail 'cannot replace license notices'
 package_stage=
-package_replaced=1
+binary_replaced=1
 mv -f "$binary_stage" "$install_dir/rarus-echo" || fail 'cannot replace installed binary'
 binary_stage=
-binary_replaced=1
+env_replaced=1
 mv -f "$env_stage" "$share_dir/env" || fail 'cannot replace shell activation'
 env_stage=
-env_replaced=1
+if [ "$modify_path" -eq 1 ]; then
+    profile_index=0
+    : > "$work/profiles"
+    for profile in "$zsh_dir/.zshrc" "$HOME/.bashrc" "$login_profile"; do
+        if ! grep -Fqx "$source_line" "$profile" 2>/dev/null; then
+            profile_index=$((profile_index + 1))
+            if [ -e "$profile" ]; then cp -p "$profile" "$work/profile-$profile_index" || fail 'cannot back up shell profile'; fi
+            printf '%s\n' "$profile" >> "$work/profiles"
+            printf '\n%s\n' "$source_line" >> "$profile" || fail "cannot update shell profile: $profile"
+        fi
+    done
+fi
 committed=1
 printf 'Installed rarus-echo %s at %s/rarus-echo\nSHA-256: %s\nNotices: %s/package\n' "$version" "$install_dir" "$expected" "$share_dir"
 printf 'Activate in your current shell:\n  . %s\n  rarus-echo --version\n' "$quoted_env"

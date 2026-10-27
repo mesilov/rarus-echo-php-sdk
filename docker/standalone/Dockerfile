@@ -5,7 +5,7 @@ FROM php:8.5.11-cli-bookworm@sha256:819080ed413631f6ec564184dd9acd08d9425bd863b9
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 autoconf automake bison build-essential ca-certificates cmake curl \
-    file flex git gzip libtool musl-tools patch pkgconf re2c tar unzip xz-utils \
+    file flex git gzip libtool musl-tools patch pkgconf re2c tar unzip xz-utils bash nasm \
     libicu-dev autopoint \
     && docker-php-ext-install bcmath intl pcntl \
     && rm -rf /var/lib/apt/lists/*

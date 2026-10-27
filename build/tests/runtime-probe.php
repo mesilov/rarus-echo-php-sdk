@@ -31,6 +31,54 @@ if (!in_array('https', curl_version()['protocols'], true)
 ) {
     throw new RuntimeException('Runtime transport, Unicode or SDK autoload check failed.');
 }
+// Probe-only native cancellation acceptance: no additional user-facing CLI option.
+if (($argv[1] ?? null) === 'media-cancel-fixture') {
+    $runner = new Rarus\Echo\Infrastructure\Console\Media\MediaProcessRunner();
+    $cancelled = false;
+    $handler = static function () use ($runner, &$cancelled): void {
+        $cancelled = true;
+        $runner->cancel();
+    };
+    if (PHP_OS_FAMILY === 'Windows') {
+        if (!function_exists('sapi_windows_set_ctrl_handler') || !sapi_windows_set_ctrl_handler($handler)) {
+            throw new RuntimeException('Native Windows console-control handler cannot be registered.');
+        }
+    } else {
+        pcntl_async_signals(true);
+        pcntl_signal(SIGINT, $handler);
+    }
+    $owned = $argv[4];
+    if (!mkdir($owned, 0o700)) {
+        throw new RuntimeException('Cannot create cancellation fixture directory.');
+    }
+    $output = $owned . DIRECTORY_SEPARATOR . 'partial.flac';
+    try {
+        $runner->run([$argv[2], '-nostdin', '-v', 'error', '-re', '-stream_loop', '-1',
+            '-i', $argv[3], '-vn', '-c:a', 'flac', '-flush_packets', '1', $output], microtime(true) + 20,
+            monitor: static function () use ($output, $argv): void {
+                clearstatcache(true, $output);
+                if (is_file($output) && filesize($output) > 0) {
+                    file_put_contents($argv[5], 'ready');
+                }
+            });
+        throw new RuntimeException('Cancellation fixture completed without cancellation.');
+    } catch (RuntimeException $exception) {
+        if (!$cancelled || !str_contains($exception->getMessage(), 'cancelled')) {
+            throw $exception;
+        }
+    } finally {
+        $runner->cancel();
+        @unlink($output);
+        @rmdir($owned);
+        if (PHP_OS_FAMILY === 'Windows') {
+            sapi_windows_set_ctrl_handler($handler, false);
+        } else {
+            pcntl_signal(SIGINT, SIG_DFL);
+        }
+    }
+    echo json_encode(['cancelled' => true], JSON_THROW_ON_ERROR) . PHP_EOL;
+    exit(0);
+}
 // Probe-only scripted dialogue: the shipped CLI has no unattended secret-input switch.
 if (($argv[1] ?? null) === 'configure-fixture') {
     $application = Rarus\Echo\Infrastructure\Console\ApplicationFactory::create();
@@ -69,6 +117,8 @@ if (($argv[1] ?? null) === 'configure-fixture') {
 }
 echo json_encode([
     'php_version' => PHP_VERSION,
+    'native_executable' => defined('RARUS_ECHO_EXECUTABLE') ? RARUS_ECHO_EXECUTABLE : null,
+    'windows_ctrl_handler' => function_exists('sapi_windows_set_ctrl_handler'),
     'version' => Rarus\Echo\Infrastructure\Console\BuildVersion::get(),
     'extensions' => array_values(array_unique($extensions)),
     'lock_sha256' => hash_file('sha256', $root . '/composer.lock'),
