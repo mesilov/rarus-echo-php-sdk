@@ -1,0 +1,84 @@
+name: Public release acceptance
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - build/release_acceptance.py
+      - build/release_assets.py
+      - build/tests/**
+      - .github/workflows/release-acceptance.yml
+  push:
+    branches: [main, dev]
+    paths:
+      - build/release_acceptance.py
+      - build/release_assets.py
+      - build/tests/**
+      - .github/workflows/release-acceptance.yml
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact published release tag, for example 0.5.0-rc-1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Release acceptance contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m unittest discover -s build/tests -v
+      - run: python3 build/release_acceptance.py --help
+
+  published:
+    name: Public release on ${{ matrix.target }}
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: contracts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: macos-arm64
+            runner: macos-15
+          - target: windows-amd64
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve release tag in main history
+        id: source
+        shell: bash
+        run: |
+          source_sha="$(python build/release_acceptance.py --version "$RELEASE_VERSION" --resolve-source-sha)"
+          printf 'source_sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+      - name: Accept anonymous public assets and pinned installation
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          python build/release_acceptance.py --version "$RELEASE_VERSION" \
+            --source-sha "$EXPECTED_SOURCE_SHA" --target "$RELEASE_TARGET"
