@@ -17,6 +17,11 @@
 - [x] 3.1 Run `make lint-openspec`, `git diff --check`, `make test-unit` and `make lint-all`; record results and local media acceptance.
 - [x] 3.2 Review diff, push branch and open PR targeting dev with `Closes #78`; verify PR #81 targets dev and record local verification.
 
+## 4. Windows native CI blocker
+
+- [x] 4.1 Add portable regression tests for transient sharing/lock errors, bounded attempts and non-retryable errors; observe the missing-helper failure before implementation.
+- [x] 4.2 Add narrowly filtered atomic activation retries, installation documentation and cli-installation delta; verify 31 portable PowerShell checks and all local gates. Native Windows complete-package acceptance remains part of the mandatory PR CI follow-up.
+
 ## Workflow follow-up
 
 - Before reporting delivery complete, wait for green PR CI and process all agent review comments/threads. The current CI and hosted review results are recorded on PR #81.

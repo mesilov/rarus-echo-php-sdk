@@ -25,3 +25,10 @@ See proposal.md for motivation. MediaPreparer already owns temporary validated a
 - Persistence needs space for a second audio copy in the input filesystem. Copy failure cleans staging; existing files are never opened for writing.
 - Hard links require filesystem support (NTFS on Windows); failure is explicit and safe. Native media acceptance covers available platform tools; unit tests cover publication independently of FFmpeg.
 - Forced termination or power loss cannot guarantee cleanup, matching existing submit semantics.
+
+
+## Windows native gate repair
+
+Two independent complete-package Windows attempts accepted extraction but failed the subsequent repeat-install File.Replace call with a sharing violation. The identity-check process is awaited and disposed; the external lock owner is not identified. Preserve the atomic operation and rollback flags, but retry only IOException Win32 codes 32/33 (sharing/lock violations), at most twenty calls with 250 ms pauses. Access-denied, unrelated errors and exhausted retries propagate immediately into existing rollback. No process is killed and no permissions are changed.
+
+A scriptblock retry helper permits portable regression tests with actual IOException HResults. Existing native tests still cover a permanently locked installation, rollback and back-to-back complete-package installs. Fault injection after the literal File.Replace operation remains intact. Error code meanings follow the [Microsoft Win32 error reference](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-).

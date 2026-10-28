@@ -34,3 +34,12 @@ Dev subsequently advanced to `46f5a49` with #76 (reduced archive notices) and #8
 On the preceding merge head `6224dab`, native macOS/Linux packages passed. The Windows standalone smoke also accepted extraction, but the later back-to-back repeat-install test hit a Windows file-sharing lock during File.Replace of the installed executable. Process identity checks wait for exit and dispose their handles. An unchanged-head single-job rerun was queued after the workflow finished, then superseded by this required dev integration; current-head native CI remains the delivery gate.
 
 Local integration checks pass again: 28 strict OpenSpec items, full lint, 405 unit tests (1170 assertions; four opt-in skips) and 80 packaging/installer contract tests.
+
+
+## Bounded Windows activation repair
+
+The unchanged-head Windows retry for `b5dce1f` passed native extraction, then reproduced the repeat-install File.Replace sharing violation. This confirms that a job rerun alone does not repair the activation race; the specific external lock owner remains unidentified.
+
+Added a bounded retry helper around the existing atomic File.Replace call. It unwraps invocation exceptions and retries only IOException sharing/lock codes 32/33, up to twenty calls with 250 ms pauses; access-denied and unrelated failures propagate immediately. Existing rollback intent and post-activation fault injection remain in place. No process is killed, archive validation is unchanged, and no permissions are weakened.
+
+The new portable tests were observed failing before the helper existed, then all 31 PowerShell 7 portable checks passed in the Microsoft container. Cases cover temporary sharing/lock violations, persistent-lock exhaustion and immediate propagation of permission/unrelated errors. Independent review found no actionable issue with PowerShell 5.1 compatibility, callback scope or rollback. All local gates pass again (405 unit tests, 80 Python contracts, full lint/OpenSpec). Native Windows acceptance on the new head is still required before delivery.

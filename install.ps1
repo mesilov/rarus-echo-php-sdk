@@ -459,6 +459,21 @@ function Send-RarusEchoEnvironmentChange {
     [void][RarusEchoInstallerNativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
 }
 
+function Invoke-RarusEchoSharingRetry([scriptblock]$Operation) {
+    # An executable that just exited can still have a short-lived sharing lock.
+    # Retry only Win32 sharing/lock violations; preserve every other failure.
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        try { & $Operation; return }
+        catch {
+            $failure = $_.Exception
+            while ($null -ne $failure.InnerException) { $failure = $failure.InnerException }
+            $code = $failure.HResult -band 0xffff
+            if ($failure -isnot [IO.IOException] -or $code -notin @(32, 33) -or $attempt -eq 19) { throw }
+            [Threading.Thread]::Sleep(250)
+        }
+    }
+}
+
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
     if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Unsupported platform. This installer supports Windows amd64; Linux amd64/arm64 and macOS arm64 use install.sh.' }
     if ($Version -and $Version -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw 'Invalid release version tag.' }
@@ -587,10 +602,10 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         [IO.Directory]::Move($stagePackage, $packageDirectory)
         $newExecutableMoved = $true
         if (Test-Path -LiteralPath $executable) {
-            # File.Replace is atomic on this filesystem and fails if Windows has
-            # locked the executable. Previous media directories are never touched.
+            # Keep atomic activation and rollback while tolerating brief image
+            # sharing locks after candidate execution. Live CLI locks still fail.
             $oldExecutableMoved = $true
-            try { [IO.File]::Replace((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable, $backupExecutable) }
+            try { Invoke-RarusEchoSharingRetry { [IO.File]::Replace((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable, $backupExecutable) } }
             catch { throw ('Cannot replace rarus-echo.exe; close running CLI processes and retry. ' + $_.Exception.Message) }
         } else { [IO.File]::Move((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable) }
         if (-not $NoModifyPath) {
