@@ -13,25 +13,25 @@
 
 ## Доступность релизов
 
-На 28.10.2026 Latest stable — `0.4.0`, без standalone-архивов. README заранее содержит постоянные Latest URL; до stable с бинарями используйте явный `0.5.0-rc-2`, как показано ниже. RC не заменяет Latest. Проверка stable-ссылок зависит от [release-задачи #68](https://github.com/mesilov/rarus-echo-php-sdk/issues/68).
+На 28.10.2026 Latest stable — `0.4.0`, без standalone-архивов. README заранее содержит постоянные Latest URL; до stable с бинарями используйте явный `0.5.0-rc-3`, как показано ниже. RC не заменяет Latest. Проверка stable-ссылок зависит от [release-задачи #68](https://github.com/mesilov/rarus-echo-php-sdk/issues/68).
 
 ## Standalone: без PHP, Composer и Docker
 
 ## Установщики
 
-Для проверки prerelease `0.5.0-rc-2` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
+Для проверки prerelease `0.5.0-rc-3` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
 
 ```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-2
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-3
 ```
 
 Windows x86-64, PowerShell 5.1 или новее:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-2
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-3
 ```
 
-`0.5.0-rc-2` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-2). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
+`0.5.0-rc-3` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-3). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
 
 Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
 
@@ -62,7 +62,7 @@ rarus-echo --version
 
 ## Ручная установка
 
-В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. В prerelease `0.5.0-rc-2` эти архивы уже опубликованы. Latest stable `0.4.0` их не содержит; до выхода нового stable выбирайте явный RC tag.
+В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Для prerelease `0.5.0-rc-3` ожидаются эти четыре архива и `SHA256SUMS`; перед установкой проверьте завершение публикации в GitHub Releases. Latest stable `0.4.0` их не содержит; до выхода нового stable выбирайте явный RC tag.
 
 | Платформа | Архив | Исполняемый файл |
 | --- | --- | --- |
