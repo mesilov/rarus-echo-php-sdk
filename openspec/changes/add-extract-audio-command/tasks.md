@@ -15,8 +15,10 @@
 ## 3. Integration and delivery
 
 - [x] 3.1 Run `make lint-openspec`, `git diff --check`, `make test-unit` and `make lint-all`; record results and local media acceptance.
-- [ ] 3.2 Review diff, push branch, open PR targeting dev with `Closes #78`; verify required CI and process agent review comments/threads.
+- [x] 3.2 Review diff, push branch and open PR targeting dev with `Closes #78`; verify PR #81 targets dev and record local verification.
 
 ## Workflow follow-up
+
+- Before reporting delivery complete, wait for green PR CI and process all agent review comments/threads. The current CI and hosted review results are recorded on PR #81.
 
 - Archive only after the PR merges. Merge and release are outside this request.
