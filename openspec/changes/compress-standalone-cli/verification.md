@@ -17,4 +17,16 @@
 - First-run Linux amd64 executable: 67,088,314 to 21,397,506 bytes. First-run macOS executable: 68,682,016 to 22,309,568 bytes. These are measurements for 58188c4; final-head native acceptance remains required.
 
 ## Native verification
-First-run Linux amd64 and arm64 passed completely. Windows original/final native smoke also passed; its installer fixture stopped on the already corrected PowerShell hash expression. Final-head native CI and complete macOS/Windows installation acceptance remain pending. No native platform is considered accepted based on fixture tests alone. Native acceptance must exercise original and compressed binaries, complete portable and installed media, signals, timeouts, copied Unicode paths and macOS extraction/cache behavior.
+
+All 15 required/non-publication checks passed for daa7447901ad0f07551f40fd66e374becba40fd2. Standalone workflow 40643348254 accepted original and compressed executables and complete portable/installed packages on Linux amd64/arm64, macOS arm64 and Windows amd64, then verified all four archives and SHA256SUMS. Docker acceptance passed on both architectures. Publication jobs were skipped for this PR.
+
+Final accepted executable measurements (bytes):
+
+| Target | Original | Compressed | Reduction |
+| --- | ---: | ---: | ---: |
+| linux-amd64 | 67088315 | 21397507 | 68.11% |
+| linux-arm64 | 67341843 | 21782548 | 67.65% |
+| macos-arm64 | 68682032 | 22309600 | 67.52% |
+| windows-amd64 | 68223827 | 21853011 | 67.97% |
+
+GitHub Codex reported no findings on the initial implementation; follow-up local independent reviews found no remaining actionable issues after both native corrections. Inline review threads were empty after updating the PR. The change remains unarchived pending merge.
