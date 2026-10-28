@@ -62,7 +62,7 @@ rarus-echo --version
 
 ## Ручная установка
 
-В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Для prerelease `0.5.0-rc-3` ожидаются эти четыре архива и `SHA256SUMS`; перед установкой проверьте завершение публикации в GitHub Releases. Latest stable `0.4.0` их не содержит; до выхода нового stable выбирайте явный RC tag.
+В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. В prerelease `0.5.0-rc-3` опубликованы все четыре архива и `SHA256SUMS`; публичная установка проверена на четырёх платформах. Latest stable `0.4.0` их не содержит; до выхода нового stable выбирайте явный RC tag.
 
 | Платформа | Архив | Исполняемый файл |
 | --- | --- | --- |

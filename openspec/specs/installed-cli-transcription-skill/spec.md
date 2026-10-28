@@ -26,7 +26,7 @@ The skill SHALL distinguish installing the executable from configuring the conne
 - **AND** it explains that `doctor --json` checks authenticated access
 
 ### Requirement: Release-aware CLI call map
-The plugin SHALL contain a generated command/option reference targeting 0.5.0, including install, doctor, queue, submit, status, transcript and global connection selection. It SHALL distinguish the verified 0.5.0-rc-2 baseline from stable release availability.
+The plugin SHALL contain a generated command/option reference targeting 0.5.0, including install, doctor, extract-audio, queue, submit, status, transcript and global connection selection. It SHALL distinguish the publicly verified 0.5.0-rc-3 baseline from stable release availability.
 
 #### Scenario: Older CLI lacks requested capability
 - **WHEN** installed help does not expose a required command or option

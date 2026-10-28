@@ -15,8 +15,8 @@ explain that limitation instead of silently switching to Docker or PHP.
 ## Release selection
 
 Target contract: **0.5.0**. Verified published baseline on **2026-10-28**:
-[0.5.0-rc-2](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-2),
-with all six project commands and bundled media tools. This is a prerelease;
+[0.5.0-rc-3](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-3),
+with all seven project commands, including local extract-audio, and bundled media tools. This is a prerelease;
 stable **0.4.0** has no standalone archives. Do not claim stable 0.5.0 is published.
 
 Before offering an installation or upgrade, check
@@ -31,13 +31,13 @@ unversioned installer assuming Latest already contains standalone packages.
 Linux amd64/arm64 or macOS Apple Silicon:
 
 ```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-2
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-3
 ```
 
 Windows amd64, PowerShell 5.1 or newer:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-2
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-3
 ```
 
 When selecting another verified release, replace the version explicitly. The
