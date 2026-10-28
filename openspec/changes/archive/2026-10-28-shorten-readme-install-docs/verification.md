@@ -24,3 +24,10 @@ Executed the exact README macOS extraction/checksum/version block in an isolated
 Verified package: 0.5.0-rc-2, source ba667107bb7611cbc0f3f47859cb63e970a635b9, macos-arm64. This verifies package layout and the documented native commands; it does not verify unavailable Latest URLs or Windows/Linux execution.
 
 GitHub Latest metadata checked on 2026-10-28: stable 0.4.0, no assets. README includes this limitation and links to the explicit RC instructions under docs/install/. Stable publication and four-platform Latest download/install verification remain with #68 and the pending release task in #72. This PR authorizes no tag or release.
+
+
+## Stable Latest acceptance — 2026-10-28
+
+Release #68 published stable 0.5.0 as Latest from main tag source 43a76b3e8ae837e85f31e1104ca4259137e988a1. All four permanent Latest archive routes and SHA256SUMS were actually downloaded and passed API digest/size, manifest and strict archive/source/metadata verification. Public fresh/repeat native installation and CLI/media acceptance passed on all four targets in https://github.com/mesilov/rarus-echo-php-sdk/actions/runs/40722532306. A separate macOS installation without a version override selected stable 0.5.0 in isolated user directories, preserving personal credentials and persistent PATH. The public macOS package and verification record are saved under downloads/0.5.0/.
+
+Original documentation PRs #75 and #80 are merged with all native/quality/unit/archive checks green and no review threads. The pending #72 stable-link gate is now fulfilled. README keeps permanent Latest URLs and curl-only installation; availability and pinned stable guides now report observed public state. Local README/docs file targets were checked across ten Markdown files. This closes the separate documentation dependency after release #68 publication rather than publishing a release from the original documentation PR.
