@@ -136,7 +136,10 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
     $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
     try {
         $names = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-            'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt', 'runtime-licenses/PHP.txt') + @($files.Keys | Where-Object { $_ -cne 'build-info.json' })
+            'RARUS-ECHO-LICENSE.txt', 'runtime-licenses/PHP.txt') + @($files.Keys | Where-Object { $_ -cne 'build-info.json' })
+        if ($Mode.StartsWith('legacy') -or $Mode -eq 'packaging-licenses') {
+            $names += @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
+        }
         foreach ($name in $names) {
             if ($name -eq $Omit) { continue }
             $entry = $zip.CreateEntry($name)
@@ -287,6 +290,18 @@ try {
         $destination = Join-Path $root 'expanded'
         Expand-RarusEchoArchive $validZip $destination
         Assert-True (Test-Path -LiteralPath (Join-Path $destination 'runtime-licenses/PHP.txt')) 'Missing extracted runtime license.'
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $destination $name))) 'New archive contains a build-helper license.'
+        }
+    }
+    Test-Case 'historical media archives retain optional build-helper licenses' {
+        $path = Join-Path $root 'packaging-licenses.zip'
+        New-TestArchive $path '' @() '' 'packaging-licenses'
+        $destination = Join-Path $root 'packaging-licenses-out'
+        Expand-RarusEchoArchive $path $destination
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (Test-Path -LiteralPath (Join-Path $destination $name)) 'Historical build-helper license was lost.'
+        }
     }
     Test-Case 'media executable mode is required before extraction' {
         $path = Join-Path $root 'wrong-media-mode.zip'
@@ -438,7 +453,7 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
     $fixture = Join-Path $root 'fixture.exe'
     New-ConsoleFixture $fixture ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')
     $script:asset = Join-Path $root 'release.zip'
-    New-TestArchive $script:asset $fixture
+    New-TestArchive $script:asset $fixture @() '' 'packaging-licenses'
     $defaultBin = Join-Path $env:LOCALAPPDATA 'rarus-echo/bin'
     $defaultPackage = Join-Path $env:LOCALAPPDATA 'rarus-echo/package'
     $oldToolkit = Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)
@@ -534,6 +549,12 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
         Assert-True ($output -ceq ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')) 'Updated executable has wrong identity.'
         Assert-True ([IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) -ceq ('notices for ' + $script:tag)) 'Updated release notices were not installed.'
         Assert-True (Test-Path -LiteralPath (Join-Path $oldToolkit 'libexec/ffprobe.exe')) 'Update removed the previous toolkit.'
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (Test-Path -LiteralPath (Join-Path $oldToolkit $name)) 'Historical fixture did not contain its build-helper licenses.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultPackage $name))) 'Update left a stale build-helper license in active notices.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha + '/' + $name)))) 'New immutable package contains a build-helper license.'
+        }
+        Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Update changed configuration.'
     }
     $oldExecutable = (Get-FileHash -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')).Hash
     $oldNotice = [IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md'))

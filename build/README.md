@@ -10,7 +10,7 @@ SPC's downloaded source lock. Compiler caches live under ignored runtime/. Hashe
 endings on every platform; a regression test covers core.autocrlf=true.
 
 The starting point is mesilov/bitrix24-cli at
-f23ca85fe45b003cedd0b6fd0340da6ac850ba00. See THIRD-PARTY-NOTICES.md and
+f23ca85fe45b003cedd0b6fd0340da6ac850ba00. See PACKAGING-NOTICES.md and
 the original license files. Echo adds fileinfo and native Linux arm64.
 There is no executable compressor.
 
@@ -85,7 +85,7 @@ Build artifacts:
 - SHA256SUMS
 
 Each archive contains the executable, build-info.json, runtime-sources.json,
-application/packaging licenses and runtime-licenses/. Unix mode is 0755.
+application/runtime notices and runtime-licenses/. Unix mode is 0755.
 Files outside that allowlist (PHARs, probes, vendor directories, local config)
 are excluded from final archives. Missing notices or a mismatched identity
 fail the build. SHA256SUMS hashes the final compressed archive bytes.
@@ -225,3 +225,26 @@ python3 build/release_acceptance.py --version 0.5.0-rc-1 --source-sha FULL_TAG_C
 
 Use the full SHA printed by the first command and the current machine's target.
 On Windows, run the helper with `python`; it invokes native Windows PowerShell 5.1.
+
+## Distribution notices and source provenance
+
+New platform archives omit `BITRIX24-CLI-LICENSE.txt` and `YIIPRESS-LICENSE.txt`:
+neither project is an application dependency. The PHAR generator and linkage
+checker are build-only, but the PHAR bootstrap and compiled PHP micro patches
+are derived from b24cli (whose packaging pipeline derives from YiiPress).
+Their applicable copyright, terms and disclaimers are consolidated in the
+existing `THIRD-PARTY-NOTICES.md` shipped with every archive. Source provenance
+and the original license files remain in `PACKAGING-NOTICES.md` and `build/`.
+The Windows UTF-8 patch uses PHP CLI APIs; PHP/runtime notices remain bundled.
+
+`THIRD-PARTY-NOTICES.md` describes the shipped application and runtime. Archives
+still include `RARUS-ECHO-LICENSE.txt`, `runtime-licenses/`, `media-licenses/`,
+media manifests/checksums and `media-source.tar.xz`. Build-only reports, probes,
+local state and build-helper license files stay outside new archives.
+
+Both installers accept the two historical license files when present and replace
+the active notices directory completely on update. Archive validation accepts
+the old required files for published RC-2 only at tag `0.5.0-rc-2`, source
+`ba667107bb7611cbc0f3f47859cb63e970a635b9`. The frozen RC-1 no-media contract
+retains its original required files and source pin. Other source identities must
+follow the reduced archive composition. Published assets are not modified.

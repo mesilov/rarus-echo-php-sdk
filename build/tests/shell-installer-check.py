@@ -94,7 +94,7 @@ esac
                                'profile_sha256': PROFILE_SHA}}),
                  'runtime-sources.json': '{}',
                  'THIRD-PARTY-NOTICES.md': 'notices for ' + version,
-                 'RARUS-ECHO-LICENSE.txt': 'own license', 'BITRIX24-CLI-LICENSE.txt': 'upstream', 'YIIPRESS-LICENSE.txt': 'upstream',
+                 'RARUS-ECHO-LICENSE.txt': 'own license',
                  'runtime-licenses/runtime.txt': 'runtime license'}
         files.update({'libexec/ffmpeg': '''#!/bin/sh
 if [ "$1" = -version ]; then echo 'ffmpeg version 9.0.2 fixture'; exit; fi
@@ -169,6 +169,8 @@ printf 'fixture FLAC' > "$last"
             files['rarus-echo'] = '#!/bin/sh\nprintf "RARUS Echo CLI 0.2.0 (source nope)\\n"\n'
         if mode == 'empty-license':
             files['RARUS-ECHO-LICENSE.txt'] = ''
+        if mode == 'packaging-licenses' or (mode and mode.startswith('legacy')):
+            files.update({'BITRIX24-CLI-LICENSE.txt': 'upstream', 'YIIPRESS-LICENSE.txt': 'upstream'})
         if mode and mode.startswith('legacy'):
             files = {name: data for name, data in files.items()
                      if not name.startswith(('libexec/', 'media-'))}
@@ -239,6 +241,24 @@ printf 'fixture FLAC' > "$last"
     def unchanged(self, before):
         for name, value in before.items():
             self.assertEqual((self.home / name).read_bytes(), value, name)
+
+    def test_upgrade_removes_historical_packaging_licenses_from_active_notices(self):
+        self.package('0.2.0', mode='packaging-licenses')
+        self.run_installer('--version', '0.2.0')
+        notices = self.home / '.local/share/rarus-echo/package'
+        for name in ['BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt']:
+            self.assertTrue((notices / name).is_file())
+        config = self.home / '.config/rarus-echo/config.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_bytes(b'user configuration')
+        self.package('0.3.0')
+        self.env['FIXTURE_TAG'] = '0.3.0'
+        self.run_installer('--version', '0.3.0')
+        for name in ['BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt']:
+            self.assertFalse((notices / name).exists())
+        self.assertTrue((notices / 'runtime-licenses/runtime.txt').is_file())
+        self.assertTrue((notices / 'media-licenses/FFmpeg.txt').is_file())
+        self.assertEqual(b'user configuration', config.read_bytes())
 
     def test_install_repeat_update_and_shells(self):
         before = self.sentinel()

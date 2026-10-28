@@ -120,7 +120,8 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $baseRequired = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-        'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
+        'RARUS-ECHO-LICENSE.txt')
+    $historicalLicenses = @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
     $mediaRequired = @('libexec/ffmpeg.exe', 'libexec/ffprobe.exe', 'media-build-info.json', 'media-SHA256SUMS', 'media-source.tar.xz')
     $required = $baseRequired + $mediaRequired
     $members = New-Object 'System.Collections.Generic.Dictionary[string,bool]' ([StringComparer]::OrdinalIgnoreCase)
@@ -176,7 +177,7 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
             if ($isDirectory) {
                 if ($normalized -cne 'runtime-licenses' -and -not $isRuntime) { throw 'Unexpected ZIP archive directory.' }
             } else {
-                if ($required -cnotcontains $name -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
+                if ($required -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
                 if ($entry.Length -le 0) { throw 'Required archive files and licenses must not be empty.' }
                 if ($isRuntime) { $runtimeFiles++ }
                 if ($isMediaLicense) { $mediaLicenseFiles++ }
@@ -215,8 +216,11 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
     if ($Tag -ceq '0.5.0-rc-1') {
         $build = Read-RarusEchoJson (Join-Path $Destination 'build-info.json')
         if (Test-RarusEchoLegacyRelease $build $Tag) {
+            foreach ($name in $historicalLicenses) {
+                if (-not $members.ContainsKey($name)) { throw ('Frozen legacy archive missing required file: ' + $name) }
+            }
             foreach ($name in $members.Keys) {
-                if ($baseRequired -cnotcontains $name -and -not $name.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)) {
+                if ($baseRequired -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and -not $name.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)) {
                     throw 'Frozen legacy archive must contain only its original files and runtime licenses, without media entries.'
                 }
             }

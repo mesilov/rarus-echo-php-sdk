@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Standalone archives omit build-helper licenses for b24cli and YiiPress; applicable upstream terms are consolidated in THIRD-PARTY-NOTICES.md, runtime/media licenses remain bundled, and installers retain compatibility with published archives (#73).
+
 ## [0.5.0-rc-2] - 2026-10-28
 
 Second release candidate for 0.5.0, adding automatic video audio preparation, bundled compact FFmpeg/ffprobe and doctor. Native packages are built from the tagged main commit; prerelease publication preserves Latest stable.

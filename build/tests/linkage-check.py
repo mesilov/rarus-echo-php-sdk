@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reject accidental dependencies on a build host's PHP/compiler libraries.
 
-Adapted from bitrix24-cli; see build/THIRD-PARTY-NOTICES.md.
+Adapted from bitrix24-cli; see build/PACKAGING-NOTICES.md.
 """
 import os
 from pathlib import Path

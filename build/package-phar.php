@@ -2,7 +2,7 @@
 
 /**
  * Packaging approach adapted from yiipress/engine, commit
- * e61459fc788a74b91188d5d41a5fca59a02a229e. See build/THIRD-PARTY-NOTICES.md.
+ * e61459fc788a74b91188d5d41a5fca59a02a229e. See build/PACKAGING-NOTICES.md.
  */
 
 declare(strict_types=1);

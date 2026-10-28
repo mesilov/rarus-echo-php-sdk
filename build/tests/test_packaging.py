@@ -18,6 +18,8 @@ from source import verify_checkout
 from media import toolkit
 
 SHA = "a" * 40
+PACKAGING_LICENSES = ["BITRIX24-CLI-LICENSE.txt", "YIIPRESS-LICENSE.txt"]
+RC2_SHA = "ba667107bb7611cbc0f3f47859cb63e970a635b9"
 
 
 class ArchiveTests(unittest.TestCase):
@@ -35,6 +37,8 @@ class ArchiveTests(unittest.TestCase):
             if name == "runtime-licenses":
                 path.mkdir()
                 (path / "PHP.txt").write_text("license", encoding="utf-8")
+            elif name == "THIRD-PARTY-NOTICES.md":
+                shutil.copy2(Path(__file__).resolve().parents[1] / name, path)
             elif name == "build-info.json":
                 path.write_text(json.dumps({"version": "v0.5.0", "source_sha": sha, "target": target}), encoding="utf-8")
             else:
@@ -70,13 +74,72 @@ class ArchiveTests(unittest.TestCase):
             if target.startswith("windows"):
                 with zipfile.ZipFile(path) as archive:
                     names = archive.namelist()
+                    notices = archive.read("THIRD-PARTY-NOTICES.md").decode()
             else:
                 with tarfile.open(path) as archive:
                     names = archive.getnames()
+                    notices = archive.extractfile("THIRD-PARTY-NOTICES.md").read().decode()
                     self.assertEqual(0o755, archive.getmember("rarus-echo").mode)
             self.assertNotIn(".env", names)
             self.assertNotIn("runtime-probe", names)
+            for name in PACKAGING_LICENSES:
+                self.assertNotIn(name, names)
             self.assertIn("runtime-licenses/PHP.txt", names)
+            self.assertIn("media-licenses/FFmpeg.txt", names)
+            for name in PACKAGING_LICENSES:
+                original = (Path(__file__).resolve().parents[1] / name).read_text()
+                self.assertIn(original, notices)
+
+    def test_historical_rc2_requires_original_licenses_and_exact_identity(self):
+        for target in release_assets.TARGETS:
+            with self.subTest(target=target):
+                root = self.platform(target, sha=RC2_SHA)
+                info = json.loads((root / "build-info.json").read_text())
+                info["version"] = "0.5.0-rc-2"
+                (root / "build-info.json").write_text(json.dumps(info))
+                for name in PACKAGING_LICENSES:
+                    (root / name).write_text("historical build-helper license")
+                archive = self.root / release_assets.archive_name(target)
+                files = sorted(p for p in root.rglob('*') if p.is_file() and p.name not in {'.env', 'runtime-probe'})
+                release_assets._pack_files(files, root, archive, target)
+                release_assets.inspect_archive(archive, target, "0.5.0-rc-2", RC2_SHA)
+                # Both tag and source must match before accepting old files.
+                for version, sha in [("0.5.0-rc-2", SHA), ("0.5.0-future", RC2_SHA)]:
+                    info.update(version=version, source_sha=sha)
+                    (root / "build-info.json").write_text(json.dumps(info))
+                    release_assets._pack_files(files, root, archive, target)
+                    with self.assertRaisesRegex(ValueError, "unexpected"):
+                        release_assets.inspect_archive(archive, target, version, sha)
+                info.update(version="0.5.0-rc-2", source_sha=RC2_SHA)
+                (root / "build-info.json").write_text(json.dumps(info))
+                # A missing old license must not silently choose the reduced shape.
+                release_assets._pack_files([p for p in files if p.name != PACKAGING_LICENSES[0]], root, archive, target)
+                with self.assertRaisesRegex(ValueError, "Incomplete"):
+                    release_assets.inspect_archive(archive, target, "0.5.0-rc-2", RC2_SHA)
+
+    def test_new_archive_rejects_each_historical_packaging_license(self):
+        for target in release_assets.TARGETS:
+            root = self.platform(target)
+            # The producer must ignore stale files outside the distribution list.
+            for name in PACKAGING_LICENSES:
+                (root / name).write_text("build helper only")
+            archive = release_assets.pack(root, target, self.root)
+            for name in PACKAGING_LICENSES:
+                with self.subTest(target=target, name=name):
+                    if target.startswith('windows'):
+                        with zipfile.ZipFile(archive, 'a') as output:
+                            output.writestr(name, 'build helper only')
+                    else:
+                        bad = self.root / 'with-extra.tar.gz'
+                        with tarfile.open(archive) as source, tarfile.open(bad, 'w:gz') as output:
+                            for member in source:
+                                output.addfile(member, source.extractfile(member))
+                            output.add(root / name, arcname=name)
+                        archive = bad
+                    with self.assertRaisesRegex(ValueError, "unexpected"):
+                        release_assets.inspect_archive(archive, target, "v0.5.0", SHA)
+                    # Restore the valid archive before injecting the next file.
+                    archive = release_assets.pack(root, target, self.root)
 
     def test_extracts_tar_and_zip_without_tarfile_filter_support(self):
         output = self.archives()
