@@ -10,6 +10,9 @@
 
 # Build identity hashes raw bytes and must agree across native platforms.
 /build/config.json text eol=lf
+/build/compression.json text eol=lf
+/build/compression-patches/*.json text eol=lf
+/build/licenses/* text eol=lf
 /build/media/** text eol=lf
 /build/media/*.asc text eol=lf
 /tests/Fixtures/Media/*.mp4 -text

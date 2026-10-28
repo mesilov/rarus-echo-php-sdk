@@ -24,6 +24,19 @@ configure_build_console()
 FILE_IDS = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444']
 
 
+def assert_temporary_cleanup(storage, metadata):
+    allowed = set()
+    compression = metadata.get('executable_compression', {})
+    if metadata.get('target') == 'macos-arm64' and compression.get('tool') == 'wrappe':
+        cache = storage / 'rarus-echo-cache'
+        if (compression.get('cache_directory') != cache.name or cache.is_symlink()
+                or not cache.is_dir() or not any(p.is_file() for p in cache.rglob('rarus-echo'))):
+            raise AssertionError('Installed packed CLI has no expected extraction cache')
+        allowed.add(cache.name)
+    if any(path.name not in allowed for path in storage.iterdir()):
+        raise AssertionError('Installed command left owned PHAR/process/media temporary files')
+
+
 def accept(binary, fixtures):
     binary, fixtures = Path(binary).resolve(), Path(fixtures).resolve()
     with tempfile.TemporaryDirectory(prefix='echo installed проверка ') as temporary:
@@ -113,8 +126,7 @@ def accept(binary, fixtures):
                 raise AssertionError('Installed preparation changed sample rate/channel count')
         if hashes != [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources]:
             raise AssertionError('Installed video preparation modified a source file')
-        if list(storage.iterdir()):
-            raise AssertionError('Installed command left owned PHAR/process/media temporary files')
+        assert_temporary_cleanup(storage, json.loads((package / 'build-info.json').read_text()))
         print('Installed native toolkit lookup/audio-only upload accepted: ' + str(binary))
 
 
