@@ -1,9 +1,9 @@
 # RARUS Echo CLI Reference
 
-Target release: **0.5.0**. Verified contract baseline: **0.5.0-rc-3** (prerelease).
+Target release: **0.5.0**. Verified contract baseline: **0.5.0** (stable).
 This file is generated from current checkout structured CLI metadata.
 It intentionally records only RARUS Echo command contracts and excludes framework-provided Symfony options.
-This target is not a claim that stable 0.5.0 is published. Check installed `rarus-echo --version` and command help before execution.
+Stable 0.5.0 native packages have passed public acceptance. Check installed `rarus-echo --version` and command help before execution.
 
 Refresh it after CLI command or option changes:
 

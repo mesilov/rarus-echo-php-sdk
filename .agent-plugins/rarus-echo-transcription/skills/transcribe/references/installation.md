@@ -14,30 +14,32 @@ explain that limitation instead of silently switching to Docker or PHP.
 
 ## Release selection
 
-Target contract: **0.5.0**. Verified published baseline on **2026-10-28**:
-[0.5.0-rc-3](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-3),
-with all seven project commands, including local extract-audio, and bundled media tools. This is a prerelease;
-stable **0.4.0** has no standalone archives. Do not claim stable 0.5.0 is published.
+Target contract and verified published baseline on **2026-10-28**:
+[stable 0.5.0](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0),
+with all seven project commands, local extract-audio and bundled media tools.
+It is Latest stable; four native public-installation targets and all permanent
+Latest download routes were verified. Historical RC tags remain explicitly selectable.
 
 Before offering an installation or upgrade, check
 [releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) for an appropriate
-tag and platform asset. Prefer stable 0.5.0 once its assets are published and
-verified. If only the RC is suitable, say so and let the user choose the prerelease;
-do not substitute it for an authorized stable installation. Do not use an
-unversioned installer assuming Latest already contains standalone packages.
+verified stable tag and platform asset. If only a prerelease provides the requested
+capability, explain that choice and retain the user's installation authorization;
+do not silently substitute a prerelease for an authorized stable installation.
+An unversioned installer selects Latest stable; explicit versions reproduce a
+particular verified release.
 
-## Installer examples for the verified RC
+## Installer examples for verified stable 0.5.0
 
 Linux amd64/arm64 or macOS Apple Silicon:
 
 ```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-3
+curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0
 ```
 
 Windows amd64, PowerShell 5.1 or newer:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-3
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0
 ```
 
 When selecting another verified release, replace the version explicitly. The

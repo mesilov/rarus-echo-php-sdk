@@ -205,10 +205,10 @@ for (const name of projectCommands) {
 const lines = [];
 lines.push("# RARUS Echo CLI Reference");
 lines.push("");
-lines.push("Target release: **0.5.0**. Verified contract baseline: **0.5.0-rc-3** (prerelease).");
+lines.push("Target release: **0.5.0**. Verified contract baseline: **0.5.0** (stable).");
 lines.push("This file is generated from current checkout structured CLI metadata.");
 lines.push("It intentionally records only RARUS Echo command contracts and excludes framework-provided Symfony options.");
-lines.push("This target is not a claim that stable 0.5.0 is published. Check installed `rarus-echo --version` and command help before execution.");
+lines.push("Stable 0.5.0 native packages have passed public acceptance. Check installed `rarus-echo --version` and command help before execution.");
 lines.push("");
 lines.push("Refresh it after CLI command or option changes:");
 lines.push("");
