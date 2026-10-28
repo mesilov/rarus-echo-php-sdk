@@ -91,6 +91,7 @@ extract-audio [--audio-stream AUDIO-STREAM] [--media-timeout MEDIA-TIMEOUT] [--j
 
 | Option | Accepts Value | Value Required | Multiple | Default | Description |
 | --- | --- | --- | --- | --- | --- |
+| `--config` | yes | yes | no | `null` | Read connection settings from this file. |
 | `--json` | no | no | no | `false` | Write command result as JSON. |
 | `--audio-stream` | yes | yes | no | `null` | Absolute non-negative audio stream index. |
 | `--media-timeout` | yes | yes | no | `"600"` | Combined probe and preparation deadline in seconds. |

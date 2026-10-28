@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Maintainer skill requires creating GitHub issues through non-interactive `gh`, without UI or MCP creation forms (#78).
 
 ### Fixed
+- Include the accepted global `--config` option in the `extract-audio` CLI reference allowlist, keeping the stricter reference validator compatible with local extraction (#78).
 - Windows installer tolerates brief executable sharing/lock violations during atomic activation with at most twenty 250 ms retries; permission errors and persistent locks retain existing failure/rollback behavior (#78 native acceptance blocker).
 
 ## [0.5.0-rc-2] - 2026-10-28
