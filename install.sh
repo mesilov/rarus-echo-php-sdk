@@ -1,6 +1,6 @@
 #!/bin/sh
 # Adapted from mesilov/bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (BSD-3-Clause).
-# See build/BITRIX24-CLI-LICENSE.txt and build/THIRD-PARTY-NOTICES.md.
+# See build/BITRIX24-CLI-LICENSE.txt and build/PACKAGING-NOTICES.md.
 # Install only public GitHub release assets; no API tokens or CI fallback.
 set -eu
 LC_ALL=C
@@ -175,9 +175,9 @@ awk '
       }
       if (tolower(name) in directories) exit 1;
       files[tolower(name)]=1;
-      if (name ~ /^(rarus-echo|build-info.json|runtime-sources.json|THIRD-PARTY-NOTICES.md|RARUS-ECHO-LICENSE.txt|BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt|media-build-info.json|media-source.tar.xz|media-SHA256SUMS)$/) next;
+      if (name ~ /^(rarus-echo|build-info.json|runtime-sources.json|THIRD-PARTY-NOTICES.md|RARUS-ECHO-LICENSE.txt|BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt|media-build-info.json|media-source.tar.xz|media-SHA256SUMS|compression-info.json)$/) next;
       if (name ~ /^libexec\/(ffmpeg|ffprobe)$/) next;
-      if (name ~ /^(runtime-licenses|media-licenses)\//) next;
+      if (name ~ /^(runtime-licenses|media-licenses|compression-licenses)\//) next;
       exit 1 }
 ' "$work/members" || fail 'unsafe or unexpected archive member'
 tar -tvzf "$work/$archive" > "$work/types" || fail 'cannot inspect archive'
@@ -188,13 +188,15 @@ awk '
 ' "$work/types" || fail 'archive must contain regular files with exact executable/data permissions'
 mkdir "$work/package"
 tar -xzf "$work/$archive" -C "$work/package" || fail 'cannot unpack archive'
-for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt; do
     [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "archive missing required file: $file"
 done
 have_license=0
 have_media_license=0
 while IFS= read -r member; do
-    case "$member" in runtime-licenses/*)
+    case "$member" in BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt)
+        [ -s "$work/package/$member" ] || fail "empty historical packaging license: $member" ;;
+        runtime-licenses/*)
         [ -f "$work/package/$member" ] && [ -s "$work/package/$member" ] || fail "empty runtime license: $member"
         have_license=1 ;;
         media-licenses/*)
@@ -309,12 +311,76 @@ validate_media() {
     [ "$probe" = flac ] || fail 'bundled media probe did not confirm FLAC audio'
 }
 json_records "$work/package/build-info.json" > "$work/build-records" || fail 'invalid CLI build JSON'
+have_compression=0
+if awk -F '\t' '$1=="executable_compression" {found=1} END {exit !found}' "$work/build-records"; then
+    have_compression=1
+    [ -s "$work/package/compression-info.json" ] || fail 'missing compression report'
+    json_records "$work/package/compression-info.json" > "$work/compression-records" || fail 'invalid compression JSON'
+    compression_tool=$(field "$work/build-records" executable_compression.tool) || fail 'missing compression tool'
+    case "$target:$compression_tool" in macos-arm64:wrappe|linux-amd64:upx|linux-arm64:upx) ;; *) fail 'unexpected compression tool' ;; esac
+    [ "$(field "$work/compression-records" target)" = "$target" ] || fail 'compression target mismatch'
+    build_compressor=$(awk -F '\t' 'index($1,"executable_compression.")==1 {sub(/^executable_compression\./,""); print}' "$work/build-records" | LC_ALL=C sort)
+    report_compressor=$(awk -F '\t' 'index($1,"compressor.")==1 {sub(/^compressor\./,""); print}' "$work/compression-records" | LC_ALL=C sort)
+    [ "$build_compressor" = "$report_compressor" ] || fail 'compression provenance mismatch'
+    compression_version=$(field "$work/build-records" executable_compression.version) || fail 'missing compressor version'
+    printf '%s\n' "$compression_version" | grep -Eq '^[0-9]+(\.[0-9]+)+$' || fail 'invalid compressor version'
+    if [ "$compression_tool" = upx ]; then
+        [ "$(field "$work/build-records" executable_compression.strategy)" = micro-before-phar ] || fail 'invalid UPX strategy'
+        [ "$(field "$work/build-records" executable_compression.level)" = --best ] || fail 'invalid UPX level'
+        compression_hash_fields=archive_sha256
+    else
+        [ "$(field "$work/build-records" executable_compression.strategy)" = whole-executable ] || fail 'invalid wrappe strategy'
+        compression_level=$(field "$work/build-records" executable_compression.compression number) || fail 'missing wrappe level'
+        case "$compression_level" in ''|*[!0-9]*) fail 'invalid wrappe level' ;; esac
+        [ "$compression_level" -ge 1 ] && [ "$compression_level" -le 22 ] || fail 'invalid wrappe level'
+        rust_version=$(field "$work/build-records" executable_compression.rust_toolchain) || fail 'missing Rust toolchain'
+        printf '%s\n' "$rust_version" | grep -Eq '^[0-9]+(\.[0-9]+)+$' || fail 'invalid Rust toolchain'
+        compression_hash_fields='crate_sha256 runner_build_patch_sha256 launcher_patch_sha256'
+    fi
+    for key in $compression_hash_fields; do
+        value=$(field "$work/build-records" "executable_compression.$key") || fail 'missing compression source hash'
+        [ "${#value}" -eq 64 ] || fail 'invalid compression source hash'
+        case "$value" in *[!0-9a-f]*) fail 'invalid compression source hash' ;; esac
+    done
+    compression_entries=$(awk -F '\t' '$1 ~ /^executables\.[^.]+$/ {print $1}' "$work/compression-records" | LC_ALL=C sort)
+    [ "$compression_entries" = "$(printf '%s\n' executables.rarus-echo executables.runtime-probe)" ] || fail 'compression executable set differs'
+    for item in rarus-echo runtime-probe; do
+        for key in original_sha256 compressed_sha256; do
+            value=$(field "$work/compression-records" "executables.$item.$key") || fail 'missing executable compression hash'
+            [ "${#value}" -eq 64 ] || fail 'invalid executable compression hash'
+            case "$value" in *[!0-9a-f]*) fail 'invalid executable compression hash' ;; esac
+        done
+        packed_bytes=$(field "$work/compression-records" "executables.$item.compressed_bytes" number) || fail 'missing compressed size'
+        raw_bytes=$(field "$work/compression-records" "executables.$item.original_bytes" number) || fail 'missing original size'
+        case "$packed_bytes:$raw_bytes" in *[!0-9:]*|:*|*:) fail 'invalid compression sizes' ;; esac
+        [ "$packed_bytes" -gt 0 ] && [ "$raw_bytes" -gt "$packed_bytes" ] || fail 'invalid compression reduction'
+    done
+    final_hash=$(field "$work/compression-records" executables.rarus-echo.compressed_sha256) || fail 'missing compressed hash'
+    [ "$final_hash" = "$(hash_file "$work/package/rarus-echo")" ] || fail 'compressed executable hash mismatch'
+    final_size=$(field "$work/compression-records" executables.rarus-echo.compressed_bytes number) || fail 'missing compressed size'
+    original_size=$(field "$work/compression-records" executables.rarus-echo.original_bytes number) || fail 'missing original size'
+    case "$final_size:$original_size" in *[!0-9:]*|:*|*:) fail 'invalid compression sizes' ;; esac
+    [ "$final_size" -gt 0 ] && [ "$original_size" -gt "$final_size" ] && [ "$final_size" -eq "$(wc -c < "$work/package/rarus-echo")" ] || fail 'invalid compression reduction/size'
+    have_compression_license=0
+    while IFS= read -r member; do
+        case "$member" in compression-licenses/*)
+            [ -s "$work/package/$member" ] || fail 'empty compression license'
+            have_compression_license=1 ;;
+        esac
+    done < "$work/members"
+    [ "$have_compression_license" -eq 1 ] || fail 'missing compression licenses'
+else
+    awk '/^compression-/ {exit 1}' "$work/members" || fail 'undeclared compression artifacts'
+fi
 legacy_package=0
 # Frozen compatibility for the only published pre-media standalone release.
 # No other version/source pair may omit the complete media payload.
 if [ "$version" = 0.5.0-rc-1 ] && [ "$(field "$work/build-records" source_sha)" = e359975527bd483707dc39d23599545a77c1620d ]; then
     legacy_package=1
-    awk '/^(libexec\/|media-)/ {exit 1}' "$work/members" || fail 'frozen legacy archive must not contain media entries'
+    for file in BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+        [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "frozen legacy archive missing required file: $file"
+    done
+    awk '/^(libexec\/|media-|compression-)/ {exit 1}' "$work/members" || fail 'frozen legacy archive must not contain media entries'
     awk -F '\t' '$1=="media" || index($1,"media.")==1 {exit 1}' "$work/build-records" || fail 'frozen legacy metadata must not declare media'
     [ "$(field "$work/build-records" target)" = "$target" ] || fail 'frozen legacy archive target mismatch'
 else
@@ -382,9 +448,16 @@ chmod 755 "$binary_stage"
 staged_version=$("$binary_stage" --version --no-ansi) || fail 'staged binary cannot execute in install directory'
 [ "$staged_version" = "$reported" ] || fail 'staged binary version mismatch'
 package_stage=$(mktemp -d "$share_dir/.package.XXXXXXXX")
-for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses; do
+for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt runtime-licenses; do
     cp -R "$work/package/$file" "$package_stage/"
 done
+# Historical archives carry separate build-helper license files.
+for file in BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+    if [ -f "$work/package/$file" ]; then cp "$work/package/$file" "$package_stage/"; fi
+done
+if [ "$have_compression" -eq 1 ]; then
+    cp -R "$work/package/compression-info.json" "$work/package/compression-licenses" "$package_stage/"
+fi
 if [ "$legacy_package" -eq 0 ]; then
     for file in media-build-info.json media-licenses media-SHA256SUMS; do cp -R "$work/package/$file" "$package_stage/"; done
 fi

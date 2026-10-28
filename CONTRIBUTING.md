@@ -431,7 +431,7 @@ When adding new features:
 3. **Add Models**: Create request/result models in `Services/.../Request` and `Services/.../Result`
 4. **Update Application**: Add service getter in `ServiceFactory`
 5. **Add Tests**: Create comprehensive unit tests
-6. **Document**: Update README with inline examples or add PHPDoc examples where useful
+6. **Document**: Update the focused guides in `docs/` or add PHPDoc examples where useful; keep README concise.
 
 ## Documentation
 
@@ -472,24 +472,22 @@ public function submit(
 }
 ```
 
-### README Updates
+### Documentation Updates
 
-Update README.md when:
-- Adding new features
-- Changing public APIs
-- Adding new inline examples
-- Changing requirements
+Keep `README.md` as the short entry point with Latest downloads, curl-based installation and first use. Put installation details in [docs/install/](docs/install/README.md), CLI usage and complete option tables in [docs/cli.md](docs/cli.md), and PHP examples in [docs/php-sdk.md](docs/php-sdk.md). Update the linked guide when adding features, changing public APIs or requirements.
+
+When CLI commands or options change, update `docs/cli.md` by hand and regenerate the transcription-skill reference with `.agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh`. Run `make lint-agent-plugins` to verify the generated reference. Keep the README link to the CLI guide.
 
 ### Examples
 
-Add examples directly to `README.md` for user-facing workflows, or to PHPDoc `@example` blocks for API-level details.
+Add detailed user-facing examples to the relevant guide in `docs/`, or to PHPDoc `@example` blocks for API-level details.
 
 ## Release Process
 
 Maintainers handle releases:
 
 1. Update version in appropriate files
-2. Update CHANGELOG.md
+2. Update CHANGELOG.md, the Composer example in `docs/install/php.md`, and release availability in `docs/install/README.md`. Keep README download URLs version-independent; after publishing stable assets, check all four Latest links and update the availability notice.
 3. Create release tag
 4. Publish to Packagist
 5. Push the version tag to trigger `Standalone CLI`: all four native archives must build and pass isolated acceptance before GitHub Release assets are published.

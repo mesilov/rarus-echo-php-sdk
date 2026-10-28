@@ -91,7 +91,7 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_legacy_archive_requires_explicit_tag_source_contract(self):
         archive, manifest = self.archive(media=False, sha=LEGACY_SHA)
-        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+        with self.assertRaisesRegex(ValueError, 'Incomplete|unexpected'):
             release_acceptance.verify_archive(archive, manifest, 'linux-amd64', VERSION, LEGACY_SHA)
         release_acceptance.verify_archive(archive, manifest, 'linux-amd64', VERSION, LEGACY_SHA, require_media=False)
         destination = self.root / 'extracted historical'
@@ -125,7 +125,7 @@ class AcceptanceTests(unittest.TestCase):
         manifest.write_text('\n'.join(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name
                                      if line.endswith('  ' + archive.name) else line for line in records) + '\n')
         release_acceptance.verify_archive(archive, manifest, 'windows-amd64', VERSION, LEGACY_SHA, require_media=False)
-        with self.assertRaisesRegex(ValueError, 'permission'):
+        with self.assertRaisesRegex(ValueError, 'permission|unexpected'):
             release_acceptance.verify_archive(archive, manifest, 'windows-amd64', VERSION, LEGACY_SHA)
 
     def test_rejects_missing_duplicate_and_malformed_checksum_records(self):

@@ -136,7 +136,10 @@ function New-TestArchive([string]$Path, [string]$Executable, [object[]]$Extra = 
     $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
     try {
         $names = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-            'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt', 'runtime-licenses/PHP.txt') + @($files.Keys | Where-Object { $_ -cne 'build-info.json' })
+            'RARUS-ECHO-LICENSE.txt', 'runtime-licenses/PHP.txt') + @($files.Keys | Where-Object { $_ -cne 'build-info.json' })
+        if ($Mode.StartsWith('legacy') -or $Mode -eq 'packaging-licenses') {
+            $names += @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
+        }
         foreach ($name in $names) {
             if ($name -eq $Omit) { continue }
             $entry = $zip.CreateEntry($name)
@@ -228,6 +231,46 @@ public static class RarusEchoInstallerTestEnvironment {
 }
 
 try {
+    Test-Case 'executable activation retries temporary sharing and lock violations' {
+        foreach ($code in @(32, 33)) {
+            $script:sharingAttempts = 0
+            $script:sharingCode = $code
+            Invoke-RarusEchoSharingRetry {
+                $script:sharingAttempts++
+                if ($script:sharingAttempts -lt 3) {
+                    throw (New-Object IO.IOException -ArgumentList 'fixture sharing violation', ([int](-2147024896 + $script:sharingCode)))
+                }
+            }
+            Assert-True ($script:sharingAttempts -eq 3) 'Temporary executable sharing lock was not retried.'
+        }
+    }
+    Test-Case 'executable activation sharing retries are bounded' {
+        $script:sharingAttempts = 0
+        Assert-Fails {
+            Invoke-RarusEchoSharingRetry {
+                $script:sharingAttempts++
+                throw (New-Object IO.IOException -ArgumentList 'fixture persistent sharing lock', ([int](-2147024864)))
+            }
+        } 'fixture persistent sharing lock'
+        Assert-True ($script:sharingAttempts -eq 20) 'Persistent executable lock was not bounded to twenty attempts.'
+    }
+    Test-Case 'executable activation does not retry permissions or unrelated errors' {
+        foreach ($failure in @(
+            (New-Object IO.IOException -ArgumentList 'fixture access denied', ([int](-2147024891))),
+            (New-Object UnauthorizedAccessException -ArgumentList 'fixture permission denied'),
+            (New-Object InvalidOperationException -ArgumentList 'fixture unrelated failure')
+        )) {
+            $script:sharingAttempts = 0
+            $script:activationFailure = $failure
+            Assert-Fails {
+                Invoke-RarusEchoSharingRetry {
+                    $script:sharingAttempts++
+                    throw $script:activationFailure
+                }
+            } 'fixture'
+            Assert-True ($script:sharingAttempts -eq 1) 'A non-sharing error was retried.'
+        }
+    }
     Test-Case 'native interop definitions are available without compiler output' {
         Initialize-RarusEchoNativeMethods
         $native = 'RarusEchoInstallerNativeMethods' -as [type]
@@ -287,6 +330,44 @@ try {
         $destination = Join-Path $root 'expanded'
         Expand-RarusEchoArchive $validZip $destination
         Assert-True (Test-Path -LiteralPath (Join-Path $destination 'runtime-licenses/PHP.txt')) 'Missing extracted runtime license.'
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $destination $name))) 'New archive contains a build-helper license.'
+        }
+    }
+    Test-Case 'historical media archives retain optional build-helper licenses' {
+        $path = Join-Path $root 'packaging-licenses.zip'
+        New-TestArchive $path '' @() '' 'packaging-licenses'
+        $destination = Join-Path $root 'packaging-licenses-out'
+        Expand-RarusEchoArchive $path $destination
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (Test-Path -LiteralPath (Join-Path $destination $name)) 'Historical build-helper license was lost.'
+        }
+    }
+    Test-Case 'compressed package validates provenance and rejects tampering or missing notices' {
+        $directory = Join-Path $root 'compression-expanded'
+        Expand-RarusEchoArchive $validZip $directory
+        $metadata = Read-RarusEchoJson (Join-Path $directory 'build-info.json')
+        $compressor = [pscustomobject]@{ tool = 'upx'; version = '5.2.1'; strategy = 'micro-before-phar'; level = '--best'; archive_sha256 = 'e' * 64 }
+        $metadata | Add-Member -NotePropertyName executable_compression -NotePropertyValue $compressor
+        [IO.File]::WriteAllText((Join-Path $directory 'build-info.json'), ($metadata | ConvertTo-Json -Depth 10))
+        $binary = Join-Path $directory 'rarus-echo.exe'
+        $entry = @{ original_bytes = 10000; original_sha256 = 'a' * 64; compressed_bytes = (Get-Item -LiteralPath $binary).Length;
+            compressed_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant() }
+        $report = @{ target = 'windows-amd64'; compressor = $compressor; executables = @{ 'rarus-echo.exe' = $entry; 'runtime-probe.exe' = $entry.Clone() } }
+        $reportPath = Join-Path $directory 'compression-info.json'
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        $licenses = Join-Path $directory 'compression-licenses'
+        [void][IO.Directory]::CreateDirectory($licenses)
+        [IO.File]::WriteAllText((Join-Path $licenses 'UPX.txt'), 'notice')
+        Assert-RarusEchoCompression $directory
+        $originalHash = $entry.compressed_sha256
+        $entry.compressed_sha256 = 'f' * 64
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        Assert-Fails { Assert-RarusEchoCompression $directory } 'compression hash'
+        $entry.compressed_sha256 = $originalHash
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        Remove-Item -LiteralPath $licenses -Recurse -Force
+        Assert-Fails { Assert-RarusEchoCompression $directory } 'compression provenance/notices'
     }
     Test-Case 'media executable mode is required before extraction' {
         $path = Join-Path $root 'wrong-media-mode.zip'
@@ -438,7 +519,7 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
     $fixture = Join-Path $root 'fixture.exe'
     New-ConsoleFixture $fixture ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')
     $script:asset = Join-Path $root 'release.zip'
-    New-TestArchive $script:asset $fixture
+    New-TestArchive $script:asset $fixture @() '' 'packaging-licenses'
     $defaultBin = Join-Path $env:LOCALAPPDATA 'rarus-echo/bin'
     $defaultPackage = Join-Path $env:LOCALAPPDATA 'rarus-echo/package'
     $oldToolkit = Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha)
@@ -534,6 +615,12 @@ if (@([IO.Directory]::EnumerateFileSystemEntries($env:TEMP)).Count) { throw 'Boo
         Assert-True ($output -ceq ('RARUS Echo CLI ' + $script:tag + ' (source ' + $script:sha + ')')) 'Updated executable has wrong identity.'
         Assert-True ([IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md')) -ceq ('notices for ' + $script:tag)) 'Updated release notices were not installed.'
         Assert-True (Test-Path -LiteralPath (Join-Path $oldToolkit 'libexec/ffprobe.exe')) 'Update removed the previous toolkit.'
+        foreach ($name in @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')) {
+            Assert-True (Test-Path -LiteralPath (Join-Path $oldToolkit $name)) 'Historical fixture did not contain its build-helper licenses.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultPackage $name))) 'Update left a stale build-helper license in active notices.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $defaultBin ('.rarus-echo/packages/' + $script:tag + '-' + $script:sha + '/' + $name)))) 'New immutable package contains a build-helper license.'
+        }
+        Assert-True ([IO.File]::ReadAllText($config) -eq 'sensitive-user-config-fixture') 'Update changed configuration.'
     }
     $oldExecutable = (Get-FileHash -LiteralPath (Join-Path $defaultBin 'rarus-echo.exe')).Hash
     $oldNotice = [IO.File]::ReadAllText((Join-Path $defaultPackage 'THIRD-PARTY-NOTICES.md'))

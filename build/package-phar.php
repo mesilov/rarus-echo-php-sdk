@@ -2,7 +2,7 @@
 
 /**
  * Packaging approach adapted from yiipress/engine, commit
- * e61459fc788a74b91188d5d41a5fca59a02a229e. See build/THIRD-PARTY-NOTICES.md.
+ * e61459fc788a74b91188d5d41a5fca59a02a229e. See build/PACKAGING-NOTICES.md.
  */
 
 declare(strict_types=1);
@@ -70,8 +70,8 @@ if (!in_array($strategy, ['in-place', 'temporary-phar'], true)) {
     throw new RuntimeException('Unsupported PHAR payload strategy.');
 }
 $stub = str_replace(
-    ['__ECHO_ENTRY__', '__ECHO_PAYLOAD_STRATEGY__'],
-    [$entry, $strategy],
+    ['__ECHO_ENTRY__', '__ECHO_PAYLOAD_STRATEGY__', '__ECHO_LAUNCHER__'],
+    [$entry, $strategy, getenv('ECHO_LAUNCHER') ?: 'none'],
     file_get_contents(__DIR__ . '/phar-stub.php')
 );
 $phar->setStub($stub);

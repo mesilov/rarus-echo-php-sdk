@@ -94,7 +94,7 @@ esac
                                'profile_sha256': PROFILE_SHA}}),
                  'runtime-sources.json': '{}',
                  'THIRD-PARTY-NOTICES.md': 'notices for ' + version,
-                 'RARUS-ECHO-LICENSE.txt': 'own license', 'BITRIX24-CLI-LICENSE.txt': 'upstream', 'YIIPRESS-LICENSE.txt': 'upstream',
+                 'RARUS-ECHO-LICENSE.txt': 'own license',
                  'runtime-licenses/runtime.txt': 'runtime license'}
         files.update({'libexec/ffmpeg': '''#!/bin/sh
 if [ "$1" = -version ]; then echo 'ffmpeg version 9.0.2 fixture'; exit; fi
@@ -169,6 +169,8 @@ printf 'fixture FLAC' > "$last"
             files['rarus-echo'] = '#!/bin/sh\nprintf "RARUS Echo CLI 0.2.0 (source nope)\\n"\n'
         if mode == 'empty-license':
             files['RARUS-ECHO-LICENSE.txt'] = ''
+        if mode == 'packaging-licenses' or (mode and mode.startswith('legacy')):
+            files.update({'BITRIX24-CLI-LICENSE.txt': 'upstream', 'YIIPRESS-LICENSE.txt': 'upstream'})
         if mode and mode.startswith('legacy'):
             files = {name: data for name, data in files.items()
                      if not name.startswith(('libexec/', 'media-'))}
@@ -180,6 +182,25 @@ printf 'fixture FLAC' > "$last"
             if mode == 'legacy-missing-license': del files['runtime-licenses/runtime.txt']
         if mode in ('wrapped-identity', 'legacy-wrapped-identity'):
             files['build-info.json'] = json.dumps({'': json.loads(files['build-info.json'])})
+        if mode in ('compressed', 'bad-compression-hash', 'missing-compression-notice', 'undeclared-compression', 'bad-compression-provenance', 'missing-probe', 'bad-original-hash'):
+            compressor = {'tool': 'upx', 'version': '5.2.1', 'strategy': 'micro-before-phar', 'level': '--best', 'archive_sha256': 'e' * 64}
+            metadata = json.loads(files['build-info.json'])
+            if mode != 'undeclared-compression': metadata['executable_compression'] = compressor
+            files['build-info.json'] = json.dumps(metadata)
+            record = {'original_bytes': 10000, 'compressed_bytes': len(files['rarus-echo'].encode()),
+                      'original_sha256': 'a' * 64, 'compressed_sha256': hashlib.sha256(files['rarus-echo'].encode()).hexdigest()}
+            if mode == 'bad-compression-hash': record['compressed_sha256'] = 'f' * 64
+            files['compression-info.json'] = json.dumps({'target': target, 'compressor': compressor,
+                'executables': {'rarus-echo': record, 'runtime-probe': record}})
+            if mode != 'missing-compression-notice': files['compression-licenses/UPX.txt'] = 'packer notice'
+            if mode in ('bad-compression-provenance', 'missing-probe', 'bad-original-hash'):
+                report = json.loads(files['compression-info.json'])
+                if mode == 'bad-compression-provenance':
+                    metadata['executable_compression'] = report['compressor'] = {'tool': 'upx'}
+                    files['build-info.json'] = json.dumps(metadata)
+                if mode == 'missing-probe': del report['executables']['runtime-probe']
+                if mode == 'bad-original-hash': del report['executables']['rarus-echo']['original_sha256']
+                files['compression-info.json'] = json.dumps(report)
         with tarfile.open(archive, 'w:gz') as tar:
             for filename, value in files.items():
                 data = value.encode()
@@ -239,6 +260,40 @@ printf 'fixture FLAC' > "$last"
     def unchanged(self, before):
         for name, value in before.items():
             self.assertEqual((self.home / name).read_bytes(), value, name)
+
+    def test_upgrade_removes_historical_packaging_licenses_from_active_notices(self):
+        self.package('0.2.0', mode='packaging-licenses')
+        self.run_installer('--version', '0.2.0')
+        notices = self.home / '.local/share/rarus-echo/package'
+        for name in ['BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt']:
+            self.assertTrue((notices / name).is_file())
+        config = self.home / '.config/rarus-echo/config.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_bytes(b'user configuration')
+        self.package('0.3.0', mode='compressed')
+        self.env['FIXTURE_TAG'] = '0.3.0'
+        self.run_installer('--version', '0.3.0')
+        for name in ['BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt']:
+            self.assertFalse((notices / name).exists())
+        self.assertTrue((notices / 'runtime-licenses/runtime.txt').is_file())
+        self.assertTrue((notices / 'media-licenses/FFmpeg.txt').is_file())
+        self.assertTrue((notices / 'compression-info.json').is_file())
+        self.assertTrue((notices / 'compression-licenses/UPX.txt').is_file())
+        self.assertEqual(b'user configuration', config.read_bytes())
+
+    def test_compressed_package_installs_and_retains_provenance(self):
+        self.package(mode='compressed')
+        self.run_installer('--no-modify-path')
+        notices = self.home / '.local/share/rarus-echo/package'
+        self.assertTrue((notices / 'compression-info.json').is_file())
+        self.assertEqual((notices / 'compression-licenses/UPX.txt').read_text(), 'packer notice')
+
+    def test_invalid_compression_preserves_previous_install(self):
+        before = self.sentinel()
+        for mode in ['bad-compression-hash', 'missing-compression-notice', 'undeclared-compression', 'bad-compression-provenance', 'missing-probe', 'bad-original-hash']:
+            self.package(mode=mode)
+            self.run_installer('--no-modify-path', success=False)
+            self.unchanged(before)
 
     def test_install_repeat_update_and_shells(self):
         before = self.sentinel()

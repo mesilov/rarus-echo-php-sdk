@@ -247,6 +247,31 @@ def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True
                       "Uploaded media did not preserve audio-only channel/rate contract")
                 check(hashlib.sha256(video.read_bytes()).hexdigest() == original_hash, "Source video changed")
                 check(not list(temporary.glob("rarus-echo-media-*")), "Prepared temporary files were not cleaned")
+                # This harness also accepts published releases predating local extraction.
+                listed = json.loads(command(binary, ["list", "--format=json"], elsewhere, env).stdout)
+                if any(item["name"] == "extract-audio" for item in listed["commands"]):
+                    for source_name, extension, codec in [("video-aac.mp4", ".m4a", "aac"),
+                                                           ("video-ac3.mkv", ".flac", "flac")]:
+                        local_video = elsewhere / ("локальное $ " + source_name)
+                        shutil.copy2(fixtures / source_name, local_video)
+                        before = len(Handler.requests)
+                        extracted = command(binary, ["extract-audio", str(local_video), "--json",
+                                                     "--config", str(workspace / "missing.json")],
+                                            workspace, env)
+                        local_audio = local_video.with_suffix(extension).resolve()
+                        check(json.loads(extracted.stdout) == {"output": str(local_audio)},
+                              "Local extraction path/JSON contract changed")
+                        check(len(Handler.requests) == before, "Local extraction made an API request")
+                        streams = json.loads(command(tool, ["-v", "error", "-show_streams", "-of", "json",
+                                                            str(local_audio)], elsewhere, env).stdout)["streams"]
+                        check(len(streams) == 1 and streams[0]["codec_name"] == codec,
+                              "Local extraction selected an incorrect audio route")
+                        digest = hashlib.sha256(local_audio.read_bytes()).hexdigest()
+                        command(binary, ["extract-audio", str(local_video), "--json"], workspace, env, expected=1)
+                        check(hashlib.sha256(local_audio.read_bytes()).hexdigest() == digest,
+                              "Local extraction overwrote existing audio")
+                    check(not list(elsewhere.glob(".rarus-echo-audio-*")), "Extraction retained staging files")
+                    check(not list(temporary.glob("rarus-echo-media-*")), "Extraction retained prepared files")
             check(API_KEY not in upload.stdout + upload.stderr
                   and USER_ID not in upload.stdout + upload.stderr, "Credentials leaked to output")
         finally:

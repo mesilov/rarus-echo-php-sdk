@@ -157,6 +157,7 @@ validate_marketplace "${REPO_ROOT}/.agents/plugins/marketplace.json" "./.agent-p
 validate_codex_marketplace_metadata "${REPO_ROOT}/.agents/plugins/marketplace.json"
 validate_skill_frontmatter "${PLUGIN_DIR}/skills/${SKILL_NAME}/SKILL.md"
 require_file "${PLUGIN_DIR}/skills/${SKILL_NAME}/references/distribution.md" >/dev/null
+require_file "${PLUGIN_DIR}/skills/${SKILL_NAME}/references/installation.md" >/dev/null
 validate_cli_reference
 
 if [[ ${ERRORS} -ne 0 ]]; then

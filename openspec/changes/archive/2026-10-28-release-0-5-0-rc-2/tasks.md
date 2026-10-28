@@ -9,14 +9,14 @@
 
 ## 2. Promote to main
 
-- [ ] 2.1 Open the dev-based #69 release PR into main; verify all applicable CI checks and handle inline/top-level agent feedback before merging the checked source.
-- [ ] 2.2 Verify main contains the release source and create exact 0.5.0-rc-2 tag; verify the tag points to that full main SHA without replacing earlier tags.
+- [x] 2.1 Open the dev-based #69 release PR into main; verify all applicable CI checks and handle inline/top-level agent feedback before merging the checked source.
+- [x] 2.2 Verify main contains the release source and create exact 0.5.0-rc-2 tag; verify the tag points to that full main SHA without replacing earlier tags.
 
 ## 3. Publish and accept
 
-- [ ] 3.1 Wait for the tag workflow's four native builds, aggregate archive validation and publication; verify four archives, SHA256SUMS, prerelease metadata and unchanged Latest stable.
-- [ ] 3.2 Dispatch public acceptance on main for the exact rc-2 tag/source; verify all four platform jobs pass with public downloads and installers.
-- [ ] 3.3 Save the public macOS arm64 archive, SHA256SUMS and main installer in a separate local downloads/0.5.0-rc-2 directory; verify archive identity/hash and provide the manual handoff path without replacing the user's own acceptance.
+- [x] 3.1 Wait for the tag workflow's four native builds, aggregate archive validation and publication; verify four archives, SHA256SUMS, prerelease metadata and unchanged Latest stable.
+- [x] 3.2 Dispatch public acceptance on main for the exact rc-2 tag/source; verify all four platform jobs pass with public downloads and installers.
+- [x] 3.3 Save the public macOS arm64 archive, SHA256SUMS and main installer in a separate local downloads/0.5.0-rc-2 directory; verify archive identity/hash and provide the manual handoff path without replacing the user's own acceptance.
 
 ## Workflow follow-up
 

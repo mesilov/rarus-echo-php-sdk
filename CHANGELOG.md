@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-rc-3] - 2026-10-28
+
+Third release candidate for 0.5.0, prepared from dev. It retains standalone CLI packages for four platforms, one-line installers, saved connection configuration, doctor and bundled FFmpeg/ffprobe from earlier candidates. This candidate adds local audio extraction, smaller executables and updated documentation. Prerelease publication preserves Latest stable 0.4.0.
+
+### Added
+- Local `extract-audio <file>` command saves verified audio beside its video with the same basename, without credentials or upload. Supports stream selection, media timeout, JSON output and safe no-overwrite publication (#78).
+
+### Changed
+- Compress standalone CLI executables using pinned UPX on Linux/Windows and wrappe on macOS, reducing executable size by about 68% in native acceptance. Packages retain compression provenance, size/hash reports, licenses and original/packed behavioral checks. macOS uses an executable temporary extraction cache; bundled media stays beside the portable or installed launcher (#74).
+- Shorten README around Latest binary downloads, curl-only installation, first use and a compact command index. Move detailed installation, connection, CLI, SDK, agent plugin and development instructions into linked `docs/` guides. Latest binary availability remains gated by stable release #68 (#72).
+- Omit separate b24cli and YiiPress build-helper license files from new standalone archives, consolidating applicable upstream terms in `THIRD-PARTY-NOTICES.md`. Runtime/media licenses remain bundled and installers retain compatibility with published historical archives (#73).
+- Require the installed CLI in the transcription skill, offer standalone installation when unavailable, and maintain a release-aware 0.5.0 command map with connection setup and media guidance (#79).
+- Synchronize the hand-written `docs/cli.md` with the generated transcription-skill reference in maintainer/contributor workflows. Keep pinned Composer examples in `docs/install/php.md` and require non-interactive `gh` for GitHub maintenance (#68, #78).
+
+### Fixed
+- Include the accepted global `--config` option in the `extract-audio` reference allowlist so the stricter reference validator accepts local extraction (#78, #82).
+- Tolerate brief Windows executable sharing/lock violations during atomic installation with at most twenty attempts separated by 250 ms. Permission errors and persistent locks retain existing failure and rollback behavior (#78, #81).
+
 ## [0.5.0-rc-2] - 2026-10-28
 
 Second release candidate for 0.5.0, adding automatic video audio preparation, bundled compact FFmpeg/ffprobe and doctor. Native packages are built from the tagged main commit; prerelease publication preserves Latest stable.

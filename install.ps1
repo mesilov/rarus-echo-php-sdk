@@ -120,7 +120,8 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $baseRequired = @('rarus-echo.exe', 'build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-        'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
+        'RARUS-ECHO-LICENSE.txt')
+    $historicalLicenses = @('BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt')
     $mediaRequired = @('libexec/ffmpeg.exe', 'libexec/ffprobe.exe', 'media-build-info.json', 'media-SHA256SUMS', 'media-source.tar.xz')
     $required = $baseRequired + $mediaRequired
     $members = New-Object 'System.Collections.Generic.Dictionary[string,bool]' ([StringComparer]::OrdinalIgnoreCase)
@@ -176,7 +177,7 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
             if ($isDirectory) {
                 if ($normalized -cne 'runtime-licenses' -and -not $isRuntime) { throw 'Unexpected ZIP archive directory.' }
             } else {
-                if ($required -cnotcontains $name -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
+                if ($required -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and $name -cne 'compression-info.json' -and -not $name.StartsWith('compression-licenses/', [StringComparison]::Ordinal) -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
                 if ($entry.Length -le 0) { throw 'Required archive files and licenses must not be empty.' }
                 if ($isRuntime) { $runtimeFiles++ }
                 if ($isMediaLicense) { $mediaLicenseFiles++ }
@@ -215,8 +216,11 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
     if ($Tag -ceq '0.5.0-rc-1') {
         $build = Read-RarusEchoJson (Join-Path $Destination 'build-info.json')
         if (Test-RarusEchoLegacyRelease $build $Tag) {
+            foreach ($name in $historicalLicenses) {
+                if (-not $members.ContainsKey($name)) { throw ('Frozen legacy archive missing required file: ' + $name) }
+            }
             foreach ($name in $members.Keys) {
-                if ($baseRequired -cnotcontains $name -and -not $name.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)) {
+                if ($baseRequired -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and -not $name.StartsWith('runtime-licenses/', [StringComparison]::Ordinal)) {
                     throw 'Frozen legacy archive must contain only its original files and runtime licenses, without media entries.'
                 }
             }
@@ -232,6 +236,44 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
             if ($mediaLicenseFiles -eq 0) { throw 'Missing required archive media licenses.' }
         }
     }
+}
+
+function Assert-RarusEchoCompression([string]$Directory) {
+    $build = Read-RarusEchoJson (Join-Path $Directory 'build-info.json')
+    $reportPath = Join-Path $Directory 'compression-info.json'
+    $licensesPath = Join-Path $Directory 'compression-licenses'
+    if (@($build.PSObject.Properties | Where-Object { $_.Name -ceq 'executable_compression' }).Count -eq 0) {
+        if ((Test-Path -LiteralPath $reportPath) -or (Test-Path -LiteralPath $licensesPath)) { throw 'Undeclared compression artifacts.' }
+        return
+    }
+    if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf) -or -not (Test-Path -LiteralPath $licensesPath -PathType Container)) { throw 'Incomplete compression provenance/notices.' }
+    $report = Read-RarusEchoJson $reportPath
+    $compressor = $build.executable_compression
+    if ($compressor.tool -cne 'upx' -or $report.target -cne 'windows-amd64') { throw 'Unexpected compression tool/target.' }
+    $expected = @($compressor.PSObject.Properties | Sort-Object Name | ForEach-Object { $_.Name + ':' + $_.Value }) -join "`n"
+    $actual = @($report.compressor.PSObject.Properties | Sort-Object Name | ForEach-Object { $_.Name + ':' + $_.Value }) -join "`n"
+    if ($actual -cne $expected) { throw 'Compression provenance mismatch.' }
+    if ($compressor.version -cnotmatch '^[0-9]+(\.[0-9]+)+$' -or
+        $compressor.strategy -cne 'micro-before-phar' -or $compressor.level -cne '--best' -or
+        $compressor.archive_sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'Incomplete compression provenance.' }
+    $names = @($report.executables.PSObject.Properties.Name | Sort-Object)
+    if (($names -join ',') -cne 'rarus-echo.exe,runtime-probe.exe') { throw 'Compression executable set differs.' }
+    foreach ($record in $report.executables.PSObject.Properties.Value) {
+        if ($record.original_sha256 -cnotmatch '^[0-9a-f]{64}$' -or $record.compressed_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            ($record.original_bytes -isnot [long] -and $record.original_bytes -isnot [int]) -or
+            ($record.compressed_bytes -isnot [long] -and $record.compressed_bytes -isnot [int]) -or
+            $record.compressed_bytes -le 0 -or $record.original_bytes -le $record.compressed_bytes) { throw 'Invalid executable compression record.' }
+    }
+    $entry = $report.executables.'rarus-echo.exe'
+    $binary = Join-Path $Directory 'rarus-echo.exe'
+    if ($entry.compressed_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+        $entry.compressed_sha256 -ine (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -or
+        ($entry.compressed_bytes -isnot [long] -and $entry.compressed_bytes -isnot [int])) { throw 'Invalid compression hash/size.' }
+    if ($entry.original_bytes -isnot [long] -and $entry.original_bytes -isnot [int]) { throw 'Invalid original size.' }
+    if ($entry.compressed_bytes -le 0 -or $entry.original_bytes -le $entry.compressed_bytes -or
+        $entry.compressed_bytes -ne (Get-Item -LiteralPath $binary).Length) { throw 'Invalid compression reduction/size.' }
+    $licenses = @(Get-ChildItem -LiteralPath $licensesPath -Recurse -File)
+    if ($licenses.Count -eq 0 -or @($licenses | Where-Object { $_.Length -eq 0 }).Count -ne 0) { throw 'Missing or empty compression licenses.' }
 }
 
 function Test-RarusEchoLegacyRelease([object]$Build, [string]$Tag) {
@@ -417,6 +459,21 @@ function Send-RarusEchoEnvironmentChange {
     [void][RarusEchoInstallerNativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 1000, [ref]$result)
 }
 
+function Invoke-RarusEchoSharingRetry([scriptblock]$Operation) {
+    # An executable that just exited can still have a short-lived sharing lock.
+    # Retry only Win32 sharing/lock violations; preserve every other failure.
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        try { & $Operation; return }
+        catch {
+            $failure = $_.Exception
+            while ($null -ne $failure.InnerException) { $failure = $failure.InnerException }
+            $code = $failure.HResult -band 0xffff
+            if ($failure -isnot [IO.IOException] -or $code -notin @(32, 33) -or $attempt -eq 19) { throw }
+            [Threading.Thread]::Sleep(250)
+        }
+    }
+}
+
 function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoModifyPath) {
     if ((Get-RarusEchoPlatform) -cne 'windows-amd64') { throw 'Unsupported platform. This installer supports Windows amd64; Linux amd64/arm64 and macOS arm64 use install.sh.' }
     if ($Version -and $Version -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._+-]*\z') { throw 'Invalid release version tag.' }
@@ -499,6 +556,7 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         $candidate = Join-Path $temporary 'candidate'
         Expand-RarusEchoArchive $archive $candidate $tag
         $build = Read-RarusEchoJson (Join-Path $candidate 'build-info.json')
+        Assert-RarusEchoCompression $candidate
         $legacyPackage = Test-RarusEchoLegacyRelease $build $tag
         if (-not $legacyPackage) { $build = Assert-RarusEchoMedia $candidate $temporary }
         $identity = Get-RarusEchoIdentity (Join-Path $candidate 'rarus-echo.exe') $tag
@@ -544,10 +602,10 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         [IO.Directory]::Move($stagePackage, $packageDirectory)
         $newExecutableMoved = $true
         if (Test-Path -LiteralPath $executable) {
-            # File.Replace is atomic on this filesystem and fails if Windows has
-            # locked the executable. Previous media directories are never touched.
+            # Keep atomic activation and rollback while tolerating brief image
+            # sharing locks after candidate execution. Live CLI locks still fail.
             $oldExecutableMoved = $true
-            try { [IO.File]::Replace((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable, $backupExecutable) }
+            try { Invoke-RarusEchoSharingRetry { [IO.File]::Replace((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable, $backupExecutable) } }
             catch { throw ('Cannot replace rarus-echo.exe; close running CLI processes and retry. ' + $_.Exception.Message) }
         } else { [IO.File]::Move((Join-Path $stageExecutableDirectory 'rarus-echo.exe'), $executable) }
         if (-not $NoModifyPath) {

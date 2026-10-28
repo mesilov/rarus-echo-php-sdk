@@ -10,9 +10,34 @@ SPC's downloaded source lock. Compiler caches live under ignored runtime/. Hashe
 endings on every platform; a regression test covers core.autocrlf=true.
 
 The starting point is mesilov/bitrix24-cli at
-f23ca85fe45b003cedd0b6fd0340da6ac850ba00. See THIRD-PARTY-NOTICES.md and
+f23ca85fe45b003cedd0b6fd0340da6ac850ba00. See PACKAGING-NOTICES.md and
 the original license files. Echo adds fileinfo and native Linux arm64.
-There is no executable compressor.
+Executable compression follows the same reference: UPX 5.2.1 `--best` on Linux
+amd64/arm64 and Windows amd64 compresses a copy of PHP micro before adding the
+unchanged gzip PHAR. Linux removes the UPX trailer at the final PT_LOAD bound.
+macOS uses wrappe 1.0.4 / Zstandard 16, built using Rust 1.90.0. Both the inner
+micro executable and outer launcher receive verified ad-hoc signatures.
+`build/compression.json` pins downloaded tool/source hashes; exact-match patches
+preserve the scoped Cargo registry and pass the absolute launcher path to the
+PHAR bootstrap. Inherited launcher values are overwritten on cold and cached runs.
+
+macOS requires writable temporary storage that permits execution and enough
+space for the extracted original executable. wrappe keeps its `rarus-echo-cache` extraction directory under the selected TEMP root
+for subsequent launches. Remove that cache only after commands finish; the next
+launch recreates it. The Unix launcher uses exec, preserving PID, signals and
+exit status. No progress text is added to CLI/JSON stdout.
+
+Each compressed archive carries `compression-info.json` and
+`compression-licenses/`. The report records pinned tool/source/patch provenance,
+original/final executable byte sizes and SHA256. Original executables and the
+runtime probe remain build-only. Build acceptance runs the same native fixtures
+against original and compressed executables, including media discovery from
+Unicode paths, cancellation, timeout and installed-package checks. A packer
+failure, invalid report, missing notices or lack of size reduction blocks upload.
+Historical uncompressed archives remain accepted; partial compression packages
+are rejected. `python3 build/compress.py dist/<target>` revalidates build reports.
+The PHP runtime cache is never modified by compression. FFmpeg and ffprobe are
+not packed.
 
 ## Local contracts and production PHAR
 
@@ -32,6 +57,8 @@ files enter staging. PHAR construction validates the installed package set.
 The PHAR itself is an intermediate build artifact.
 
 ## Native executables
+
+macOS additionally needs `rustup toolchain install 1.90.0 --profile minimal`.
 
 All targets require Python >=3.11, PHP 8.5.11, Composer 2.10.3, Git, network
 access to the pinned toolchain/source archives, and a native C/C++ compiler.
@@ -85,7 +112,7 @@ Build artifacts:
 - SHA256SUMS
 
 Each archive contains the executable, build-info.json, runtime-sources.json,
-application/packaging licenses and runtime-licenses/. Unix mode is 0755.
+application/runtime notices and runtime-licenses/. Unix mode is 0755.
 Files outside that allowlist (PHARs, probes, vendor directories, local config)
 are excluded from final archives. Missing notices or a mismatched identity
 fail the build. SHA256SUMS hashes the final compressed archive bytes.
@@ -225,3 +252,26 @@ python3 build/release_acceptance.py --version 0.5.0-rc-1 --source-sha FULL_TAG_C
 
 Use the full SHA printed by the first command and the current machine's target.
 On Windows, run the helper with `python`; it invokes native Windows PowerShell 5.1.
+
+## Distribution notices and source provenance
+
+New platform archives omit `BITRIX24-CLI-LICENSE.txt` and `YIIPRESS-LICENSE.txt`:
+neither project is an application dependency. The PHAR generator and linkage
+checker are build-only, but the PHAR bootstrap and compiled PHP micro patches
+are derived from b24cli (whose packaging pipeline derives from YiiPress).
+Their applicable copyright, terms and disclaimers are consolidated in the
+existing `THIRD-PARTY-NOTICES.md` shipped with every archive. Source provenance
+and the original license files remain in `PACKAGING-NOTICES.md` and `build/`.
+The Windows UTF-8 patch uses PHP CLI APIs; PHP/runtime notices remain bundled.
+
+`THIRD-PARTY-NOTICES.md` describes the shipped application and runtime. Archives
+still include `RARUS-ECHO-LICENSE.txt`, `runtime-licenses/`, `media-licenses/`,
+media manifests/checksums and `media-source.tar.xz`. Build-only reports, probes,
+local state and build-helper license files stay outside new archives.
+
+Both installers accept the two historical license files when present and replace
+the active notices directory completely on update. Archive validation accepts
+the old required files for published RC-2 only at tag `0.5.0-rc-2`, source
+`ba667107bb7611cbc0f3f47859cb63e970a635b9`. The frozen RC-1 no-media contract
+retains its original required files and source pin. Other source identities must
+follow the reduced archive composition. Published assets are not modified.
