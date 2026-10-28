@@ -6,7 +6,7 @@ The user explicitly directed final stable publication with dev delivery before m
 
 ## Preparation
 
-The cumulative dated 0.5.0 changelog covers all three candidates, leaving Unreleased empty and preserving candidate sections byte-for-byte. Composer selects ^0.5; stable installer examples are prepared with explicit pending-publication notices. README's current availability and the RC-3 verified skill baseline remain truthful until stable assets are actually verified. No PHP runtime, installer, packaging or CI behavior changes.
+The cumulative dated 0.5.0 changelog covers all three candidates, leaving Unreleased empty and preserving candidate sections byte-for-byte. Composer selects ^0.5; stable installer examples are prepared with explicit pending-publication notices. README states that Latest commands require stable 0.5.0 or newer, avoiding a frozen claim that Latest is still 0.4.0 inside the future stable tag. The installation guide makes publication/version checks explicit, and the RC-3 verified skill baseline remains historical until stable assets are actually verified. No PHP runtime, installer, packaging or CI behavior changes.
 
 - `make lint-openspec`: all 29 items pass in strict mode.
 - `make test-unit`: 405 tests, 1170 assertions, four opt-in skips.

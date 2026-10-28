@@ -13,7 +13,7 @@
 
 ## Доступность релизов
 
-Готовится стабильный релиз `0.5.0`, объединяющий RC-1, RC-2 и RC-3. Пока его публикация и проверка Latest не завершены, Latest остаётся `0.4.0` без standalone-архивов; ранее проверенный кандидат — `0.5.0-rc-3`. Ниже приведены команды целевого stable `0.5.0`; статус публикации проверяйте в [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) и [#68](https://github.com/mesilov/rarus-echo-php-sdk/issues/68).
+Стабильная линия `0.5` объединяет RC-1, RC-2 и RC-3 и предусматривает четыре standalone-пакета. Для команд Latest из README нужен выбранный stable `0.5.0` или новее; предыдущий stable `0.4.0` бинарных архивов не содержит. Статус публикации `0.5.0` и состав выбранного Latest проверяйте в [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) и [#68](https://github.com/mesilov/rarus-echo-php-sdk/issues/68). До завершения stable-публикации можно явно выбрать ранее проверенный `0.5.0-rc-3`.
 
 ## Standalone: без PHP, Composer и Docker
 
