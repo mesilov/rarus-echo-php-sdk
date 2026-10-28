@@ -1,828 +1,111 @@
 # RARUS Echo PHP SDK
 
+Транскрибируйте аудио и видео через [RARUS Echo](https://rarus.ru/echo/?utm_source=mesilov_maksim&utm_medium=github&utm_campaign=rarus_echo_php_sdk) из терминала, PHP-приложений и AI-агентов.
+Готовый CLI включает PHP runtime и инструменты подготовки аудио из видео.
+
 [![Lint](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml)
 [![Tests](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-PHP SDK для сервиса транскрибации RARUS Echo с использованием стандартов PSR и компонентов Symfony.
+SDK в статусе **beta** покрывает текущую версию API: асинхронная транскрибация,
+диаризация, таймкоды, 13 языков и автоопределение. PHP SDK поддерживает PSR-3/7/17/18
+и автоматическое обнаружение HTTP-клиента.
 
-## Статус проекта
+## Скачать
 
-**beta** - SDK покрывает текущую версию API.
+Готовые пакеты — в [Latest Release](https://github.com/mesilov/rarus-echo-php-sdk/releases/latest).
+Прямые ссылки всегда указывают на последний стабильный релиз.
 
-## Возможности
+**На 28.10.2026 Latest ещё не содержит бинарных пакетов.** Ссылки и команды ниже
+подготовлены для stable с бинарями; до его публикации используйте
+[инструкции для доступного prerelease](docs/install/README.md#установщики).
 
-- Асинхронная транскрибация аудио и видео файлов
-- Поддержка 13 языков и автоопределения языка
-- Различные типы транскрибации (обычная, с метками времени, с диаризацией)
-- PSR-совместимость (PSR-3, PSR-7, PSR-17, PSR-18)
-- Автоматическое обнаружение HTTP клиента (php-http/discovery)
-
-## Требования
-
-- PHP 8.4 или 8.5
-- Composer 2.x
-- Расширения: json, curl, mbstring, fileinfo
+| Платформа | Архитектура | Скачать |
+| --- | --- | --- |
+| Linux | amd64 | [rarus-echo-linux-amd64.tar.gz](https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/rarus-echo-linux-amd64.tar.gz) |
+| Linux | arm64 | [rarus-echo-linux-arm64.tar.gz](https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/rarus-echo-linux-arm64.tar.gz) |
+| macOS | arm64 (Apple Silicon) | [rarus-echo-macos-arm64.tar.gz](https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/rarus-echo-macos-arm64.tar.gz) |
+| Windows | amd64 | [rarus-echo-windows-amd64.zip](https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/rarus-echo-windows-amd64.zip) |
 
 ## Установка
 
-```bash
-composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-2
+Скачайте пакет через `curl`, проверьте SHA-256 и распакуйте **весь комплект**.
+PHP, Composer и Docker устанавливать не нужно. Выполняйте команды в новом пустом каталоге.
+
+### Linux amd64 / arm64
+
+Для ARM64 замените имя архива на `rarus-echo-linux-arm64.tar.gz`.
+
+```sh
+archive=rarus-echo-linux-amd64.tar.gz
+curl -fL -o "$archive" "https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/$archive" &&
+curl -fL -o SHA256SUMS https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/SHA256SUMS &&
+sha256sum --check --ignore-missing SHA256SUMS &&
+mkdir rarus-echo && tar -xzf "$archive" -C rarus-echo &&
+./rarus-echo/rarus-echo --version
 ```
 
-## Быстрый старт
+### macOS arm64
 
-### CLI через Docker image
-
-Самый короткий happy-path не требует локальной установки PHP-пакета: запустите CLI из готового Docker image. Docker использует локально закешированный tag, если он уже загружен; добавьте `--pull=always` к `docker run`, если нужно принудительно получить актуальный опубликованный image.
-
-```bash
-docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli
+```sh
+archive=rarus-echo-macos-arm64.tar.gz
+curl -fL -o "$archive" "https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/$archive" &&
+curl -fL -o SHA256SUMS https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/SHA256SUMS &&
+grep '  rarus-echo-macos-arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c &&
+mkdir rarus-echo && tar -xzf "$archive" -C rarus-echo &&
+./rarus-echo/rarus-echo --version
 ```
 
-Image использует `rarus-echo` как entrypoint, поэтому команды передаются сразу после имени image:
-
-```bash
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli queue --json
-
-docker run --rm \
-  -e RARUS_ECHO_API_KEY=your-api-key-uuid \
-  -e RARUS_ECHO_USER_ID=your-user-id-uuid \
-  -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
-    --task-type=diarization \
-    --language=ru \
-    --speakers-correction \
-    --timestamps-extended \
-    --wait \
-    --json
-
-docker run --rm \
-  --env-file .env.local \
-  -v "$PWD/audio.ogg:/audio.ogg:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli submit /audio.ogg \
-    --language=ru \
-    --wait \
-    --raw-result > transcript.txt
-```
-
-GitHub Actions собирает image для `linux/amd64` и `linux/arm64`, проверяет сборку в pull request и публикует `ghcr.io/mesilov/rarus-echo-php-sdk:cli` при изменениях в `dev`, `main` или ручном запуске workflow.
-
-Image собирается на официальной runtime-базе `php:8.4-cli-alpine`. По сравнению с прежней базой `php:8.4-cli-bookworm` это уменьшает опубликованный image примерно с `769MB` до `~179MB` по `docker images` и примерно со `~180MB` до `~46MB` по сжатому pull size. Поведение `rarus-echo`, расширения `curl`/`fileinfo`/`mbstring`, PHP-лимиты для локальных аудио-smoke и multi-arch публикация сохранены.
-
-### PHP SDK
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use Rarus\Echo\Services\ServiceFactory;
-use Rarus\Echo\Core\Credentials;
-use Rarus\Echo\Enum\Language;
-use Rarus\Echo\Enum\TaskType;
-use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-
-// Создание credentials
-$credentials = Credentials::fromString(
-    apiKey: 'your-api-key-uuid',
-    userId: 'your-user-id-uuid'
-);
-
-// Инициализация SDK
-$factory = new ServiceFactory($credentials);
-
-// Настройка опций транскрибации
-$options = TranscriptionOptions::create()
-    ->withTaskType(TaskType::DIARIZATION)  // С разбиением по говорящим
-    ->withLanguage(Language::RU)            // Русский язык
-    ->withCensor(true)                      // С цензурой
-    ->build();
-
-// Отправка файла на транскрибацию
-$result = $factory->getTranscriptionService()->submit(
-    files: ['/path/to/audio.mp3'],
-    transcriptionOptions: $options
-);
-
-$fileIds = $result->getFileIds();
-$fileId = $fileIds[0]; // Uuid объект
-echo "Файл отправлен: {$fileId->toRfc4122()}\n";
-
-// Проверка статуса
-$status = $factory->getStatusService()->getByFileId($fileId);
-echo "Статус: {$status->transcriptionStatus->value}\n";
-
-// Получение результата после завершения
-if ($status->isSuccessful()) {
-    $transcript = $factory->getTranscriptionService()->getByFileId($fileId);
-    echo "Результат:\n{$transcript->result}\n";
-}
-```
-
-### С обработкой ошибок
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use Rarus\Echo\Exception\FileException;
-use Rarus\Echo\Exception\ValidationException;
-use Rarus\Echo\Exception\AuthenticationException;
-use Rarus\Echo\Exception\ApiException;
-
-try {
-    $result = $factory->getTranscriptionService()->submit($files, $options);
-} catch (FileException $e) {
-    // Ошибка файла (не найден, не читается, неверный формат)
-    echo "Ошибка файла: {$e->getMessage()}\n";
-} catch (ValidationException $e) {
-    // Ошибка валидации (422)
-    echo "Ошибка валидации: {$e->getMessage()}\n";
-} catch (AuthenticationException $e) {
-    // Ошибка аутентификации (401)
-    echo "Ошибка аутентификации: {$e->getMessage()}\n";
-} catch (ApiException $e) {
-    // Общая ошибка API
-    echo "Ошибка API: {$e->getMessage()}\n";
-}
-```
-
-## CLI
-
-После установки через Composer доступен исполняемый файл:
-
-```bash
-vendor/bin/rarus-echo --help
-```
-
-### Standalone: без PHP, Composer и Docker
-
-#### Однострочная установка
-
-Для проверки prerelease `0.5.0-rc-2` используйте явную версию. Linux x86-64/ARM64 и macOS Apple Silicon:
-
-```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version 0.5.0-rc-2
-```
-
-Windows x86-64, PowerShell 5.1 или новее:
+<details>
+<summary>Windows amd64 — PowerShell</summary>
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version 0.5.0-rc-2
-```
-
-`0.5.0-rc-2` — release candidate: бинарники собираются из отмеченного tag коммита `main` и публикуются в [GitHub prerelease](https://github.com/mesilov/rarus-echo-php-sdk/releases/tag/0.5.0-rc-2). Этот prerelease не меняет Latest stable. Без параметра версии установщик выбирает последний стабильный релиз; текущий stable `0.4.0` не содержит standalone-архивов, поэтому для RC параметр версии обязателен. Если нужный архив отсутствует, установщик завершится с ошибкой.
-
-Скрипт определяет платформу, проверяет SHA-256 и версию выбранного бинарника, затем устанавливает его в пользовательский каталог. PHP, Composer, Docker и права администратора не нужны. На Unix нужны `curl`, `tar`, стандартные shell-утилиты и `sha256sum` (Linux) / `shasum` (macOS). Неподдерживаемые платформы, включая Intel macOS и Windows ARM64, отклоняются до скачивания.
-
-| Параметр | POSIX sh | PowerShell |
-| --- | --- | --- |
-| Конкретный tag, включая prerelease | `--version TAG` | `-Version TAG` |
-| Абсолютный каталог бинарника | `--install-dir PATH` | `-InstallDir PATH` |
-| Не менять постоянный PATH | `--no-modify-path` | `-NoModifyPath` |
-
-Параметры передаются скрипту так (замените `TAG` существующим tag с архивами):
-
-```bash
-curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.sh | sh -s -- --version TAG --install-dir "$HOME/.local/bin" --no-modify-path
-```
-
-```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/mesilov/rarus-echo-php-sdk/main/install.ps1).Content)) -Version TAG -InstallDir "$env:LOCALAPPDATA\rarus-echo\bin" -NoModifyPath
-```
-
-На Unix бинарник помещается в `$HOME/.local/bin`, сведения о сборке и лицензии — в `$HOME/.local/share/rarus-echo/package`. Каталог `package` целиком принадлежит установщику и заменяется при обновлении; храните свои файлы вне него. Если целевой бинарник или файл активации уже является symlink, установка завершается с ошибкой, сохраняя ссылку. Для будущих bash/zsh-сессий скрипт добавляет строку активации в `.bashrc`, выбранный bash login profile (`.bash_profile`, `.bash_login` или `.profile`) и `${ZDOTDIR:-$HOME}/.zshrc`. Для текущей сессии выполните:
-
-```bash
-. "$HOME/.local/share/rarus-echo/env"
-rarus-echo --version
-```
-
-На Windows бинарник по умолчанию находится в `%LOCALAPPDATA%\rarus-echo\bin`, лицензии — в `%LOCALAPPDATA%\rarus-echo\package`; с `-InstallDir` лицензии сохраняются в подкаталоге `package` выбранного каталога. Установщик обновляет пользовательский PATH и печатает команду активации для текущей сессии; уже открытые терминалы могут требовать перезапуска. Повторный запуск обновляет бинарник и лицензии; конфигурация подключения сохраняется. Установка бинарника и команда `rarus-echo install` для настройки подключения — отдельные шаги.
-
-#### Ручная установка
-
-В [GitHub Releases](https://github.com/mesilov/rarus-echo-php-sdk/releases) скачайте архив своей платформы и `SHA256SUMS` из одного релиза. Артефакты появятся начиная с первого релиза, собранного новым standalone workflow.
-
-| Платформа | Архив | Исполняемый файл |
-| --- | --- | --- |
-| Linux x86-64 | `rarus-echo-linux-amd64.tar.gz` | `rarus-echo` |
-| Linux ARM64 | `rarus-echo-linux-arm64.tar.gz` | `rarus-echo` |
-| macOS Apple Silicon | `rarus-echo-macos-arm64.tar.gz` | `rarus-echo` |
-| Windows x86-64 | `rarus-echo-windows-amd64.zip` | `rarus-echo.exe` |
-
-Linux, проверка скачанного архива и запуск:
-
-```bash
-sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf rarus-echo-linux-amd64.tar.gz
-./rarus-echo --version
-./rarus-echo --help
-```
-
-На macOS проверьте строку своего архива командой `grep '  rarus-echo-macos-arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c`, затем распакуйте его: `tar -xzf rarus-echo-macos-arm64.tar.gz`.
-
-Windows PowerShell:
-
-```powershell
+$ErrorActionPreference = 'Stop'
 $archive = 'rarus-echo-windows-amd64.zip'
-$line = (Select-String -Path .\SHA256SUMS -Pattern ('  ' + [regex]::Escape($archive) + '$')).Line
-$expected = ($line -split '  ')[0]
-if (!$expected -or (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
-    throw 'SHA256 mismatch'
-}
-Expand-Archive $archive -DestinationPath .\rarus-echo
+curl.exe -fL -o $archive "https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/$archive"
+if ($LASTEXITCODE -ne 0) { throw 'Archive download failed' }
+curl.exe -fL -o SHA256SUMS https://github.com/mesilov/rarus-echo-php-sdk/releases/latest/download/SHA256SUMS
+if ($LASTEXITCODE -ne 0) { throw 'Checksum download failed' }
+$record = @(Get-Content SHA256SUMS | Where-Object { $_ -match '^[a-fA-F0-9]{64}  rarus-echo-windows-amd64\.zip$' })
+if ($record.Count -ne 1) { throw 'Missing or duplicate checksum' }
+if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne ($record[0] -split '  ')[0]) { throw 'Checksum mismatch' }
+New-Item -ItemType Directory -Path rarus-echo | Out-Null
+Expand-Archive -LiteralPath $archive -DestinationPath rarus-echo
 .\rarus-echo\rarus-echo.exe --version
-.\rarus-echo\rarus-echo.exe --help
 ```
 
-`--version` standalone-сборки выводит версию и полный source SHA; они совпадают с `build-info.json` рядом с файлом. Для подготовки видео сохраняйте весь распакованный комплект: `libexec/ffmpeg`, `libexec/ffprobe` (на Windows с `.exe`), media metadata, контрольные суммы, лицензии и сжатые соответствующие исходники. Дополнительная установка FFmpeg не требуется. Опубликованный до этого изменения `0.5.0-rc-1` остаётся доступен по точной версии с прежним CLI без медианабора. Справка, версия и команды без обработки видео продолжают работать с одним исполняемым файлом. Windows использует временный каталог для встроенного PHAR и очищает его при завершении.
+</details>
 
-macOS-сборка имеет ad-hoc подпись без notarization, Windows-сборка не подписана Authenticode; система может запросить подтверждение запуска скачанного файла. Docker остаётся основным quick start выше.
+Обновление, PATH, ограничения платформ и диагностика запуска — в
+[руководстве по установке](docs/install/README.md).
+Сохраняйте `libexec/`, metadata и лицензии рядом с бинарником: они нужны для работы полного пакета.
 
-### Сохранение подключения
+## Первый запуск
 
-Запустите интерактивную настройку один раз:
+Нужны API key и User ID сервиса Echo. Из каталога распакованного пакета:
 
-```bash
-rarus-echo install
-rarus-echo queue --json
+```sh
+cd rarus-echo
+./rarus-echo install
+./rarus-echo doctor
+./rarus-echo queue --json
+./rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
 ```
 
-Для Composer-установки используйте `vendor/bin/rarus-echo`, для Windows — `rarus-echo.exe`. Команда запрашивает API key (ввод скрыт), User ID и URL сервиса; по умолчанию используется `https://production-ai-ui-api.ai.rarus-cloud.ru`. При замене существующего файла требуется подтверждение, по умолчанию замена отменяется. `install --no-interaction` завершается с кодом `2` без записи.
-
-Расположение файла не зависит от текущей директории или расположения бинарника:
-
-| Платформа | Путь |
-| --- | --- |
-| Linux, macOS | `$XDG_CONFIG_HOME/rarus-echo/config.json`, если XDG_CONFIG_HOME — абсолютный путь; иначе `$HOME/.config/rarus-echo/config.json` |
-| Windows | `%APPDATA%\rarus-echo\config.json` |
-
-Если подходящий пользовательский каталог недоступен, задайте путь явно. Глобальная опция `--config PATH` выбирает один и тот же файл для записи через `install` и чтения сервисными командами. Относительный путь вычисляется от текущей директории; пути с пробелами заключайте в кавычки:
-
-```bash
-rarus-echo install --config "/path with spaces/connection.json"
-rarus-echo --config "/path with spaces/connection.json" queue --json
-```
-
-Формат JSON: `version` (число `1`), `api_key` (UUID), `user_id` (UUID), `base_url` (HTTP(S) URL). Ключи обязательны. Файл содержит секрет в открытом виде: CLI создаёт его с правами `0600`, новые каталоги — `0700`; на Windows устанавливает и проверяет ACL текущего пользователя. Существующие родительские каталоги не меняются. Чтение символьных ссылок и файлов с небезопасными правами отклоняется.
-
-CLI также использует те же переменные credentials, что и SDK:
-
-```bash
-export RARUS_ECHO_API_KEY=your-api-key-uuid
-export RARUS_ECHO_USER_ID=your-user-id-uuid
-export RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru # опционально
-```
-
-Порядок выбора подключения:
-
-1. Явный `--config PATH`: только указанный файл, без загрузки credentials из env/`.env`. Отсутствующий или некорректный файл вызывает ошибку сервисной команды.
-2. Без `--config` загружается `.env` текущей директории по прежним правилам Symfony Dotenv. Если API key или User ID заданы, используется и проверяется весь набор из окружения; недостающие поля не берутся из файла.
-3. Если оба credentials отсутствуют, читается конфиг по стандартному пути. Один `RARUS_ECHO_BASE_URL` не заменяет URL сохранённого подключения.
-
-`help`, `--version` и `install` работают без готового подключения. В Docker сохраните файл в смонтированном каталоге и передавайте путь внутри контейнера через `--config`; для интерактивного `install` запускайте контейнер с `-it`.
-
-### Диагностика окружения
-
-Команда `doctor` доступна начиная с `0.5.0-rc-2`.
-
-`doctor` без аргументов проверяет конфиг, авторизованную связь с Echo и наличие ffmpeg для извлечения аудиодорожки из видео:
-
-```bash
-rarus-echo doctor
-rarus-echo --config "/path/to/config.json" doctor
-rarus-echo doctor --json
-```
-
-Команда показывает путь и состояние файла, выбранный источник подключения (`explicit_config`, `environment` или `default_config`), результат запроса очереди и путь/версию ffmpeg. Она использует существующие правила выбора подключения. При валидных env/`.env` credentials отсутствие или ошибка неиспользуемого стандартного конфига дают предупреждение; при невалидных активных настройках проверка сервера пропускается. Проверка ffmpeg выполняется независимо.
-
-Сетевой запрос ограничен десятью секундами, не следует редиректам и не создаёт задания. Вся проверка медианабора ограничена пятью секундами и использует тот же поиск и проверку `ffmpeg`/`ffprobe`, что и `submit`: полный Docker/standalone-комплект либо явную пару абсолютных путей для Composer. При повреждении встроенного набора восстановите полный пакет; наличие произвольного ffmpeg в PATH не заменяет совместимый набор. `doctor` не меняет конфиг, не устанавливает зависимости и не извлекает аудио.
-
-Статусы проверок: `ok`, `warning`, `error`, `skipped`. Общий статус — `error` при любой ошибке/пропуске, `warning` при одних предупреждениях, иначе `ok`. Код завершения — `1` при общем `error`, `0` при `ok`/`warning`; ошибки синтаксиса команды обрабатываются Symfony Console и завершаются с кодом `1`.
-
-`--json` выводит один объект в stdout без credentials и сырых ответов сервера:
-
-```json
-{
-  "schema_version": 1,
-  "status": "error",
-  "checks": {
-    "config": {"status": "error", "code": "missing_config", "message": "…", "details": {"source": "explicit_config", "path": "/path/to/config.json", "file_status": "missing_config"}},
-    "connection": {"status": "skipped", "code": "connection_skipped", "message": "…", "details": {}},
-    "ffmpeg": {"status": "error", "code": "ffmpeg_missing", "message": "…", "details": {}}
-  }
-}
-```
-
-`code` задаёт машинную причину результата, `message` — описание с рекомендацией, `details` — объект дополнительных сведений. Для конфига `file_status` хранит результат проверки файла отдельно от активного источника. Успешная проверка ffmpeg содержит `path` и `version`; сетевая — `timeout_seconds`, при HTTP-ошибке также `http_status`.
-
-#### Таймаут HTTP-клиента для больших файлов
-
-При отправке больших файлов автоматически подобранный HTTP-клиент раньше обрывал загрузку с ошибкой `Idle timeout reached ...` (по умолчанию PHP `default_socket_timeout` ~60 с). Теперь SDK создаёт HTTP-клиент с idle timeout `600` секунд. Значение можно переопределить переменной окружения (положительное целое число секунд):
-
-```bash
-export RARUS_ECHO_HTTP_TIMEOUT=1200 # опционально, по умолчанию 600
-```
-
-В коде SDK то же самое задаётся через `ApiClientFactory::withHttpTimeout()`; при передаче собственного PSR-18 клиента через `withHttpClient()` таймаут становится ответственностью вызывающего.
-
-### Команды
-
-```bash
-vendor/bin/rarus-echo doctor
-vendor/bin/rarus-echo queue
-vendor/bin/rarus-echo status 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo transcript 11111111-1111-1111-1111-111111111111
-vendor/bin/rarus-echo submit /path/to/audio.ogg --task-type=diarization --language=ru --timestamps-extended
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait
-```
-
-Для автоматизации добавьте `--json`:
-
-```bash
-vendor/bin/rarus-echo queue --json
-vendor/bin/rarus-echo submit /path/to/audio.ogg --json
-vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --json
-```
-
-`submit --wait` после отправки файла опрашивает результат транскрибации до терминального статуса. Финальный JSON содержит `file_ids` и `results`, а прогресс вида `submitted: ...`, `polling: ...` и `completed: ...` пишется в stderr, поэтому stdout остается безопасным для `jq`, редиректа и пайпов.
-
-При `SIGINT` (`Ctrl+C`) или `SIGTERM` во время долгого ожидания команда пишет в stderr сообщение о завершении по сигналу и возвращает ненулевой signal-aware код выхода.
-
-Для сырого текста одного файла:
-
-```bash
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --raw-result > transcript.txt
-vendor/bin/rarus-echo submit /path/to/audio.ogg --language=ru --wait --output=transcript.txt
-```
-
-Интервал и общий лимит ожидания задаются в секундах:
-
-```bash
-vendor/bin/rarus-echo submit /path/to/audio.ogg --wait --poll-interval=10 --timeout=3600 --json
-```
-
-Полный список ключей всех команд — в разделе [Справочник команд и опций](#справочник-команд-и-опций). Основной результат пишется в stdout, прогресс и ошибки — в stderr, успешные команды завершаются с кодом `0`.
-
-### Локальное видео
-
-В поставке CLI с медиа-toolkit команда сама извлекает аудио из локального видео и отправляет аудиофайл в Echo:
-
-```bash
-rarus-echo submit recording.mp4 --language=ru --wait --output=transcript.txt
-
-docker run --rm --env-file .env.local \
-  -v "$PWD/recording.mp4:/input/recording.mp4:ro" \
-  ghcr.io/mesilov/rarus-echo-php-sdk:cli \
-  submit /input/recording.mp4 --language=ru --wait --raw-result > transcript.txt
-```
-
-CLI использует единственную аудиодорожку с признаком `default`, иначе дорожку с наименьшим абсолютным индексом. Выбор сообщает в stderr; `--language` задаёт язык распознавания. Для одного видео можно указать абсолютный индекс потока: `--audio-stream=2`. Его нужно брать из данных probe, это не порядковый номер среди аудиодорожек.
-
-Совместимые AAC, Opus/Vorbis, MP3 и FLAC копируются в подтверждённый контейнер. Когда требуется преобразование или сохранение начальной задержки аудио, применяется FLAC с сохранением числа каналов и частоты дискретизации. Для целочисленного lossless-аудио сохраняется точность до 24 бит; исходный float PCM и lossless-аудио большей или неопределённой разрядности отклоняются, когда требуется преобразование. Готовое аудио и файлы только с обложкой не перекодируются. Исходный файл сохраняется; временный аудиофайл удаляется после загрузки, до ожидания транскрипта.
-
-`--media-timeout=600` ограничивает probe и подготовку каждого входного файла, отдельно от HTTP-таймаута и `--timeout` ожидания транскрипта. Аудио для загрузки ограничено 500 MiB, сумма временных аудиофайлов — 1 GiB. Поэтому исходное видео может быть больше 500 MiB, если подготовленное аудио укладывается в лимиты. Проверка таймлайна ограничена 1 000 000 аудиокадров и 64 MiB данных probe; превышение, недостаток места или неподдерживаемый формат дают ошибку до отправки. Обычный `Ctrl+C` прекращает подготовку и освобождает её файлы; отключение питания и принудительное убийство процесса не гарантируют немедленную очистку.
-
-Явно сохранить прежнюю отправку оригинала можно через `--no-extract-audio`; здесь действуют исходные ограничения SDK. Этот флаг несовместим с `--audio-stream` и автоматически при ошибке подготовки не включается. Для пакета файлов подготовка завершается для всех входов до единственного запроса загрузки; порядок `file_ids` соответствует порядку аргументов. JSON, raw-result и output-file режимы сохраняют прежний формат.
-
-Docker и полный standalone-комплект содержат совместимые `ffmpeg` и `ffprobe`. Для Composer CLI можно явно задать пару абсолютных путей `RARUS_ECHO_FFMPEG_PATH` и `RARUS_ECHO_FFPROBE_PATH` к инструментам с поддерживаемым профилем. SDK как PHP-библиотека и отправка обычного аудио FFmpeg не требуют. История принятия форматов сервисом записана в `tests/Fixtures/Media/echo-acceptance.json`; она описывает проверенные входы, а не точность распознавания слов.
-
-### Справочник команд и опций
-
-Ниже перечислены все ключи CLI. Каноническим источником является структура команд в `src/Infrastructure/Console/Command/`.
-
-#### Глобальные опции
-
-Доступны для команд RARUS Echo (`install`, `doctor`, `queue`, `submit`, `status`, `transcript`), кроме явно отмеченного `--json`:
-
-| Опция | Значение | Описание |
-| --- | --- | --- |
-| `--config` | путь к файлу | Выбрать файл подключения для чтения или записи через `install`. |
-| `--json` | флаг | Вывести результат сервисной команды или `doctor` в формате JSON; недоступна для `install`. |
-| `-h`, `--help` | флаг | Показать справку по команде. |
-| `--silent` | флаг | Полностью подавить вывод (никаких сообщений). Доступна только с Symfony Console ≥ 7.2. |
-| `-q`, `--quiet` | флаг | Выводить только ошибки, остальной вывод подавляется. |
-| `-v`, `-vv`, `-vvv`, `--verbose` | флаг | Уровень детализации вывода (1 — обычный, 2 — подробный, 3 — отладка). |
-| `-V`, `--version` | флаг | Показать версию приложения. |
-| `--ansi`, `--no-ansi` | флаг | Принудительно включить/выключить ANSI-раскраску. |
-| `-n`, `--no-interaction` | флаг | Не задавать интерактивных вопросов. |
-
-`--json` добавляется командой `doctor` и сервисными командами RARUS Echo и недоступна для `install` и встроенных команд Symfony (`list`, `help`). `--config` — глобальная опция приложения. Остальные ключи — глобальные опции Symfony Console. `--silent` появился в Symfony Console 7.2; в опубликованном Docker image он есть, но при установке SDK как библиотеки с более старой разрешённой версией `symfony/console` (`^6.4 || ^7.0`) этого ключа не будет.
-
-#### `install`
-
-Запросить параметры подключения и сохранить приватный конфиг. Существующий файл заменяется только после подтверждения.
-
-```text
-vendor/bin/rarus-echo install [--config=PATH]
-```
-
-#### `doctor`
-
-```bash
-vendor/bin/rarus-echo doctor [--json]
-vendor/bin/rarus-echo --config "/path/to/config.json" doctor
-```
-
-Обязательных аргументов нет. Показывает все проверки и общий итог; `--json` включает структурированный отчёт версии 1. Глобальный `--config PATH` выбирает диагностируемый файл. Статусы, таймауты и коды завершения описаны в разделе «Диагностика окружения» выше.
-
-#### `queue`
-
-Показать агрегированную информацию по очереди транскрибации. Аргументов и собственных опций, кроме глобальных, нет.
-
-```text
-vendor/bin/rarus-echo queue [--json]
-```
-
-#### `submit`
-
-Отправить один или несколько файлов на транскрибацию.
-
-```text
-vendor/bin/rarus-echo submit [опции] [--] <files>...
-```
-
-Аргумент:
-
-| Аргумент | Обязательный | Несколько | Описание |
-| --- | --- | --- | --- |
-| `files` | да | да | Пути к файлам для отправки. |
-
-Опции (помимо глобальных):
-
-| Опция | Значение | По умолчанию | Описание |
-| --- | --- | --- | --- |
-| `--task-type` | обязательно | `transcription` | Тип задачи: `transcription`, `timestamps`, `diarization`, `raw_transcription`. |
-| `--language` | обязательно | `auto` | Код языка: `auto`, `ru`, `en`, `de`, `fr`, `es`, `pt`, `hy`, `ja`, `tr`, `ar`, `zh`, `he`, `vi`. |
-| `--censor` | флаг | — | Включить цензуру. |
-| `--speakers-correction` | флаг | — | Включить коррекцию говорящих. |
-| `--timestamps-extended` | флаг | — | Включить расширенные таймкоды для диаризации. |
-| `--no-store-file` | флаг | — | Не хранить отправленные файлы после обработки. |
-| `--low-priority` | флаг | — | Отправить с низким приоритетом обработки. |
-| `--request-source` | обязательно | — | Необязательный заголовок источника запроса. |
-| `--audio-stream` | обязательно | автоматический выбор | Абсолютный индекс аудиопотока для одного видео. Несовместим с `--no-extract-audio`. |
-| `--no-extract-audio` | флаг | — | Отправить исходные файлы через прежнюю валидацию SDK без обработки медиа. |
-| `--media-timeout` | обязательно | `600` | Положительное целое число секунд на probe/подготовку одного входа. |
-| `--wait` | флаг | — | Опрашивать результат до терминального статуса. |
-| `--poll-interval` | обязательно | `30` | Интервал опроса в секундах при `--wait`. |
-| `--timeout` | обязательно | `7200` | Максимальное время ожидания в секундах при `--wait`. |
-| `--raw-result` | флаг | — | С `--wait`: писать в stdout только сам transcript (ровно один файл). |
-| `--output` | обязательно | — | С `--wait`: записать transcript в файл (ровно один файл). |
-
-`--raw-result` и `--output` требуют `--wait` и поддерживают только один отправляемый файл.
-
-#### `status`
-
-Показать статус транскрибации одного файла.
-
-```text
-vendor/bin/rarus-echo status [--json] [--] <file-id>
-```
-
-Аргумент:
-
-| Аргумент | Обязательный | Несколько | Описание |
-| --- | --- | --- | --- |
-| `file-id` | да | нет | UUID файла RARUS Echo. |
-
-#### `transcript`
-
-Показать результат транскрибации одного файла.
-
-```text
-vendor/bin/rarus-echo transcript [--json] [--] <file-id>
-```
-
-Аргумент:
-
-| Аргумент | Обязательный | Несколько | Описание |
-| --- | --- | --- | --- |
-| `file-id` | да | нет | UUID файла RARUS Echo. |
-
-## Agent skill для транскрибации
-
-В репозитории есть skills-only plugin `rarus-echo-transcription` для Claude Code и Codex-compatible hosts. Он работает только через установленный `rarus-echo`, предлагает установку при его отсутствии и описывает безопасный workflow: проверить очередь, отправить один или несколько локальных аудиофайлов, получить `file_id`, проверить статус, дождаться результата через `submit --wait` и забрать transcript без вывода credentials.
-
-Исходники plugin:
-
-```text
-.agent-plugins/rarus-echo-transcription/
-```
-
-Claude Code может загрузить plugin напрямую из checkout на одну сессию:
-
-```bash
-claude --plugin-dir ./.agent-plugins/rarus-echo-transcription
-```
-
-Или поставить через repo-local marketplace из корня репозитория:
-
-```bash
-claude plugin marketplace add ./ --scope user
-claude plugin install rarus-echo-transcription@rarus-echo-plugins
-```
-
-После установки в Claude Code namespaced invocation выглядит так:
-
-```text
-/rarus-echo-transcription:transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
-```
-
-Repo-local marketplace files:
-
-```text
-.claude-plugin/marketplace.json
-.agents/plugins/marketplace.json
-```
-
-Codex-compatible hosts читают общий skill из `skills/transcribe/SKILL.md`; точный синтаксис invocation зависит от host и использует имя skill, например:
-
-```bash
-codex plugin marketplace add .
-codex plugin add rarus-echo-transcription@rarus-echo-plugins
-```
-
-```text
-$transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
-```
-
-Карта вызовов для целевого релиза 0.5.0 (проверенная основа — 0.5.0-rc-2) находится в `.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`; установка CLI и настройка подключения описаны рядом в `installation.md`. CLI reference генерируется из structured metadata текущего CLI и проверяется на drift, включая новые команды и опции вне разрешённых списков. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
-
-```bash
-.agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
-make lint-agent-plugins
-```
-
-## Примеры PHP SDK
-
-### Очередь транскрибации
-
-```php
-<?php
-
-declare(strict_types=1);
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Rarus\Echo\Services\ServiceFactory;
-
-$factory = ServiceFactory::fromEnvironment();
-$queue = $factory->getQueueService()->getQueueInfo();
-
-printf(
-    "В очереди: %d файлов, %d MB, %d минут\n",
-    $queue->filesCount,
-    $queue->filesSize,
-    $queue->filesDuration
-);
-```
-
-### Отправка файла и проверка статуса
-
-```php
-<?php
-
-declare(strict_types=1);
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Rarus\Echo\Enum\Language;
-use Rarus\Echo\Enum\TaskType;
-use Rarus\Echo\Services\ServiceFactory;
-use Rarus\Echo\Services\Transcription\Request\TranscriptionOptions;
-
-$factory = ServiceFactory::fromEnvironment();
-
-$options = TranscriptionOptions::create()
-    ->withTaskType(TaskType::DIARIZATION)
-    ->withLanguage(Language::RU)
-    ->withSpeakersCorrection()
-    ->withTimestampsExtended()
-    ->build();
-
-$submitResult = $factory->getTranscriptionService()->submit(
-    files: ['/path/to/audio.ogg'],
-    transcriptionOptions: $options
-);
-
-$fileId = $submitResult->getFileIds()[0];
-$status = $factory->getStatusService()->getByFileId($fileId);
-
-printf(
-    "file_id=%s status=%s\n",
-    $fileId->toRfc4122(),
-    $status->transcriptionStatus->value
-);
-```
-
-### Проверка списка статусов
-
-```php
-<?php
-
-declare(strict_types=1);
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Rarus\Echo\Core\Pagination;
-use Rarus\Echo\Services\ServiceFactory;
-use Symfony\Component\Uid\Uuid;
-
-$factory = ServiceFactory::fromEnvironment();
-$fileIds = [
-    Uuid::fromString('11111111-1111-1111-1111-111111111111'),
-    Uuid::fromString('22222222-2222-2222-2222-222222222222'),
-];
-
-$statusList = $factory->getStatusService()->getList(
-    fileIds: $fileIds,
-    pagination: new Pagination(page: 1, perPage: 10)
-);
-
-foreach ($statusList->getResults() as $status) {
-    printf(
-        "file_id=%s status=%s\n",
-        $status->fileId->toRfc4122(),
-        $status->transcriptionStatus->value
-    );
-}
-
-printf(
-    "page=%d per_page=%d total_pages=%d\n",
-    $statusList->pagination->page,
-    $statusList->pagination->perPage,
-    $statusList->pagination->total
-);
-```
-
-### Получение результата
-
-```php
-<?php
-
-declare(strict_types=1);
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Rarus\Echo\Services\ServiceFactory;
-use Symfony\Component\Uid\Uuid;
-
-$factory = ServiceFactory::fromEnvironment();
-$fileId = Uuid::fromString('11111111-1111-1111-1111-111111111111');
-
-$transcript = $factory->getTranscriptionService()->getByFileId($fileId);
-
-if ($transcript->isSuccessful()) {
-    echo $transcript->result ?? '';
-}
-```
-
-## Поддерживаемые возможности API
-
-### Типы транскрибации
-- `transcription` - обычная транскрипция
-- `timestamps` - с метками времени
-- `diarization` - с разбиением по говорящим
-- `raw_transcription` - сырой текст
-
-Для диаризации с расширенными таймкодами используйте `task-type=diarization` вместе с опцией `timestamps-extended=1`: в SDK это `withTimestampsExtended()`, в CLI - `--timestamps-extended`.
-
-### Языки
-`ru`, `en`, `de`, `fr`, `es`, `pt`, `hy`, `ja`, `tr`, `ar`, `zh`, `he`, `vi`, `auto`
-
-### Статусы
-- `waiting` - ожидает в очереди
-- `processing` - обрабатывается
-- `success` - завершено успешно
-- `failure` - ошибка
+В PowerShell используйте `.\rarus-echo.exe` вместо `./rarus-echo` и свой путь к аудио.
+`install` сохраняет подключение, API key вводится скрыто. `submit` также принимает
+локальное видео и сам подготавливает аудиодорожку.
+[Конфигурация подключения](docs/connection.md) · [Команды и опции CLI](docs/cli.md).
 
 ## Документация
 
-- [OpenAPI спецификация](https://production-ai-ui-api.ai.rarus-cloud.ru/openapi.json) - официальная API документация
+- [Установка и обновление](docs/install/README.md).
+- [Подключение и конфигурация](docs/connection.md).
+- [CLI: команды, опции и обработка видео](docs/cli.md).
+- [PHP SDK: установка](docs/install/php.md), [примеры и API](docs/php-sdk.md).
+- [Agent plugin для транскрибации](docs/agent-plugin.md).
+- [Разработка и сопровождение](docs/development.md), [CONTRIBUTING](CONTRIBUTING.md).
+- [Вся документация](docs/README.md), [OpenAPI](https://production-ai-ui-api.ai.rarus-cloud.ru/openapi.json).
 
-## Разработка
-
-### Требования для разработки
-
-- Docker & Docker Compose
-- Make
-- Node.js 20.19+ или 24+
-- OpenSpec CLI 1.3.1 для OpenSpec workflow:
-  ```bash
-  npm install -g @fission-ai/openspec@1.3.1
-  openspec --version
-  ```
-
-### Первоначальная настройка
-
-```bash
-make docker-init      # Инициализация Docker окружения и установка зависимостей
-make docker-up        # Запуск контейнеров
-make dev-php-bash     # Войти в контейнер
-```
-
-### Основные команды
-
-```bash
-make lint-all         # Запуск всех линтеров
-make lint-openspec    # Проверка OpenSpec артефактов
-make lint-agent-plugins # Проверка agent plugin и CLI reference
-make lint-php         # Запуск PHP-линтеров
-make lint-cs-fixer-fix # Исправление стиля кода
-make lint-phpstan     # Статический анализ
-make test-unit        # Юнит-тесты
-make test-integration # Интеграционные тесты
-make test-all         # Все тесты
-make ci               # Полный CI pipeline локально
-```
-
-Полный список команд: `make help`
-
-### Интеграционные тесты
-
-Integration tests делают реальные API-запросы и загружают короткие аудиофайлы из `tests/Assets/ru/`. Для локального запуска добавьте credentials в `.env.local`; файл уже игнорируется Git:
-
-```dotenv
-RARUS_ECHO_API_KEY=your-api-key-uuid
-RARUS_ECHO_USER_ID=your-user-id-uuid
-RARUS_ECHO_BASE_URL=https://production-ai-ui-api.ai.rarus-cloud.ru
-```
-
-Если credentials не заданы или в `.env` остались placeholder-значения, integration tests будут пропущены.
-
-```bash
-make test-integration
-make test-integration-core
-make test-integration-queue
-make test-integration-status
-make test-integration-transcription
-```
-
-### Workflow поддержки
-
-Поддержка проекта идет от GitHub issue к Pull Request в ветку `dev`.
-
-1. Откройте или выберите issue и зафиксируйте ожидаемый результат.
-2. Создайте ветку от `dev`: `feature/<issue>-<slug>`, `bugfix/<issue>-<slug>` или `docs/<issue>-<slug>`.
-3. Для нетривиальных изменений публичного API, поведения SDK, архитектуры, CI или процесса поддержки создайте OpenSpec change в `openspec/changes/<change-id>/`.
-4. Для опечаток, обновлений зависимостей и небольших документационных правок OpenSpec можно не использовать, если отдельная спецификация не добавляет ясности.
-5. Перед PR запустите локальную проверку и откройте Pull Request в `dev`.
-6. Считайте issue завершенным только после зеленого CI в Pull Request.
-
-OpenSpec change обычно содержит:
-
-- `proposal.md` - зачем нужно изменение и что меняется;
-- `design.md` - технические решения, если они нужны;
-- `specs/<capability>/spec.md` - требования и сценарии;
-- `tasks.md` - чеклист реализации.
-
-Основные команды для OpenSpec:
-
-```bash
-openspec list
-openspec list --specs
-make lint-openspec
-```
-
-OpenSpec CLI генерирует repo-local commands/skills для Claude Code и Codex. После обновления CLI синхронизируйте эти файлы командой:
-
-```bash
-openspec update --force
-```
-
-После merge связанного PR завершенный change архивируется командой:
-
-```bash
-openspec archive <change-id> --yes
-```
-
-Для agent-assisted поддержки используйте repo-local skill. Claude Code и Codex читают один общий русский skill через свои стандартные entrypoint-пути:
-
-- Claude Code: `.claude/skills/rarus-echo-maintainer/SKILL.md`
-- Codex: `.codex/skills/rarus-echo-maintainer/SKILL.md`
-
-## Вклад в проект
-
-Мы приветствуем вклад в развитие проекта! Пожалуйста, ознакомьтесь с [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Процесс разработки
-
-1. Fork репозитория
-2. Создайте feature branch от `dev`
-3. Внесите изменения
-4. Запустите тесты и линтеры: `make ci`
-5. Создайте Pull Request в `dev`
-
-## Лицензия
-
-MIT License. См. [LICENSE](LICENSE) для деталей.
-
-## Поддержка
-
-Если у вас возникли вопросы или проблемы, пожалуйста, создайте [Issue](../../issues).
+Вопросы и ошибки: [GitHub Issues](https://github.com/mesilov/rarus-echo-php-sdk/issues).
+Лицензия: [MIT](LICENSE).

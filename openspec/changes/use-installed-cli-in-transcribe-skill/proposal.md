@@ -20,4 +20,4 @@ The transcription skill defaults to Docker and does not define what to do when t
 
 ## Impact
 
-Plugin skill, bundled references, reference generator, plugin metadata and CHANGELOG. No SDK runtime/API changes. No live submission or credential changes are needed for verification.
+Plugin skill, bundled references, reference generator, plugin metadata, `docs/agent-plugin.md`, maintainer guidance and CHANGELOG. No SDK runtime/API changes. No live submission or credential changes are needed for verification.
