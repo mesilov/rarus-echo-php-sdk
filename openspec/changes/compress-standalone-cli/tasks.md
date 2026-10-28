@@ -7,7 +7,7 @@
 ## 2. Distribution integration
 - [ ] 2.1 Integrate original/final packaging and native smoke; validate unchanged PHAR bytes and runtime caches, reduction reports and signatures.
 - [ ] 2.2 Extend archive/installer contracts compatibly with historical releases; test compression provenance, missing notices, tampered bytes and complete installation.
-- [ ] 2.3 Update workflow inputs/cache keys and Rust prerequisites; update README/build docs, attribution and CHANGELOG and check workflow syntax.
+- [x] 2.3 Update workflow inputs/cache keys and Rust prerequisites; update README/build docs, attribution and CHANGELOG and check workflow syntax.
 
 ## 3. Integration verification and review
 - [x] 3.1 Run packaging contracts, make lint-openspec, git diff --check, make test-unit and make lint-all; record actual results.

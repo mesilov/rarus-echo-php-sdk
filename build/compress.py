@@ -27,7 +27,8 @@ def provenance(target):
     if target == "macos-arm64":
         config = CONFIG["wrappe"]
         return {"tool": "wrappe", "version": config["version"], "strategy": "whole-executable",
-                "compression": config["compression"], "rust_toolchain": config["rust_toolchain"],
+                "compression": config["compression"], "cache_directory": config["cache_directory"],
+                "rust_toolchain": config["rust_toolchain"],
                 "crate_sha256": config["crate_sha256"],
                 "runner_build_patch_sha256": digest(ROOT / config["runner_build_patch"]),
                 "launcher_patch_sha256": digest(ROOT / config["launcher_patch"])}
@@ -126,7 +127,9 @@ def install_wrappe(work, env):
     stamp = root / "wrappe-build-info.json"
     expected = provenance("macos-arm64")
     installed = json.loads(stamp.read_text()) if stamp.is_file() else None
-    rebuild = not tool.is_file() or not installed or installed["provenance"] != expected
+    build_keys = ["version", "rust_toolchain", "crate_sha256", "runner_build_patch_sha256", "launcher_patch_sha256"]
+    rebuild = not tool.is_file() or not installed or any(
+        installed.get("provenance", {}).get(key) != expected[key] for key in build_keys)
     if not rebuild and installed["tool_sha256"] != digest(tool):
         raise RuntimeError("Cached wrappe executable SHA256 mismatch")
     if rebuild:
@@ -141,8 +144,7 @@ def install_wrappe(work, env):
         shutil.rmtree(notices)
     if not notices.is_dir():
         collect_wrappe_notices(root, notices)
-    if rebuild:
-        stamp.write_text(json.dumps({"provenance": expected, "tool_sha256": digest(tool)}, indent=2) + "\n")
+    stamp.write_text(json.dumps({"provenance": expected, "tool_sha256": digest(tool)}, indent=2) + "\n")
     return tool
 
 
@@ -199,7 +201,7 @@ def pack_macos(work, binary, env):
     packed = binary.with_name(binary.name + ".packed")
     packed.unlink(missing_ok=True)
     subprocess.run([str(tool), "--compression", str(CONFIG["wrappe"]["compression"]),
-                    "--show-information", "none", str(root), binary.name, str(packed)], env=env, check=True)
+                    "--show-information", "none", "--unpack-directory", CONFIG["wrappe"]["cache_directory"], str(root), binary.name, str(packed)], env=env, check=True)
     packed.chmod(0o755)
     finalize_overlay(packed)
     require_reduction(binary, packed)

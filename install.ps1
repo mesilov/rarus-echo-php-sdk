@@ -264,7 +264,7 @@ function Assert-RarusEchoCompression([string]$Directory) {
     $binary = Join-Path $Directory 'rarus-echo.exe'
     if ($entry.compressed_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
         $entry.compressed_sha256 -ine (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -or
-        $entry.compressed_bytes -isnot [long] -and $entry.compressed_bytes -isnot [int]) { throw 'Invalid compression hash/size.' }
+        ($entry.compressed_bytes -isnot [long] -and $entry.compressed_bytes -isnot [int])) { throw 'Invalid compression hash/size.' }
     if ($entry.original_bytes -isnot [long] -and $entry.original_bytes -isnot [int]) { throw 'Invalid original size.' }
     if ($entry.compressed_bytes -le 0 -or $entry.original_bytes -le $entry.compressed_bytes -or
         $entry.compressed_bytes -ne (Get-Item -LiteralPath $binary).Length) { throw 'Invalid compression reduction/size.' }

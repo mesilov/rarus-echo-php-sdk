@@ -14,7 +14,7 @@ Compress Echo and the acceptance probe on all four native targets. Preserve full
 - Run existing native smoke including cancellation, timeouts and media against originals and final executables, and check repeat cached macOS runs. Native failure blocks artifact upload. Emit exact executable/archive size reports and include packer inputs in workflow triggers/cache keys.
 
 ## Risks / Trade-offs
-- macOS extraction requires executable writable temporary storage and persistent cache space; document it and accept copied Unicode paths and cold/warm launches.
+- macOS extraction uses the explicit `rarus-echo-cache` directory under TEMP and requires executable writable storage and persistent cache space; document it and accept copied Unicode paths and cold/warm launches.
 - Packer changes can alter process identity, signals or discovery; native tests cover the actual compressed release bytes.
 - Archive allowlists overlap #73; preserve unrelated source attribution and coordinate contract changes during integration.
 - Rust compilation increases first build time; cache tool identity and notices with checksum validation, separately from original PHP runtime validity.

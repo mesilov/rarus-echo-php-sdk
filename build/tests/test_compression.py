@@ -138,6 +138,25 @@ class CompressionChecks(unittest.TestCase):
         source = compression.prepare_wrappe_source(archive, self.root)
         self.assertIn('&& env != "CARGO_HOME"', (source / 'build.rs').read_text())
 
+    def test_packing_settings_do_not_rebuild_verified_wrappe_tool(self):
+        root = self.root / 'packers'
+        tool = root / 'bin/wrappe'
+        tool.parent.mkdir(parents=True)
+        tool.write_bytes(b'verified packer')
+        previous = compression.provenance('macos-arm64')
+        previous.pop('cache_directory')
+        (root / 'wrappe-build-info.json').write_text(json.dumps({
+            'provenance': previous, 'tool_sha256': compression.digest(tool)}))
+        notices = root / 'wrappe-notices'
+        notices.mkdir()
+        (notices / 'LICENSE').write_text('notice')
+        with patch('compress.checked_download', return_value=root / 'wrappe.crate'), \
+             patch('compress.check_version'), \
+             patch('compress.prepare_wrappe_source', side_effect=AssertionError('unexpected rebuild')):
+            self.assertEqual(compression.install_wrappe(self.root, {}), tool)
+        stamp = json.loads((root / 'wrappe-build-info.json').read_text())
+        self.assertEqual(stamp['provenance'], compression.provenance('macos-arm64'))
+
     def test_runner_notices_survive_cache_without_host_registry(self):
         packers = self.root / 'packers'
         host = self.root / 'host'

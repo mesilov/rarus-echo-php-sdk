@@ -22,7 +22,7 @@ preserve the scoped Cargo registry and pass the absolute launcher path to the
 PHAR bootstrap. Inherited launcher values are overwritten on cold and cached runs.
 
 macOS requires writable temporary storage that permits execution and enough
-space for the extracted original executable. wrappe keeps its extraction cache
+space for the extracted original executable. wrappe keeps its `rarus-echo-cache` extraction directory under the selected TEMP root
 for subsequent launches. Remove that cache only after commands finish; the next
 launch recreates it. The Unix launcher uses exec, preserving PID, signals and
 exit status. No progress text is added to CLI/JSON stdout.

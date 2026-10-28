@@ -23,6 +23,7 @@
     "rust_toolchain": "1.90.0",
     "crate_sha256": "2535b5c90368ce69aebc10682265d3be6b9e2cb01f389e6918768d102d7609ae",
     "runner_build_patch": "build/compression-patches/wrappe-cargo-home.json",
-    "launcher_patch": "build/compression-patches/wrappe-launcher-path.json"
+    "launcher_patch": "build/compression-patches/wrappe-launcher-path.json",
+    "cache_directory": "rarus-echo-cache"
   }
 }
