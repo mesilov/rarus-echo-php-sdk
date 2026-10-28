@@ -95,7 +95,7 @@ if (projectCommands.length === 0) {
   process.exit(1);
 }
 const optionAllowlist = {
-  'extract-audio': ["json", "audio-stream", "media-timeout"],
+  'extract-audio': ["config", "json", "audio-stream", "media-timeout"],
   doctor: ["json", "config"],
   install: ["config"],
   queue: ["config", "json"],
