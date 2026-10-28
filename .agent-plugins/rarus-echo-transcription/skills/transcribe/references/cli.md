@@ -15,6 +15,7 @@ Refresh it after CLI command or option changes:
 | --- | --- |
 | `install` | Configure and save a private RARUS Echo connection interactively. |
 | `doctor` | Check configuration, authenticated Echo access and ffmpeg readiness. |
+| `extract-audio` | Extract audio from one video into a sibling file with the same basename, without uploading. |
 | `queue` | Show aggregated transcription queue information. |
 | `submit` | Submit one or more files for transcription. |
 | `status` | Show transcription status for one file. |
@@ -60,6 +61,30 @@ None.
 | --- | --- | --- | --- | --- | --- |
 | `--json` | no | no | no | `false` | Write diagnostic report as JSON. |
 | `--config` | yes | yes | no | `null` | Read connection settings from this file. |
+
+## extract-audio
+
+Extract audio from one video into a sibling file with the same basename, without uploading.
+
+### Usage
+
+```text
+extract-audio [--audio-stream AUDIO-STREAM] [--media-timeout MEDIA-TIMEOUT] [--json] [--] <file>
+```
+
+### Arguments
+
+| Argument | Required | Multiple | Default | Description |
+| --- | --- | --- | --- | --- |
+| `file` | yes | no | `null` | Local video path. |
+
+### Options
+
+| Option | Accepts Value | Value Required | Multiple | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--json` | no | no | no | `false` | Write command result as JSON. |
+| `--audio-stream` | yes | yes | no | `null` | Absolute non-negative audio stream index. |
+| `--media-timeout` | yes | yes | no | `"600"` | Combined probe and preparation deadline in seconds. |
 
 ## queue
 

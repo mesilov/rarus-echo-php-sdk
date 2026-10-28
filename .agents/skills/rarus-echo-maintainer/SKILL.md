@@ -10,6 +10,17 @@ user-invocable: true
 
 Используй этот скилл для сопровождения репозитория через GitHub issue: чтение задачи, планирование реализации, решение о необходимости OpenSpec, создание ветки, запуск проверок, открытие pull request и контроль CI.
 
+## Создание issue
+
+Создавай GitHub issues только через `gh`, без UI, браузера, интерактивных форм и MCP-инструментов создания issue. Перед созданием проверь существующие issues через `gh issue list`, чтобы не дублировать задачу. Передавай заголовок и описание явно, многострочный текст — файлом:
+
+```bash
+gh issue create --repo mesilov/rarus-echo-php-sdk --title '<title>' --body-file /tmp/rarus-echo-issue.md
+gh issue view <number> --repo mesilov/rarus-echo-php-sdk --json number,title,body,labels,milestone,assignees,comments
+```
+
+Считай issue созданной только после успешного ответа `gh` с URL/номером и проверки через `gh issue view`. Если `gh` недоступен или вернул ошибку, сообщи точный блокер; не переключайся на UI или форму.
+
 ## Начало работы
 
 1. Перед реализацией загрузи GitHub issue. Прочитай заголовок, описание, labels, milestone, assignees, комментарии и связанные pull requests.

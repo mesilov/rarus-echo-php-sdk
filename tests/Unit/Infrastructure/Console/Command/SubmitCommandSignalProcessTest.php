@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rarus\Echo\Tests\Unit\Infrastructure\Console\Command;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SubmitCommandSignalProcessTest extends TestCase
@@ -82,7 +83,14 @@ final class SubmitCommandSignalProcessTest extends TestCase
         }
     }
 
-    public function testInterruptDuringPreparationStopsChildAndRemovesPartialAudio(): void
+    /** @return array<string, array{string}> */
+    public static function preparationCommands(): array
+    {
+        return ['submit' => ['submit'], 'extract-audio' => ['extract-audio']];
+    }
+
+    #[DataProvider('preparationCommands')]
+    public function testInterruptDuringPreparationStopsChildAndRemovesPartialAudio(string $command): void
     {
         if (!defined('SIGINT') || !function_exists('pcntl_signal') || PHP_OS_FAMILY === 'Windows') {
             self::markTestSkipped('Unix process signal handling is unavailable.');
@@ -112,7 +120,9 @@ final class SubmitCommandSignalProcessTest extends TestCase
         }
         file_put_contents($directory . '/cli.php', $this->signalAwareCliScript($root));
         $pipes = [];
-        $process = proc_open([PHP_BINARY, $directory . '/cli.php', 'submit', $root . '/tests/Fixtures/Media/video-aac.mp4'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root, array_merge(getenv(), ['RARUS_ECHO_FFMPEG_PATH' => $directory . '/ffmpeg', 'RARUS_ECHO_FFPROBE_PATH' => $directory . '/ffprobe']));
+        $source = $directory . '/video.mp4';
+        copy($root . '/tests/Fixtures/Media/video-aac.mp4', $source);
+        $process = proc_open([PHP_BINARY, $directory . '/cli.php', $command, $source], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root, array_merge(getenv(), ['RARUS_ECHO_FFMPEG_PATH' => $directory . '/ffmpeg', 'RARUS_ECHO_FFPROBE_PATH' => $directory . '/ffprobe']));
         self::assertIsResource($process);
         $stdout = '';
         $stderr = '';
@@ -134,6 +144,7 @@ final class SubmitCommandSignalProcessTest extends TestCase
             self::assertSame('', $stdout);
             self::assertStringContainsString('Signal SIGINT received, shutting down.', $stderr);
             self::assertFileDoesNotExist($active['file']);
+            self::assertFileDoesNotExist($directory . '/video.m4a');
             self::assertDirectoryDoesNotExist(dirname((string) $active['file']));
             if (function_exists('posix_kill')) {
                 self::assertFalse(@posix_kill($active['pid'], 0));

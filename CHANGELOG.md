@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Local `extract-audio <file>` command saves verified audio beside its video with the same basename, without credentials or upload; supports stream selection, media timeout, JSON output and safe no-overwrite publication (#78).
+
 ### Changed
+- Maintainer skill requires creating GitHub issues through non-interactive `gh`, without UI or MCP creation forms (#78).
 - Shortened README around Latest binary downloads, curl-only installation and first use, with a tagged RARUS Echo registration link; moved detailed installation, connection, CLI, SDK, agent plugin and development instructions into linked `docs/` guides (#72).
 - Maintainer and contributor workflows now synchronize the hand-written `docs/cli.md` with the generated transcription-skill reference and keep pinned Composer examples in `docs/install/php.md`; Latest binary availability remains gated by the separate stable release (#68).
 
