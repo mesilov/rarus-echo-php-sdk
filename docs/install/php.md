@@ -11,7 +11,7 @@
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-2
+composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-3
 ```
 
 Этот пример устанавливает проверяемый RC; stable пока `0.4.0`. При выпуске stable обновляйте constraint здесь.

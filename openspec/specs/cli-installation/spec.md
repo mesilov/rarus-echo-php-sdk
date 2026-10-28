@@ -58,3 +58,32 @@ The Windows installer SHALL initialize native architecture detection and environ
 #### Scenario: Unicode temporary directory
 - **WHEN** a fresh PowerShell process starts the installer with Unicode TEMP and working directories
 - **THEN** native architecture detection and bounded environment notification succeed, repeated initialization succeeds, and no compiler files remain
+
+### Requirement: Runtime distribution notices
+Installers SHALL accept archives without b24cli or YiiPress build-helper license files while requiring application notices and runtime/media licenses. They SHALL also install historical archives containing those two files and preserve the frozen RC-1 no-media contract.
+
+#### Scenario: Install reduced archive
+- **WHEN** a valid new archive omits BITRIX24-CLI-LICENSE.txt and YIIPRESS-LICENSE.txt
+- **THEN** both installers install the complete runtime package and required licenses
+
+#### Scenario: Update from historical notices
+- **WHEN** an installation containing the two historical license files is updated from a valid reduced archive
+- **THEN** the active notices directory matches the new package without stale build-helper licenses and user configuration is preserved
+
+#### Scenario: Required runtime license missing
+- **WHEN** either archive shape lacks runtime licenses or a required media license
+- **THEN** installation fails before replacing the current installation
+
+### Requirement: Bounded executable sharing retries
+
+The Windows installer SHALL retry atomic executable replacement only for transient sharing or lock violations, for at most twenty attempts separated by 250 ms. Access-denied and unrelated failures MUST propagate without retries. Exhausted retries MUST fail through the existing rollback path and preserve the previous installation or its documented recovery files.
+
+#### Scenario: Brief executable sharing lock
+
+- **WHEN** executable activation encounters a sharing or lock violation that clears within the retry budget
+- **THEN** installation completes without weakening archive validation or replacing atomic activation with a partial copy
+
+#### Scenario: Persistent lock or unrelated failure
+
+- **WHEN** the executable remains locked for the entire budget or activation fails for another reason
+- **THEN** installation fails with bounded work and existing rollback protections remain active
