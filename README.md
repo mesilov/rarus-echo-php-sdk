@@ -1,6 +1,6 @@
 # RARUS Echo PHP SDK
 
-Транскрибируйте аудио и видео через RARUS Echo из терминала, PHP-приложений и AI-агентов.
+Транскрибируйте аудио и видео через [RARUS Echo](https://rarus.ru/echo/?utm_source=mesilov_maksim&utm_medium=github&utm_campaign=rarus_echo_php_sdk) из терминала, PHP-приложений и AI-агентов.
 Готовый CLI включает PHP runtime и инструменты подготовки аудио из видео.
 
 [![Lint](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml/badge.svg)](https://github.com/mesilov/rarus-echo-php-sdk/actions/workflows/lint.yml)

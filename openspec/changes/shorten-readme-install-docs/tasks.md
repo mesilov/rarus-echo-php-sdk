@@ -8,7 +8,7 @@
 
 - [x] 2.1 Check moved content, local Markdown links/anchors and shell syntax; verify available macOS package/version/help without changing user settings or calling Echo.
 - [x] 2.2 Run make lint-openspec, git diff --check, make test-unit and make lint-all; preserve generated CLI reference.
-- [ ] 2.3 Push issue branch and open a PR into dev with Closes #72 and the stable-release blocker.
+- [x] 2.3 Push issue branch and open a PR into dev with Closes #72 and the stable-release blocker.
 - [ ] 2.4 Check required CI and handle agent review comments on the PR.
 
 ## 3. Release dependency (outside this PR)
