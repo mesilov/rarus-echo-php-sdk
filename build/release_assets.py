@@ -16,10 +16,13 @@ from compress import provenance
 
 TARGETS = ['linux-amd64', 'linux-arm64', 'macos-arm64', 'windows-amd64']
 REQUIRED = ['build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
-            'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt',
-            'runtime-licenses', 'libexec', 'media-build-info.json', 'media-SHA256SUMS',
+            'RARUS-ECHO-LICENSE.txt', 'runtime-licenses', 'libexec', 'media-build-info.json',
+            'media-SHA256SUMS',
             'media-source.tar.xz', 'media-licenses']
 DIRECTORIES = {'runtime-licenses', 'media-licenses'}
+PACKAGING_LICENSES = ['BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt']
+# Published media archives before the build-helper license cleanup.
+HISTORICAL_PACKAGING_RELEASES = {'0.5.0-rc-2': 'ba667107bb7611cbc0f3f47859cb63e970a635b9'}
 COMPRESSION_REQUIRED = ['compression-info.json', 'compression-licenses']
 LEGACY_REQUIRED = ['build-info.json', 'runtime-sources.json', 'THIRD-PARTY-NOTICES.md',
                    'RARUS-ECHO-LICENSE.txt', 'BITRIX24-CLI-LICENSE.txt', 'YIIPRESS-LICENSE.txt',
@@ -45,12 +48,13 @@ def executables(target, require_media=True):
     return {executable(target), *toolkit.manifest_paths(target)[2:]} if require_media else {executable(target)}
 
 
-def allowed_name(name, target, require_media=True):
+def allowed_name(name, target, require_media=True, historical_packaging=False):
     if (not name or name.startswith('/') or '\\' in name or ':' in name
             or any(part in {'', '.', '..'} for part in name.split('/'))
             or any(ord(char) < 32 for char in name)):
         return False
-    required = REQUIRED if require_media else LEGACY_REQUIRED
+    required = (REQUIRED + (PACKAGING_LICENSES if historical_packaging else [])
+                if require_media else LEGACY_REQUIRED)
     directories = DIRECTORIES if require_media else {'runtime-licenses'}
     if require_media and (name == 'compression-info.json' or name.startswith('compression-licenses/')):
         return True
@@ -149,6 +153,7 @@ def validate_compression(report, info, target, final_sha):
 def inspect_archive(path, target, version, sha, *, require_media=True):
     if not require_media:
         validate_legacy_identity(version, sha)
+    historical_packaging = HISTORICAL_PACKAGING_RELEASES.get(version) == sha
     records, directories, components, lengths = {}, set(), {}, {}
     archive = zipfile.ZipFile(path) if target.startswith('windows') else tarfile.open(path)
     with archive:
@@ -169,7 +174,7 @@ def inspect_archive(path, target, version, sha, *, require_media=True):
                     directories.add(folded)
                 elif folded in directories:
                     raise ValueError('Archive parent-file collision: ' + name)
-            if not allowed_name(name, target, require_media) or key in records:
+            if not allowed_name(name, target, require_media, historical_packaging) or key in records:
                 raise ValueError('Unsafe, unexpected or duplicate archive contents: ' + name)
             if target.startswith('windows'):
                 mode = member.external_attr >> 16
@@ -196,7 +201,9 @@ def inspect_archive(path, target, version, sha, *, require_media=True):
                             or name == 'media-SHA256SUMS' else None)
     names = {row[0] for row in records.values()}
     directories = DIRECTORIES if require_media else {'runtime-licenses'}
-    required = (set(REQUIRED if require_media else LEGACY_REQUIRED) - directories - {'libexec'}) | executables(target, require_media)
+    required_files = (REQUIRED + (PACKAGING_LICENSES if historical_packaging else [])
+                      if require_media else LEGACY_REQUIRED)
+    required = (set(required_files) - directories - {'libexec'}) | executables(target, require_media)
     if not required.issubset(names) or any(not any(n.startswith(d + '/') for n in names) for d in directories):
         raise ValueError('Incomplete archive contents')
     info = json.loads(records['build-info.json'][2])
@@ -207,6 +214,8 @@ def inspect_archive(path, target, version, sha, *, require_media=True):
             raise ValueError('Legacy archive cannot declare a media build identity')
         return info
     compressed_members = {name for name in names if name.startswith('compression-')}
+    if historical_packaging and ('executable_compression' in info or compressed_members):
+        raise ValueError('Historical RC-2 archive cannot declare compression or contain compression artifacts')
     if 'executable_compression' in info:
         if ('compression-info.json' not in names
                 or not any(name.startswith('compression-licenses/') for name in names)):

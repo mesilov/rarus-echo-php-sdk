@@ -10,7 +10,7 @@
 
 ## Verification evidence
 
-- `make lint-all`: passed with `COMPOSE_PROJECT_NAME=rarus-echo-php-sdk COMPOSE_IGNORE_ORPHANS=True`, reusing the existing project network after Docker exhausted new-network address pools. Includes 27 OpenSpec items, plugin/help drift validation, CS Fixer, PHPStan and Rector.
+- `make lint-all`: passed with `COMPOSE_PROJECT_NAME=rarus-echo-php-sdk COMPOSE_IGNORE_ORPHANS=True`, reusing the existing project network after Docker exhausted new-network address pools. Includes 28 OpenSpec items, plugin/help drift validation, CS Fixer, PHPStan and Rector.
 - `make test-unit` with the same Compose environment: 392 tests, 1088 assertions, 3 skipped.
 - Skill frontmatter validation and `bash -n`: passed.
 - Installed 0.5.0-rc-2 help matches generated reference; fixture mutations verify omitted commands/options fail and changed defaults produce drift without replacing output on errors.
