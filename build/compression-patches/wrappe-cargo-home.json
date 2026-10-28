@@ -1,0 +1,5 @@
+{
+  "file": "build.rs",
+  "before": "if env.starts_with(\"CARGO\") {",
+  "after": "if env.starts_with(\"CARGO\") && env != \"CARGO_HOME\" {"
+}

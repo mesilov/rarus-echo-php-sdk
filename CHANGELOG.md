@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Compress standalone CLI executables using pinned UPX on Linux/Windows and wrappe on macOS, with verified size/hash reports, bundled notices and native original/packed acceptance (#74). macOS uses an executable temporary extraction cache; bundled media stays beside the portable/installed launcher.
+
 ## [0.5.0-rc-2] - 2026-10-28
 
 Second release candidate for 0.5.0, adding automatic video audio preparation, bundled compact FFmpeg/ffprobe and doctor. Native packages are built from the tagged main commit; prerelease publication preserves Latest stable.

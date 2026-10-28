@@ -1,0 +1,5 @@
+{
+  "file": "build.rs",
+  "before": "    let active_targets = get_runner_targets();",
+  "after": "    let runner = starter_dir.join(\"src/main.rs\");\n    let content = std::fs::read_to_string(&runner).expect(\"cannot read pinned runner\");\n    let before = \"    command.env(\\\"WRAPPE_LAUNCH_DIR\\\", launch_dir.as_os_str());\";\n    assert_eq!(content.matches(before).count(), 1, \"pinned runner differs\");\n    std::fs::write(&runner, content.replace(before, \"    command.env(\\\"WRAPPE_LAUNCH_DIR\\\", launch_dir.as_os_str());\\n    command.env(\\\"RARUS_ECHO_LAUNCHER\\\", exe.as_os_str());\")).expect(\"cannot patch runner\");\n    let active_targets = get_runner_targets();"
+}
