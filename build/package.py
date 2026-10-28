@@ -139,8 +139,7 @@ def main():
         for name in ["GCC-COPYING3.txt", "GCC-COPYING.RUNTIME.txt"]:
             shutil.copy2(ROOT / "build/licenses" / name, dist / "runtime-licenses" / name)
     shutil.copy2(spc / "downloads/.lock.json", dist / "runtime-sources.json")
-    for name in ["THIRD-PARTY-NOTICES.md", "BITRIX24-CLI-LICENSE.txt", "YIIPRESS-LICENSE.txt"]:
-        shutil.copy2(ROOT / "build" / name, dist / name)
+    shutil.copy2(ROOT / "build/THIRD-PARTY-NOTICES.md", dist / "THIRD-PARTY-NOTICES.md")
     shutil.copy2(ROOT / "LICENSE", dist / "RARUS-ECHO-LICENSE.txt")
     # The same full native fixture set accepts original and packed executables.
     sys.path.insert(0, str(ROOT / "build/tests"))

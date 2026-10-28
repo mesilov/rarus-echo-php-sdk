@@ -27,3 +27,10 @@ OpenSpec remains unarchived until the PR merges.
 The initial PR head `6f658c9` passed all 15 non-publication checks, including four native packages and archive validation. During that run dev advanced to `405a7c8` with #77 (standalone compression and the broader gh-only maintenance rule), causing documentation conflicts.
 
 Merged that dev into the PR branch without rewriting published history. Preserved both Unreleased entries and the general gh-only policy together with the explicit non-interactive issue creation example. Extraction PHP code is unchanged. Independent integration review found no actionable issues with compressed-launcher media discovery or canonical native-smoke paths. Full local lint and all 405 unit tests pass again; updated packaging contracts also pass. The merged head requires fresh CI on PR #81 before delivery.
+
+
+Dev subsequently advanced to `46f5a49` with #76 (reduced archive notices) and #80 (README command index). Integrated both changes and included extract-audio in the new index. Conflicts were limited to CHANGELOG; extraction code remains unchanged.
+
+On the preceding merge head `6224dab`, native macOS/Linux packages passed. The Windows standalone smoke also accepted extraction, but the later back-to-back repeat-install test hit a Windows file-sharing lock during File.Replace of the installed executable. Process identity checks wait for exit and dispose their handles. An unchanged-head single-job rerun was queued after the workflow finished, then superseded by this required dev integration; current-head native CI remains the delivery gate.
+
+Local integration checks pass again: 28 strict OpenSpec items, full lint, 405 unit tests (1170 assertions; four opt-in skips) and 80 packaging/installer contract tests.

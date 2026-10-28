@@ -1,6 +1,6 @@
 #!/bin/sh
 # Adapted from mesilov/bitrix24-cli f23ca85fe45b003cedd0b6fd0340da6ac850ba00 (BSD-3-Clause).
-# See build/BITRIX24-CLI-LICENSE.txt and build/THIRD-PARTY-NOTICES.md.
+# See build/BITRIX24-CLI-LICENSE.txt and build/PACKAGING-NOTICES.md.
 # Install only public GitHub release assets; no API tokens or CI fallback.
 set -eu
 LC_ALL=C
@@ -188,13 +188,15 @@ awk '
 ' "$work/types" || fail 'archive must contain regular files with exact executable/data permissions'
 mkdir "$work/package"
 tar -xzf "$work/$archive" -C "$work/package" || fail 'cannot unpack archive'
-for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+for file in rarus-echo build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt; do
     [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "archive missing required file: $file"
 done
 have_license=0
 have_media_license=0
 while IFS= read -r member; do
-    case "$member" in runtime-licenses/*)
+    case "$member" in BITRIX24-CLI-LICENSE.txt|YIIPRESS-LICENSE.txt)
+        [ -s "$work/package/$member" ] || fail "empty historical packaging license: $member" ;;
+        runtime-licenses/*)
         [ -f "$work/package/$member" ] && [ -s "$work/package/$member" ] || fail "empty runtime license: $member"
         have_license=1 ;;
         media-licenses/*)
@@ -375,6 +377,9 @@ legacy_package=0
 # No other version/source pair may omit the complete media payload.
 if [ "$version" = 0.5.0-rc-1 ] && [ "$(field "$work/build-records" source_sha)" = e359975527bd483707dc39d23599545a77c1620d ]; then
     legacy_package=1
+    for file in BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+        [ -f "$work/package/$file" ] && [ -s "$work/package/$file" ] || fail "frozen legacy archive missing required file: $file"
+    done
     awk '/^(libexec\/|media-|compression-)/ {exit 1}' "$work/members" || fail 'frozen legacy archive must not contain media entries'
     awk -F '\t' '$1=="media" || index($1,"media.")==1 {exit 1}' "$work/build-records" || fail 'frozen legacy metadata must not declare media'
     [ "$(field "$work/build-records" target)" = "$target" ] || fail 'frozen legacy archive target mismatch'
@@ -443,8 +448,12 @@ chmod 755 "$binary_stage"
 staged_version=$("$binary_stage" --version --no-ansi) || fail 'staged binary cannot execute in install directory'
 [ "$staged_version" = "$reported" ] || fail 'staged binary version mismatch'
 package_stage=$(mktemp -d "$share_dir/.package.XXXXXXXX")
-for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt runtime-licenses; do
+for file in build-info.json runtime-sources.json THIRD-PARTY-NOTICES.md RARUS-ECHO-LICENSE.txt runtime-licenses; do
     cp -R "$work/package/$file" "$package_stage/"
+done
+# Historical archives carry separate build-helper license files.
+for file in BITRIX24-CLI-LICENSE.txt YIIPRESS-LICENSE.txt; do
+    if [ -f "$work/package/$file" ]; then cp "$work/package/$file" "$package_stage/"; fi
 done
 if [ "$have_compression" -eq 1 ]; then
     cp -R "$work/package/compression-info.json" "$work/package/compression-licenses" "$package_stage/"
