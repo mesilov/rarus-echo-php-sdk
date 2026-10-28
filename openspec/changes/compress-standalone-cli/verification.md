@@ -17,4 +17,4 @@
 - First-run Linux amd64 executable: 67,088,314 to 21,397,506 bytes. First-run macOS executable: 68,682,016 to 22,309,568 bytes. These are measurements for 58188c4; final-head native acceptance remains required.
 
 ## Native verification
-Native standalone CI and final Windows PowerShell 5.1 installer execution are pending. No native platform is considered accepted based on fixture tests alone. Native acceptance must exercise original and compressed binaries, complete portable and installed media, signals, timeouts, copied Unicode paths and macOS extraction/cache behavior.
+First-run Linux amd64 and arm64 passed completely. Windows original/final native smoke also passed; its installer fixture stopped on the already corrected PowerShell hash expression. Final-head native CI and complete macOS/Windows installation acceptance remain pending. No native platform is considered accepted based on fixture tests alone. Native acceptance must exercise original and compressed binaries, complete portable and installed media, signals, timeouts, copied Unicode paths and macOS extraction/cache behavior.
