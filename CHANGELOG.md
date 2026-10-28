@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Compress standalone CLI executables using pinned UPX on Linux/Windows and wrappe on macOS, with verified size/hash reports, bundled notices and native original/packed acceptance (#74). macOS uses an executable temporary extraction cache; bundled media stays beside the portable/installed launcher.
 - Shortened README around Latest binary downloads, curl-only installation and first use, with a tagged RARUS Echo registration link; moved detailed installation, connection, CLI, SDK, agent plugin and development instructions into linked `docs/` guides (#72).
 - Maintainer and contributor workflows now synchronize the hand-written `docs/cli.md` with the generated transcription-skill reference and keep pinned Composer examples in `docs/install/php.md`; Latest binary availability remains gated by the separate stable release (#68).
 

@@ -288,6 +288,32 @@ try {
         Expand-RarusEchoArchive $validZip $destination
         Assert-True (Test-Path -LiteralPath (Join-Path $destination 'runtime-licenses/PHP.txt')) 'Missing extracted runtime license.'
     }
+    Test-Case 'compressed package validates provenance and rejects tampering or missing notices' {
+        $directory = Join-Path $root 'compression-expanded'
+        Expand-RarusEchoArchive $validZip $directory
+        $metadata = Read-RarusEchoJson (Join-Path $directory 'build-info.json')
+        $compressor = [pscustomobject]@{ tool = 'upx'; version = '5.2.1'; strategy = 'micro-before-phar'; level = '--best'; archive_sha256 = 'e' * 64 }
+        $metadata | Add-Member -NotePropertyName executable_compression -NotePropertyValue $compressor
+        [IO.File]::WriteAllText((Join-Path $directory 'build-info.json'), ($metadata | ConvertTo-Json -Depth 10))
+        $binary = Join-Path $directory 'rarus-echo.exe'
+        $entry = @{ original_bytes = 10000; original_sha256 = 'a' * 64; compressed_bytes = (Get-Item -LiteralPath $binary).Length;
+            compressed_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant() }
+        $report = @{ target = 'windows-amd64'; compressor = $compressor; executables = @{ 'rarus-echo.exe' = $entry; 'runtime-probe.exe' = $entry.Clone() } }
+        $reportPath = Join-Path $directory 'compression-info.json'
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        $licenses = Join-Path $directory 'compression-licenses'
+        [void][IO.Directory]::CreateDirectory($licenses)
+        [IO.File]::WriteAllText((Join-Path $licenses 'UPX.txt'), 'notice')
+        Assert-RarusEchoCompression $directory
+        $originalHash = $entry.compressed_sha256
+        $entry.compressed_sha256 = 'f' * 64
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        Assert-Fails { Assert-RarusEchoCompression $directory } 'compression hash'
+        $entry.compressed_sha256 = $originalHash
+        [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 10))
+        Remove-Item -LiteralPath $licenses -Recurse -Force
+        Assert-Fails { Assert-RarusEchoCompression $directory } 'compression provenance/notices'
+    }
     Test-Case 'media executable mode is required before extraction' {
         $path = Join-Path $root 'wrong-media-mode.zip'
         New-TestArchive $path '' @() '' 'wrong-mode'
