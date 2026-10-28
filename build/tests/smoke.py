@@ -258,7 +258,7 @@ def smoke(directory, version, sha, probe=None, php=None, doctor=True, media=True
                         extracted = command(binary, ["extract-audio", str(local_video), "--json",
                                                      "--config", str(workspace / "missing.json")],
                                             workspace, env)
-                        local_audio = local_video.with_suffix(extension)
+                        local_audio = local_video.with_suffix(extension).resolve()
                         check(json.loads(extracted.stdout) == {"output": str(local_audio)},
                               "Local extraction path/JSON contract changed")
                         check(len(Handler.requests) == before, "Local extraction made an API request")
