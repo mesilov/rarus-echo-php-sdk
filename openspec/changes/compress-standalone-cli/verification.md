@@ -30,3 +30,7 @@ Final accepted executable measurements (bytes):
 | windows-amd64 | 68223827 | 21853011 | 67.97% |
 
 GitHub Codex reported no findings on the initial implementation; follow-up local independent reviews found no remaining actionable issues after both native corrections. Inline review threads were empty after updating the PR. The change remains unarchived pending merge.
+
+## Current dev integration
+
+Merged origin/dev at 9acd584 after #72 moved installation details out of README. Kept the new concise README verbatim, moved the compression/cache note into docs/install/README.md and retained both Unreleased changelog entries. Packaging implementation is unchanged by this integration; final merge-head CI is required before handoff.
