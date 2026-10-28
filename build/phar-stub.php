@@ -11,6 +11,17 @@ $physicalExecutable = function_exists('micro_get_self_filename')
 if (!is_string($physicalExecutable) || $physicalExecutable === '') {
     throw new RuntimeException('Cannot determine physical CLI executable location.');
 }
+// The pinned wrappe runner overwrites this value on every cold/cached launch.
+$launcher = getenv('RARUS_ECHO_LAUNCHER');
+if ('__ECHO_LAUNCHER__' === 'wrappe' && is_string($launcher) && $launcher !== '') {
+    $resolved = realpath($launcher);
+    if ($launcher[0] !== '/' || $resolved === false || !is_file($resolved)) {
+        throw new RuntimeException('Cannot determine packed CLI launcher location.');
+    }
+    $physicalExecutable = $resolved;
+}
+putenv('RARUS_ECHO_LAUNCHER');
+unset($launcher, $resolved);
 define('RARUS_ECHO_EXECUTABLE', $physicalExecutable);
 unset($physicalExecutable);
 

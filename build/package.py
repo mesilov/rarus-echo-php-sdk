@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from media.console import configure_build_console
 
@@ -19,6 +20,7 @@ from runtime import ROOT, CONFIG, run, composer, toolchain, build_runtime, exten
 from source import verify_checkout, validate_sha
 from release_assets import TARGETS, pack
 from media import toolkit as media_toolkit
+from compress import provenance, compress_micro, pack_macos, export_notices, write_report, verify_report
 
 
 def identity(source_sha, version, target):
@@ -28,6 +30,7 @@ def identity(source_sha, version, target):
     return {"version": version or "dev-" + sha, "source_sha": sha, "target": target,
             "php_version": CONFIG["php_version"], "static_php_cli_ref": CONFIG["static_php_cli_ref"],
             "micro_ref": CONFIG["micro_ref"], "extensions": extensions_for(target),
+            "executable_compression": provenance(target),
             **({"media": media_toolkit.identity()} if target != "phar" else {}),
             "composer_lock_sha256": hashlib.sha256((ROOT / CONFIG["dependency_lock"]).read_bytes()).hexdigest(),
             "toolchain_patches": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
@@ -77,6 +80,8 @@ def main():
     env["COMPOSER_ROOT_VERSION"] = args.version or "dev-dev"
     env["ECHO_PAYLOAD_STRATEGY"] = "temporary-phar" if os.name == "nt" else "in-place"
     run(["php", "-d", "phar.readonly=0", ROOT / "build/tests/phar-cleanup-check.php"], env=env)
+    env["ECHO_LAUNCHER"] = "wrappe" if args.target == "macos-arm64" else "none"
+    run(["php", ROOT / "build/tests/launcher-path-check.php"], env=env)
     app = stage(work, info, env)
     for name, mode in [("rarus-echo", "application"), ("runtime-probe", "probe")]:
         run(["php", "-d", "phar.readonly=0", ROOT / "build/package-phar.php", app, dist / (name + ".phar"), mode], env=env)
@@ -98,14 +103,30 @@ def main():
     spc = toolchain(work, env)
     build_runtime(spc, env, args.target)
     suffix = ".exe" if os.name == "nt" else ""
+    raw = dist / "uncompressed"
+    raw.mkdir()
+    compressed_runtime = compress_micro(args.target, work, spc / "buildroot/bin/micro.sfx") if args.target != "macos-arm64" else None
     for name in ["rarus-echo", "runtime-probe"]:
-        binary, payload = dist / (name + suffix), dist / (name + ".phar")
-        run(["php", "-d", "memory_limit=1G", "bin/spc", "micro:combine", payload, "-O", binary], spc, env)
-        binary.chmod(0o755)
+        payload = dist / (name + ".phar")
+        original, binary = raw / (name + suffix), dist / (name + suffix)
+        run(["php", "-d", "memory_limit=1G", "bin/spc", "micro:combine", payload, "-O", original], spc, env)
+        original.chmod(0o755)
         if args.target == "macos-arm64":
             from macos import finalize
-            finalize(binary, payload)
-        run([sys.executable, ROOT / "build/tests/linkage-check.py", binary], env=env)
+            finalize(original, payload)
+            shutil.copy2(original, binary)
+            pack_macos(work, binary, env)
+        else:
+            run(["php", "-d", "memory_limit=1G", "bin/spc", "micro:combine", payload,
+                 "--with-micro", compressed_runtime, "-O", binary], spc, env)
+            if not binary.read_bytes().endswith(payload.read_bytes()):
+                raise RuntimeError("Compressed executable changed embedded PHAR bytes")
+        binary.chmod(0o755)
+        for candidate in [original, binary]:
+            run([sys.executable, ROOT / "build/tests/linkage-check.py", candidate], env=env)
+    export_notices(args.target, work, dist / "compression-licenses")
+    write_report(dist, args.target)
+    verify_report(dist)
     licenses = spc / "buildroot/license"
     if not licenses.is_dir():
         licenses = spc / "buildroot/licenses"
@@ -121,6 +142,15 @@ def main():
     for name in ["THIRD-PARTY-NOTICES.md", "BITRIX24-CLI-LICENSE.txt", "YIIPRESS-LICENSE.txt"]:
         shutil.copy2(ROOT / "build" / name, dist / name)
     shutil.copy2(ROOT / "LICENSE", dist / "RARUS-ECHO-LICENSE.txt")
+    # The same full native fixture set accepts original and packed executables.
+    sys.path.insert(0, str(ROOT / "build/tests"))
+    from smoke import smoke
+    with tempfile.TemporaryDirectory(prefix="echo-original-") as temp:
+        original_package = Path(temp)
+        shutil.copytree(dist, original_package, dirs_exist_ok=True, ignore=shutil.ignore_patterns("uncompressed"))
+        for name in ["rarus-echo", "runtime-probe"]:
+            shutil.copy2(raw / (name + suffix), original_package / (name + suffix))
+        smoke(original_package, info["version"], info["source_sha"], original_package / ("runtime-probe" + suffix))
     archive = pack(dist, args.target, ROOT / "dist/assets")
     run([sys.executable, ROOT / "build/tests/smoke.py", archive,
          "--probe", dist / ("runtime-probe" + suffix),

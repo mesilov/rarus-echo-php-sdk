@@ -21,3 +21,9 @@ Independent local review found staging creation just outside its cleanup scope a
 PR native packaging smoke exercises advertised local extraction with AAC and FLAC, a missing config, no-overwrite publication and cleanup. The harness remains compatible with older published binaries without this command. Current native CI and hosted agent review results are tracked on PR #81; local acceptance alone is not native acceptance for the other platforms.
 
 OpenSpec remains unarchived until the PR merges.
+
+## Updated dev integration
+
+The initial PR head `6f658c9` passed all 15 non-publication checks, including four native packages and archive validation. During that run dev advanced to `405a7c8` with #77 (standalone compression and the broader gh-only maintenance rule), causing documentation conflicts.
+
+Merged that dev into the PR branch without rewriting published history. Preserved both Unreleased entries and the general gh-only policy together with the explicit non-interactive issue creation example. Extraction PHP code is unchanged. Independent integration review found no actionable issues with compressed-launcher media discovery or canonical native-smoke paths. Full local lint and all 405 unit tests pass again; updated packaging contracts also pass. The merged head requires fresh CI on PR #81 before delivery.
