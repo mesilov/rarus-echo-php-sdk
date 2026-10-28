@@ -231,6 +231,46 @@ public static class RarusEchoInstallerTestEnvironment {
 }
 
 try {
+    Test-Case 'executable activation retries temporary sharing and lock violations' {
+        foreach ($code in @(32, 33)) {
+            $script:sharingAttempts = 0
+            $script:sharingCode = $code
+            Invoke-RarusEchoSharingRetry {
+                $script:sharingAttempts++
+                if ($script:sharingAttempts -lt 3) {
+                    throw (New-Object IO.IOException -ArgumentList 'fixture sharing violation', ([int](-2147024896 + $script:sharingCode)))
+                }
+            }
+            Assert-True ($script:sharingAttempts -eq 3) 'Temporary executable sharing lock was not retried.'
+        }
+    }
+    Test-Case 'executable activation sharing retries are bounded' {
+        $script:sharingAttempts = 0
+        Assert-Fails {
+            Invoke-RarusEchoSharingRetry {
+                $script:sharingAttempts++
+                throw (New-Object IO.IOException -ArgumentList 'fixture persistent sharing lock', ([int](-2147024864)))
+            }
+        } 'fixture persistent sharing lock'
+        Assert-True ($script:sharingAttempts -eq 20) 'Persistent executable lock was not bounded to twenty attempts.'
+    }
+    Test-Case 'executable activation does not retry permissions or unrelated errors' {
+        foreach ($failure in @(
+            (New-Object IO.IOException -ArgumentList 'fixture access denied', ([int](-2147024891))),
+            (New-Object UnauthorizedAccessException -ArgumentList 'fixture permission denied'),
+            (New-Object InvalidOperationException -ArgumentList 'fixture unrelated failure')
+        )) {
+            $script:sharingAttempts = 0
+            $script:activationFailure = $failure
+            Assert-Fails {
+                Invoke-RarusEchoSharingRetry {
+                    $script:sharingAttempts++
+                    throw $script:activationFailure
+                }
+            } 'fixture'
+            Assert-True ($script:sharingAttempts -eq 1) 'A non-sharing error was retried.'
+        }
+    }
     Test-Case 'native interop definitions are available without compiler output' {
         Initialize-RarusEchoNativeMethods
         $native = 'RarusEchoInstallerNativeMethods' -as [type]

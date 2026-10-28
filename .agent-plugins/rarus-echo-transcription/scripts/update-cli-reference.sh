@@ -68,7 +68,7 @@ if ! command -v node >/dev/null 2>&1; then
   exit 69
 fi
 
-PROJECT_COMMANDS=(install doctor queue submit status transcript)
+PROJECT_COMMANDS=(install doctor extract-audio queue submit status transcript)
 TMP_DIR="$(mktemp -d)"
 TMP_OUTPUT="$(mktemp)"
 
@@ -95,6 +95,7 @@ if (projectCommands.length === 0) {
   process.exit(1);
 }
 const optionAllowlist = {
+  'extract-audio': ["json", "audio-stream", "media-timeout"],
   doctor: ["json", "config"],
   install: ["config"],
   queue: ["config", "json"],

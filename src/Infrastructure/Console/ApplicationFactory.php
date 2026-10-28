@@ -6,6 +6,7 @@ namespace Rarus\Echo\Infrastructure\Console;
 
 use Rarus\Echo\Contracts\EchoClientFactoryInterface;
 use Rarus\Echo\Infrastructure\Console\Command\DoctorCommand;
+use Rarus\Echo\Infrastructure\Console\Command\ExtractAudioCommand;
 use Rarus\Echo\Infrastructure\Console\Command\InstallCommand;
 use Rarus\Echo\Infrastructure\Console\Command\QueueCommand;
 use Rarus\Echo\Infrastructure\Console\Command\StatusCommand;
@@ -27,6 +28,7 @@ final class ApplicationFactory
         $application = new Application('RARUS Echo CLI', BuildVersion::get());
         $application->getDefinition()->addOption(new InputOption('config', null, InputOption::VALUE_REQUIRED, 'Read connection settings from this file.'));
         self::addCommand($application, new InstallCommand());
+        self::addCommand($application, new ExtractAudioCommand());
         $workingDirectory = (string) getcwd();
         self::addCommand($application, new DoctorCommand(new ConfigurationCheck(
             new ConnectionConfigResolver($workingDirectory),
