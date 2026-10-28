@@ -51,7 +51,7 @@ codex plugin add rarus-echo-transcription@rarus-echo-plugins
 $transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
 ```
 
-Карта вызовов для целевого релиза 0.5.0 (проверенная основа — 0.5.0-rc-2) находится в `.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`; установка CLI и настройка подключения описаны рядом в `installation.md`. CLI reference генерируется из structured metadata текущего CLI и проверяется на drift, включая новые команды и опции вне разрешённых списков. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
+Карта вызовов для целевого релиза 0.5.0 (проверенная основа — 0.5.0-rc-3) находится в `.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`; установка CLI и настройка подключения описаны рядом в `installation.md`. CLI reference генерируется из structured metadata текущего CLI и проверяется на drift, включая новые команды и опции вне разрешённых списков. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
 
 ```bash
 .agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
