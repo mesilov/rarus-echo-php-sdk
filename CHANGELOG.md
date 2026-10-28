@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shortened README around Latest binary downloads, curl-only installation and first use, with a tagged RARUS Echo registration link; moved detailed installation, connection, CLI, SDK, agent plugin and development instructions into linked `docs/` guides (#72).
 - Maintainer and contributor workflows now synchronize the hand-written `docs/cli.md` with the generated transcription-skill reference and keep pinned Composer examples in `docs/install/php.md`; Latest binary availability remains gated by the separate stable release (#68).
 - Standalone archives omit build-helper licenses for b24cli and YiiPress; applicable upstream terms are consolidated in THIRD-PARTY-NOTICES.md, runtime/media licenses remain bundled, and installers retain compatibility with published archives (#73).
+- Transcription skill now requires the installed CLI, offers standalone installation when unavailable, and includes a release-aware 0.5.0 command map with connection setup and media guidance.
 
 ## [0.5.0-rc-2] - 2026-10-28
 
