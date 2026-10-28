@@ -22,6 +22,8 @@ None.
 
 `published-release-acceptance`: stable releases consolidate candidate history, publish verified native assets as Latest and update installation availability after public verification; prerelease history remains unchanged.
 
+`installed-cli-transcription-skill`: advance the verified command-map baseline to publicly accepted stable 0.5.0 without changing execution or authorization policy.
+
 ## Impact
 
 Changelog, release/installation documentation, verified skill metadata and OpenSpec lifecycle. PHP runtime, installer implementation and CI behavior remain unchanged.

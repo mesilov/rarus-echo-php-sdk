@@ -23,7 +23,7 @@ Before the first Echo operation in a session:
    Do not install automatically; continue with installation if already authorized.
    Otherwise wait for the user's choice before dependent work.
 3. Read [cli.md](references/cli.md), the generated **0.5.0 call map**, before choosing
-   commands/options. Its verified baseline is **0.5.0-rc-3**, a prerelease.
+   commands/options. Its verified baseline is stable **0.5.0**.
    Check installed `help <command> --format=json` for the requested workflow;
    installed help takes precedence over this map. If a required command/option is
    absent, offer an upgrade. Do not invent flags or implement a workaround.
