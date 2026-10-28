@@ -9,7 +9,7 @@ New standalone archives SHALL omit BITRIX24-CLI-LICENSE.txt and YIIPRESS-LICENSE
 
 #### Scenario: Published historical archive
 - **WHEN** an archive has the exact published RC-1 or RC-2 identity and original composition
-- **THEN** acceptance validates that historical composition without changing published assets
+- **THEN** acceptance validates that historical composition without changing published assets or accepting newly introduced compression in frozen RC-2
 
 #### Scenario: Unexpected build-helper license
 - **WHEN** an archive from any other source contains either historical build-helper license file

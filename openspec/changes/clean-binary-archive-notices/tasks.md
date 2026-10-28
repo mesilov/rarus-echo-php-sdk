@@ -11,6 +11,8 @@
 - [x] 2.1 Update shell fixtures and test old-to-new notices replacement; confirm failure before the fix and pass afterward with `python3 build/tests/shell-installer-check.py`.
 - [x] 2.2 Accept optional historical licenses in both installers while preserving frozen RC-1 requirements; add native Windows archive/upgrade regression assertions for CI.
 
+- [x] 2.3 Integrate dev compression (#77) without restoring removed licenses; verify four compressed archive targets, rejection of compression in frozen RC-2, and old-to-compressed upgrade assertions in packaging and shell tests.
+
 ## 3. Integration verification
 
 - [x] 3.1 Run `make lint-openspec`, `git diff --check`, all Python build tests, shell installer tests, `make test-unit` and `make lint-all`; record any external blockers.

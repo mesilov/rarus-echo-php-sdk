@@ -11,7 +11,7 @@ releases/gcc-13.2.0). GCC Runtime Library Exception applies to the compiler runt
 Toolchain: https://github.com/crazywhalecc/static-php-cli (MIT).
 PHP micro: https://github.com/static-php/phpmicro (Apache-2.0).
 Pins and patch SHA256 values are in build-info.json; exact downloaded runtime
-sources are recorded in runtime-sources.json. No executable compressor is used.
+sources are recorded in runtime-sources.json.
 
 ## PHAR bootstrap and PHP micro patches
 
@@ -97,3 +97,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+## Executable compression
+
+Executable compression is also adapted from the b24cli reference above:
+- UPX 5.2.1: https://github.com/upx/upx/releases/tag/v5.2.1
+- wrappe 1.0.4 (BSD-2-Clause): https://github.com/Systemcluster/wrappe
+
+Pinned download/source hashes and patches are recorded in compression-info.json.
+Applicable UPX notices or wrappe and Rust dependency notices accompany compressed
+archives in compression-licenses/. FFmpeg/ffprobe are not packed.

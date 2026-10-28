@@ -177,7 +177,7 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
             if ($isDirectory) {
                 if ($normalized -cne 'runtime-licenses' -and -not $isRuntime) { throw 'Unexpected ZIP archive directory.' }
             } else {
-                if ($required -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
+                if ($required -cnotcontains $name -and $historicalLicenses -cnotcontains $name -and $name -cne 'compression-info.json' -and -not $name.StartsWith('compression-licenses/', [StringComparison]::Ordinal) -and -not $isRuntime -and -not $isMediaLicense) { throw 'Unexpected ZIP archive payload.' }
                 if ($entry.Length -le 0) { throw 'Required archive files and licenses must not be empty.' }
                 if ($isRuntime) { $runtimeFiles++ }
                 if ($isMediaLicense) { $mediaLicenseFiles++ }
@@ -236,6 +236,44 @@ function Expand-RarusEchoArchive([string]$Archive, [string]$Destination, [string
             if ($mediaLicenseFiles -eq 0) { throw 'Missing required archive media licenses.' }
         }
     }
+}
+
+function Assert-RarusEchoCompression([string]$Directory) {
+    $build = Read-RarusEchoJson (Join-Path $Directory 'build-info.json')
+    $reportPath = Join-Path $Directory 'compression-info.json'
+    $licensesPath = Join-Path $Directory 'compression-licenses'
+    if (@($build.PSObject.Properties | Where-Object { $_.Name -ceq 'executable_compression' }).Count -eq 0) {
+        if ((Test-Path -LiteralPath $reportPath) -or (Test-Path -LiteralPath $licensesPath)) { throw 'Undeclared compression artifacts.' }
+        return
+    }
+    if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf) -or -not (Test-Path -LiteralPath $licensesPath -PathType Container)) { throw 'Incomplete compression provenance/notices.' }
+    $report = Read-RarusEchoJson $reportPath
+    $compressor = $build.executable_compression
+    if ($compressor.tool -cne 'upx' -or $report.target -cne 'windows-amd64') { throw 'Unexpected compression tool/target.' }
+    $expected = @($compressor.PSObject.Properties | Sort-Object Name | ForEach-Object { $_.Name + ':' + $_.Value }) -join "`n"
+    $actual = @($report.compressor.PSObject.Properties | Sort-Object Name | ForEach-Object { $_.Name + ':' + $_.Value }) -join "`n"
+    if ($actual -cne $expected) { throw 'Compression provenance mismatch.' }
+    if ($compressor.version -cnotmatch '^[0-9]+(\.[0-9]+)+$' -or
+        $compressor.strategy -cne 'micro-before-phar' -or $compressor.level -cne '--best' -or
+        $compressor.archive_sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'Incomplete compression provenance.' }
+    $names = @($report.executables.PSObject.Properties.Name | Sort-Object)
+    if (($names -join ',') -cne 'rarus-echo.exe,runtime-probe.exe') { throw 'Compression executable set differs.' }
+    foreach ($record in $report.executables.PSObject.Properties.Value) {
+        if ($record.original_sha256 -cnotmatch '^[0-9a-f]{64}$' -or $record.compressed_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            ($record.original_bytes -isnot [long] -and $record.original_bytes -isnot [int]) -or
+            ($record.compressed_bytes -isnot [long] -and $record.compressed_bytes -isnot [int]) -or
+            $record.compressed_bytes -le 0 -or $record.original_bytes -le $record.compressed_bytes) { throw 'Invalid executable compression record.' }
+    }
+    $entry = $report.executables.'rarus-echo.exe'
+    $binary = Join-Path $Directory 'rarus-echo.exe'
+    if ($entry.compressed_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+        $entry.compressed_sha256 -ine (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -or
+        ($entry.compressed_bytes -isnot [long] -and $entry.compressed_bytes -isnot [int])) { throw 'Invalid compression hash/size.' }
+    if ($entry.original_bytes -isnot [long] -and $entry.original_bytes -isnot [int]) { throw 'Invalid original size.' }
+    if ($entry.compressed_bytes -le 0 -or $entry.original_bytes -le $entry.compressed_bytes -or
+        $entry.compressed_bytes -ne (Get-Item -LiteralPath $binary).Length) { throw 'Invalid compression reduction/size.' }
+    $licenses = @(Get-ChildItem -LiteralPath $licensesPath -Recurse -File)
+    if ($licenses.Count -eq 0 -or @($licenses | Where-Object { $_.Length -eq 0 }).Count -ne 0) { throw 'Missing or empty compression licenses.' }
 }
 
 function Test-RarusEchoLegacyRelease([object]$Build, [string]$Tag) {
@@ -503,6 +541,7 @@ function Install-RarusEcho([string]$Version, [string]$InstallDir, [switch]$NoMod
         $candidate = Join-Path $temporary 'candidate'
         Expand-RarusEchoArchive $archive $candidate $tag
         $build = Read-RarusEchoJson (Join-Path $candidate 'build-info.json')
+        Assert-RarusEchoCompression $candidate
         $legacyPackage = Test-RarusEchoLegacyRelease $build $tag
         if (-not $legacyPackage) { $build = Assert-RarusEchoMedia $candidate $temporary }
         $identity = Get-RarusEchoIdentity (Join-Path $candidate 'rarus-echo.exe') $tag
