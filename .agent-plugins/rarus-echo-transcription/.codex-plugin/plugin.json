@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "RARUS Echo Transcription",
     "shortDescription": "Use the RARUS Echo CLI for queue, submit, status, and transcript workflows.",
-    "longDescription": "A skills-only plugin that teaches agents to operate the existing RARUS Echo CLI safely through Docker or an installed local Composer binary.",
+    "longDescription": "A skills-only plugin that operates the installed rarus-echo CLI, offers installation when missing, and includes a 0.5.0 command reference.",
     "developerName": "RARUS Echo PHP SDK maintainers",
     "category": "Productivity",
     "capabilities": [

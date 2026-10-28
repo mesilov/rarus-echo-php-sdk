@@ -1,13 +1,22 @@
 # RARUS Echo CLI Reference
 
+Target release: **0.5.0**. Verified contract baseline: **0.5.0-rc-2** (prerelease).
 This file is generated from current checkout structured CLI metadata.
 It intentionally records only RARUS Echo command contracts and excludes framework-provided Symfony options.
+This target is not a claim that stable 0.5.0 is published. Check installed `rarus-echo --version` and command help before execution.
 
 Refresh it after CLI command or option changes:
 
 ```bash
 .agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh
 ```
+
+To compare a published executable, use `--cli /absolute/path/rarus-echo --output /tmp/echo-release-cli.md` and diff the result against this file.
+
+## Global connection option
+
+`rarus-echo --config PATH <command> [args]` selects an existing connection file; `install --config PATH` writes that file interactively.
+`--version` and `help <command> --format=json` work without credentials. See [installation.md](installation.md) for setup and release selection.
 
 ## Commands
 

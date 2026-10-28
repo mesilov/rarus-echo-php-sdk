@@ -507,7 +507,7 @@ vendor/bin/rarus-echo transcript [--json] [--] <file-id>
 
 ## Agent skill для транскрибации
 
-В репозитории есть skills-only plugin `rarus-echo-transcription` для Claude Code и Codex-compatible hosts. Он описывает безопасный workflow поверх существующего CLI: проверить очередь, отправить один или несколько локальных аудиофайлов, получить `file_id`, проверить статус, дождаться результата через `submit --wait` и забрать transcript без вывода credentials.
+В репозитории есть skills-only plugin `rarus-echo-transcription` для Claude Code и Codex-compatible hosts. Он работает только через установленный `rarus-echo`, предлагает установку при его отсутствии и описывает безопасный workflow: проверить очередь, отправить один или несколько локальных аудиофайлов, получить `file_id`, проверить статус, дождаться результата через `submit --wait` и забрать transcript без вывода credentials.
 
 Исходники plugin:
 
@@ -552,7 +552,7 @@ codex plugin add rarus-echo-transcription@rarus-echo-plugins
 $transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
 ```
 
-CLI reference для skill генерируется из structured metadata текущего CLI и проверяется на drift. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
+Карта вызовов для целевого релиза 0.5.0 (проверенная основа — 0.5.0-rc-2) находится в `.agent-plugins/rarus-echo-transcription/skills/transcribe/references/cli.md`; установка CLI и настройка подключения описаны рядом в `installation.md`. CLI reference генерируется из structured metadata текущего CLI и проверяется на drift, включая новые команды и опции вне разрешённых списков. Проверка фиксирует только project-owned команды и опции, без framework-provided Symfony options:
 
 ```bash
 .agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh

@@ -10,6 +10,12 @@ The maintained plugin source lives at:
 
 The plugin is skills-only. It does not bundle an MCP server, app connector, hooks, or persistent credential storage.
 
+The skill requires an installed `rarus-echo` executable. Installing the plugin
+does not install the CLI or configure its connection. See
+[installation.md](installation.md) for the missing-CLI installation offer and
+release selection; [cli.md](cli.md) contains the generated 0.5.0 call map.
+There is no automatic Docker, PHP, SDK or HTTP fallback.
+
 ## Claude Code
 
 Claude Code supports standalone skills and plugin-packaged skills.

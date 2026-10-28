@@ -6,17 +6,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${PLUGIN_DIR}/../.." && pwd)"
 OUTPUT="${PLUGIN_DIR}/skills/transcribe/references/cli.md"
+CLI_EXECUTABLE=""
 
-if [[ "${1:-}" == "--output" ]]; then
-  if [[ $# -ne 2 ]]; then
-    echo "usage: $0 [--output <path>]" >&2
-    exit 64
-  fi
-  OUTPUT="$2"
-elif [[ $# -ne 0 ]]; then
-  echo "usage: $0 [--output <path>]" >&2
-  exit 64
-fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output|--cli)
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        echo "usage: $0 [--output <path>] [--cli <executable>]" >&2
+        exit 64
+      fi
+      if [[ "$1" == "--output" ]]; then OUTPUT="$2"; else CLI_EXECUTABLE="$2"; fi
+      shift 2
+      ;;
+    *)
+      echo "usage: $0 [--output <path>] [--cli <executable>]" >&2
+      exit 64
+      ;;
+  esac
+done
 
 host_php_is_compatible() {
   if ! command -v php >/dev/null 2>&1; then
@@ -30,6 +37,13 @@ host_php_is_compatible() {
 }
 
 run_cli() {
+  # Maintainer-only override for comparing a published executable with source help.
+  # Default validation must keep using this checkout, never a stale PATH binary.
+  if [[ -n "${CLI_EXECUTABLE}" ]]; then
+    "${CLI_EXECUTABLE}" "$@"
+    return
+  fi
+
   if host_php_is_compatible && [[ -x "${REPO_ROOT}/vendor/bin/rarus-echo" ]]; then
     (cd "${REPO_ROOT}" && "${REPO_ROOT}/vendor/bin/rarus-echo" "$@")
     return
@@ -165,6 +179,16 @@ const list = readJson("list.json");
 const listCommands = values(list.commands);
 const listedByName = new Map(listCommands.map((command) => [command.name, command]));
 const helpByName = new Map();
+const frameworkCommands = new Set(["help", "list", "completion", "_complete"]);
+const undocumentedCommands = listCommands
+  .filter((command) => !frameworkCommands.has(command.name) && !projectCommands.includes(command.name))
+  .map((command) => command.name);
+if (undocumentedCommands.length) {
+  fail(`Undocumented CLI commands: ${undocumentedCommands.join(", ")}; update PROJECT_COMMANDS and optionAllowlist`);
+}
+const frameworkOptions = new Set([
+  "help", "silent", "quiet", "verbose", "version", "ansi", "no-ansi", "no-interaction",
+]);
 
 for (const name of projectCommands) {
   if (!listedByName.has(name)) {
@@ -180,14 +204,23 @@ for (const name of projectCommands) {
 const lines = [];
 lines.push("# RARUS Echo CLI Reference");
 lines.push("");
+lines.push("Target release: **0.5.0**. Verified contract baseline: **0.5.0-rc-2** (prerelease).");
 lines.push("This file is generated from current checkout structured CLI metadata.");
 lines.push("It intentionally records only RARUS Echo command contracts and excludes framework-provided Symfony options.");
+lines.push("This target is not a claim that stable 0.5.0 is published. Check installed `rarus-echo --version` and command help before execution.");
 lines.push("");
 lines.push("Refresh it after CLI command or option changes:");
 lines.push("");
 lines.push("```bash");
 lines.push(".agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh");
 lines.push("```");
+lines.push("");
+lines.push("To compare a published executable, use `--cli /absolute/path/rarus-echo --output /tmp/echo-release-cli.md` and diff the result against this file.");
+lines.push("");
+lines.push("## Global connection option");
+lines.push("");
+lines.push("`rarus-echo --config PATH <command> [args]` selects an existing connection file; `install --config PATH` writes that file interactively.");
+lines.push("`--version` and `help <command> --format=json` work without credentials. See [installation.md](installation.md) for setup and release selection.");
 lines.push("");
 lines.push("## Commands");
 lines.push("");
@@ -241,6 +274,12 @@ for (const name of projectCommands) {
   const allowedOptions = optionAllowlist[name];
   if (!allowedOptions) {
     fail(`Command ${name} has no optionAllowlist entry in update-cli-reference.sh; add its project-owned options`);
+  }
+  const undocumentedOptions = Object.keys(options).filter(
+    (optionName) => !frameworkOptions.has(optionName) && !allowedOptions.includes(optionName),
+  );
+  if (undocumentedOptions.length) {
+    fail(`Command ${name} has undocumented options: ${undocumentedOptions.join(", ")}; update optionAllowlist`);
   }
   for (const optionName of allowedOptions) {
     const option = options[optionName];

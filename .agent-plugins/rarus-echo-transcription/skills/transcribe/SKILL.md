@@ -1,153 +1,91 @@
 ---
 name: transcribe
-description: Submit audio or video files to RARUS Echo, inspect queue state, check transcription status, and fetch transcripts through the existing rarus-echo CLI while avoiding credential leaks.
+description: Use when submitting audio or video to RARUS Echo, inspecting its queue, checking transcription status, or fetching transcripts through the installed rarus-echo CLI.
 ---
 
 # RARUS Echo Transcription
 
-Use this skill when the user asks to run a RARUS Echo transcription workflow from an agent session.
+Perform every Echo operation through the installed `rarus-echo` CLI. Never call
+Echo HTTP endpoints directly, invoke PHP SDK code, or write a replacement client
+in Python, PHP, shell, or another language. Do not fall back to Docker, Composer,
+`php bin/rarus-echo`, or external transcription services when the executable is
+missing, outdated, or fails. File handling and parsing CLI output are allowed.
 
-## Inputs
+## CLI prerequisite
 
-Accept free-form invocation text such as:
+Before the first Echo operation in a session:
 
-```text
-transcribe downloads/audio.ogg --language=ru --task-type=diarization --speakers-correction
-queue
-status 11111111-1111-1111-1111-111111111111
-transcript 11111111-1111-1111-1111-111111111111
-```
+1. Locate `rarus-echo` with `command -v rarus-echo` (POSIX) or
+   `Get-Command rarus-echo -CommandType Application` (PowerShell). Honor an explicit
+   executable path supplied by the user. Windows uses `rarus-echo.exe`.
+2. Run that executable with `--version`. If absent or unable to start, explain the
+   problem, **offer installation**, and read [installation.md](references/installation.md).
+   Do not install automatically; continue with installation if already authorized.
+   Otherwise wait for the user's choice before dependent work.
+3. Read [cli.md](references/cli.md), the generated **0.5.0 call map**, before choosing
+   commands/options. Its verified baseline is **0.5.0-rc-2**, a prerelease.
+   Check installed `help <command> --format=json` for the requested workflow;
+   installed help takes precedence over this map. If a required command/option is
+   absent, offer an upgrade. Do not invent flags or implement a workaround.
 
-If the requested workflow lacks the required audio path or file id, ask one concise question before running commands.
+Installing the program and `rarus-echo install` are different operations: `install`
+configures a connection interactively. If connection settings are missing, direct
+user entry to that command in a terminal; never ask for API keys in chat.
+`doctor --json` checks configuration, authenticated access and media tools; it
+contacts Echo, so use it for requested diagnostics or connection setup, not as a
+mandatory preflight for every transcription.
 
-## References
+## Inputs and command map
 
-- Read `references/cli.md` when exact command names, options, defaults, or output modes matter.
-- Read `references/distribution.md` for installation, packaging, marketplace, or publication questions.
-- Run `scripts/update-cli-reference.sh` from the plugin root repository when CLI help changes.
+Accept requests such as `transcribe recording.mp4 --language=ru`, `queue`,
+`status <file-id>` or `transcript <file-id>`. Ask one concise question if the
+required local file path or file UUID is missing. Quote paths and use `--` before
+file arguments. Use the same selected executable throughout the workflow.
 
-## Safety Rules
+| Intent | CLI call |
+| --- | --- |
+| Identify version | `rarus-echo --version` |
+| Inspect command contract | `rarus-echo help submit --format=json` |
+| Configure connection (interactive) | `rarus-echo install` |
+| Diagnose connection/media | `rarus-echo doctor --json` |
+| Inspect queue | `rarus-echo queue --json` |
+| Submit files | `rarus-echo submit --language=ru --json -- "/absolute/path/audio.ogg"` |
+| Submit and wait | `rarus-echo submit --language=ru --wait --json -- "/absolute/path/video.mp4"` |
+| Check status | `rarus-echo status <file-id> --json` |
+| Fetch transcript | `rarus-echo transcript <file-id> --json` |
 
-- Never print API keys, user ids, env-file contents, or command lines containing literal credential values.
-- Prefer passing existing environment variables by name, for example `-e RARUS_ECHO_API_KEY`, instead of embedding values.
-- Use `--env-file` only with an existing file path; do not display file contents.
-- Mount local input files read-only when using Docker.
-- Report non-terminal `waiting` or `processing` states as still in progress.
-- Do not submit live audio unless the user asked for submission and credentials are available.
+Use `--config "/path/connection.json"` to select an existing private connection
+file. Existing environment/dotenv credentials are also supported; see
+[installation.md](references/installation.md) for precedence. Never print API keys,
+user IDs, config/env-file contents, or commands containing literal credentials.
+Do not submit files unless the user requested submission and credentials exist.
 
-## Command Selection
+## Results and media
 
-Default to the published Docker CLI. Run it directly — do NOT probe for host PHP, an installed `vendor/`, or a local binary first:
+- Prefer `--json`; parse stdout separately from stderr progress. Queue fields are
+  `files_count`, `files_size`, `files_duration`. Non-wait submission returns
+  JSON `file_ids`. With `--wait`, retain `submitted: <UUID>` lines from stderr
+  before polling: a timeout may produce no JSON result. Preserve input order.
+  After partial failure or a wait timeout,
+  keep reported IDs and resume status/transcript lookup; do not blindly resubmit.
+- Prefer CLI `submit --wait` when the user requests the finished transcript.
+  `--poll-interval` defaults to 30 seconds and `--timeout` to 7200 seconds.
+  `--raw-result` and `--output` require `--wait` and exactly one input file.
+  Use them for a requested text artifact; do not mix raw stdout with JSON parsing.
+  Successful `--output` writes the file and returns without JSON stdout, even
+  with `--json`; verify the requested artifact after a successful exit.
+- Report `waiting` and `processing` as in progress; `success` is success and `failure`
+  is terminal failure. Preserve the CLI status and error details without secrets.
+- Pass local video directly to `submit`. The complete standalone package includes
+  FFmpeg/ffprobe: keep `libexec` and media metadata. Do not run a separate converter
+  or install host FFmpeg as a workaround. `--audio-stream` selects an absolute
+  audio stream index for one video; `--media-timeout` defaults to 600 seconds per
+  input and is independent of polling. `--no-extract-audio` conflicts with
+  `--audio-stream`; use it only when original-file upload was explicitly requested.
 
-```bash
-docker run --rm ghcr.io/mesilov/rarus-echo-php-sdk:cli <command> [args]
-```
+## Maintenance
 
-Use `--pull=always` only when the user asks to refresh the image, when validating against the latest published image, or when diagnosing a suspected stale local tag.
-
-Use a local binary only as an explicit opt-in — when the user asks for local execution, or when Docker is unavailable. It requires installed dependencies and a host PHP that satisfies the SDK requirement:
-
-```bash
-vendor/bin/rarus-echo <command> [args]
-```
-
-If the repository checkout has dependencies and compatible host PHP but no Composer bin proxy, `php bin/rarus-echo <command> [args]` is an acceptable local fallback.
-
-## Docker Planning
-
-For Docker submissions:
-
-1. Resolve every input audio path to a host path.
-2. Mount each input file read-only into the container, for example:
-
-   ```bash
-   -v "$PWD/downloads/audio.ogg:/input/audio.ogg:ro"
-   ```
-
-3. Pass credentials safely:
-
-   ```bash
-   -e RARUS_ECHO_API_KEY -e RARUS_ECHO_USER_ID -e RARUS_ECHO_BASE_URL
-   ```
-
-   or:
-
-   ```bash
-   --env-file .env --env-file .env.local
-   ```
-
-4. Use the mounted container paths in `submit`.
-5. Include `--json` for machine-readable output unless the user requested raw transcript text.
-
-The media-capable CLI includes its compact FFmpeg and ffprobe toolkit. Pass a local
-video directly to `submit`; the CLI chooses an audio stream, prepares audio and
-uploads it automatically. Do not ask the user to extract audio or install a host
-FFmpeg when using the complete Docker or standalone distribution. Existing audio
-files keep their original upload path.
-
-For a single video, `--audio-stream=<index>` selects an absolute probe stream index;
-otherwise the only default audio stream is chosen, or the first by index.
-`--no-extract-audio` explicitly requests original-file upload and conflicts with
-`--audio-stream`; never add it silently to work around preparation failures.
-`--media-timeout=<seconds>` limits probe/preparation per input (default 600),
-independently of `--timeout` for polling. Temporary prepared audio is limited to
-500 MiB per file and 1 GiB per invocation. Keep preparation progress on stderr.
-
-Standalone users must keep the complete extracted/installed package, including
-`libexec` and media metadata. Composer-only video usage requires a compatible
-explicit pair `RARUS_ECHO_FFMPEG_PATH` and `RARUS_ECHO_FFPROBE_PATH`; do not infer
-tool locations from the current directory or install dependencies automatically.
-
-When showing a command to the user, redact secret-bearing parts or describe them structurally, for example `-e RARUS_ECHO_API_KEY` rather than `-e RARUS_ECHO_API_KEY=<value>`.
-
-## Workflows
-
-Queue inspection:
-
-```bash
-rarus-echo queue --json
-```
-
-Report `files_count`, `files_size`, and `files_duration`.
-
-Submit one or more local files:
-
-```bash
-rarus-echo submit /input/audio.ogg --language=ru --task-type=diarization --speakers-correction --json
-```
-
-Parse and return every `file_id`. If multiple files were submitted, preserve input order when explaining which id belongs to which file.
-
-Submit and wait for final output:
-
-```bash
-rarus-echo submit /input/audio.ogg --language=ru --wait --json
-```
-
-Progress is written to stderr by the CLI. Treat stdout as the parseable result. For raw transcript output, use `--raw-result` or redirect stdout only after confirming the user wants a text artifact.
-
-Status lookup:
-
-```bash
-rarus-echo status <file-id> --json
-```
-
-Report the status exactly. Do not claim completion unless the status is terminal.
-
-Transcript retrieval:
-
-```bash
-rarus-echo transcript <file-id> --json
-```
-
-If the response indicates the transcript is not ready, report that state and offer the next polling command. If it is ready, summarize metadata and provide the transcript or the requested output file.
-
-## Verification
-
-For repository maintenance work on this skill, run:
-
-```bash
-make lint-agent-plugins
-```
-
-This validates plugin manifests, marketplace JSON, skill frontmatter, required references, and drift between `references/cli.md` and current CLI help.
+Plugin packaging: [distribution.md](references/distribution.md). From the repository
+root, regenerate the map after CLI changes with
+`.agent-plugins/rarus-echo-transcription/scripts/update-cli-reference.sh`, then run
+`make lint-agent-plugins`. Update the target/baseline when preparing a new release.
