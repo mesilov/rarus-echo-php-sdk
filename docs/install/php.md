@@ -11,10 +11,10 @@
 ## Установка
 
 ```bash
-composer require mesilov/rarus-echo-php-sdk:0.5.0-rc-3
+composer require mesilov/rarus-echo-php-sdk:^0.5
 ```
 
-Этот пример устанавливает проверяемый RC; stable пока `0.4.0`. При выпуске stable обновляйте constraint здесь.
+Этот constraint выбирает стабильную линию `0.5.x` после публикации `0.5.0` на Packagist. Для воспроизведения прежнего кандидата можно явно выбрать tag `0.5.0-rc-3`.
 
 После установки доступен CLI:
 
